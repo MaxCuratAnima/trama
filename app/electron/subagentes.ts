@@ -200,19 +200,27 @@ export async function leerCarpeta(dir: string, sid: string, cache?: Map<string, 
     const firma = `${s.size}:${s.mtimeMs}:${sm?.mtimeMs ?? 0}`;
     const previo = cache?.get(archivo);
     if (previo && previo.firma === firma) {
-      r.push(previo.sub);
+      r.push(cortado(previo.sub, s.mtimeMs));
       continue;
     }
     try {
       const meta = sm ? JSON.parse(await readFile(metaArchivo, "utf8")) : null;
       const sub = leerSubagente(sid, m[1], meta, await cabezaDe(archivo), await colaDe(archivo, s.size), Math.floor(s.birthtimeMs / 1000));
       cache?.set(archivo, { firma, sub });
-      r.push(sub);
+      r.push(cortado(sub, s.mtimeMs));
     } catch (e) {
       silencio("subagentes")(e);
     }
   }
   return r.sort((a, b) => b.inicio - a.inicio || (a.id < b.id ? -1 : 1));
+}
+
+/** Sin escribir hace esto, uno "corriendo" murió (su sesión se reinició o lo mataron sin aviso). */
+const MUDO_MS = 20 * 60 * 1000;
+
+/** Un "corriendo" cuyo transcript no se toca hace más de MUDO_MS pasa a error: si no, queda fantasma en la barra. */
+export function cortado(sub: Subagente, mtimeMs: number, ahora = Date.now()): Subagente {
+  return sub.estado === "corriendo" && ahora - mtimeMs > MUDO_MS ? { ...sub, estado: "error" } : sub;
 }
 
 /** El informe entero de un subagente (el texto con el que cerró), con tope. `null` si no terminó o no se encuentra. */

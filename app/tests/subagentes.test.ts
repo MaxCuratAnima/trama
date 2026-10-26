@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { avisosDe, crearSubagentes, informeDe, leerCarpeta, leerSubagente, modeloCorto, resumir, type Subagentes } from "../electron/subagentes.ts";
+import { avisosDe, crearSubagentes, informeDe, leerCarpeta, leerSubagente, modeloCorto, resumir, type Subagentes, cortado } from "../electron/subagentes.ts";
 
 const temporal = () => mkdtempSync(path.join(tmpdir(), "trama-subagentes-"));
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -158,4 +158,11 @@ test("la sesión recibió que lo cortaron: un subagente que parecía correr qued
   assert.equal((await s.leer())[sid]?.[0]?.estado, "error");
   s.cerrar();
   rmSync(base, { recursive: true });
+});
+
+test("cortado: un corriendo sin escribir hace más de 20 min pasa a error; uno reciente o terminado no cambia", () => {
+  const base = leerSubagente("s", "a", null, "", "", 5);
+  assert.equal(cortado(base, 0, 21 * 60 * 1000).estado, "error");
+  assert.equal(cortado(base, 0, 19 * 60 * 1000).estado, "corriendo");
+  assert.equal(cortado({ ...base, estado: "terminado" }, 0, 99 * 60 * 1000).estado, "terminado");
 });
