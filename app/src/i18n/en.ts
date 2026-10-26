@@ -1696,4 +1696,9 @@ export const en = {
   "main.cuentasDato": "That account name or provider isn't valid",
   "main.cuentasSinTerminal": "There is no terminal to sign in from",
   "bv.otrasCuentas": "More accounts",
+  // --- inyectar ---
+  "inyectar.queLoLea": "Read it now",
+  "inyectar.tip": "Pass it along at the next step, without waiting for it to finish",
+  "main.inyectarGemini": "Gemini can't read messages mid-turn: it stays queued and goes out when it finishes",
+  "main.inyectarSinProceso": "The leader is no longer responding: the message goes out through the queue",
 } as const;

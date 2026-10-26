@@ -171,6 +171,8 @@ export interface Fuente {
    */
   liderEncolar(sid: string, x: Omit<Encolado, "id">): Promise<void>;
   liderColaQuitar(sid: string, id: number): void;
+  /** Forzar: el mensaje va ya, a mitad del turno (lo lee en el próximo paso). Rechaza si no se puede (Gemini, sin proceso…). */
+  liderInyectar(sid: string, x: EnvioLider): Promise<void>;
   /** Ahora: reintenta lo que no había salido y, con `cortar`, corta lo que hace el de la terminal. */
   liderColaYa(sid: string, cortar: boolean): void;
   /** Las colas con algo (al abrir la vista). */
@@ -1244,6 +1246,9 @@ const fija: Fuente = {
   async liderEncolar(sid, x) {
     colaFija().encolar(sid, x);
   },
+  async liderInyectar(sid, x) {
+    responderFijo(sid, x.texto, x.modelo, x.imagenes);
+  },
   liderColaQuitar(sid, id) {
     colaFija().quitar(sid, id);
   },
@@ -1773,6 +1778,11 @@ const conPa = (m: NonNullable<typeof main>): Fuente => ({
   },
   async liderEncolar(sid, x) {
     await m.lider.encolar({ sid, ...x }).catch((e) => {
+      throw new Error(mensaje(e));
+    });
+  },
+  async liderInyectar(sid, x) {
+    await m.lider.inyectar({ sid, ...x }).catch((e) => {
       throw new Error(mensaje(e));
     });
   },
