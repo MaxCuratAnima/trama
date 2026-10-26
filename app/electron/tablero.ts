@@ -3,7 +3,7 @@
 // trae (lo hecho, los proyectos, los pospuestos). Todo lo que escribe lo escribe el CLI (execFile, sin shell): la
 // app nunca toca `items.jsonl`. Node puro, como pa.ts, para probarlo con un tablero temporal:
 //   TABLERO_DIR=$(mktemp -d) node --test tests/tablero.test.ts
-import { execFileCmd } from "./procesos.js";
+import { execFileCmd } from "./procesos.ts";
 import { mirarCarpeta, type Mirada } from "./mirar.ts";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
