@@ -1,7 +1,7 @@
 // node --test tests/  (Node corre el TypeScript directo, sin compilar)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { entornoAgy, entornoPa, pathConLocal, resolverPa } from "../electron/binario.ts";
+import { entornoAgy, entornoPa, pathConLocal, resolverBinario, resolverPa } from "../electron/binario.ts";
 
 const HOME = "/home/ana";
 const hay = (...fs: string[]) => (f: string) => fs.includes(f);
@@ -43,4 +43,15 @@ test("el entorno de agy trae la carpeta del pa encontrado, tras ~/.local/bin y s
   const e = entornoAgy({ PATH: "/usr/bin", OTRA: "1" }, HOME, hay());
   assert.equal(e.PATH, "/home/ana/.local/bin:/usr/bin");
   assert.equal(e.OTRA, "1");
+});
+
+test("Windows: pa.exe del PATH con ; y PATHEXT, o claude.exe en %USERPROFILE%\\.local\\bin", () => {
+  const WH = "C:\\Users\\Ana";
+  assert.equal(resolverPa({ Path: "C:\\Windows;C:\\bin" }, WH, hay("C:\\bin\\pa.exe"), "win32"), "C:\\bin\\pa.exe");
+  assert.equal(resolverPa({ Path: "C:\\Windows" }, WH, hay("C:\\Users\\Ana\\.local\\bin\\pa.cmd"), "win32"), "C:\\Users\\Ana\\.local\\bin\\pa.cmd");
+  assert.equal(resolverBinario("claude", "HILOS_CLAUDE", { Path: "C:\\Windows" }, WH, hay("C:\\Users\\Ana\\.local\\bin\\claude.exe"), "win32"), "C:\\Users\\Ana\\.local\\bin\\claude.exe");
+  assert.equal(resolverPa({ Path: "C:\\Windows" }, WH, hay(), "win32"), "pa");
+  assert.equal(resolverPa({ HILOS_PA: "D:\\pa-falso.cmd" }, WH, hay(), "win32"), "D:\\pa-falso.cmd");
+  assert.equal(pathConLocal({ Path: "C:\\Windows" }, WH, "win32"), "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
+  assert.equal(entornoPa({ Path: "C:\\Windows" }, WH, "win32").Path, "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
 });
