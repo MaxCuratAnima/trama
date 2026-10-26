@@ -13,7 +13,7 @@ Tiene dos partes:
 ## Requisitos
 
 - Claude Code (`claude`) con tu cuenta, o `agy` (Gemini) con la tuya.
-- Git. El instalador de Linux baja Node.js 22 o más nuevo, `claude` y `agy` si faltan.
+- Git.
 - Opcional: [Ollama](https://ollama.com), para modelos locales.
 
 ## Instalar en Windows 11
@@ -21,23 +21,6 @@ Tiene dos partes:
 1. Bajá `Trama-Setup-<versión>.exe` de la página de Releases del repositorio y ejecutalo.
 2. Abrí Trama desde el menú Inicio: corre nativo en Windows (sin WSL), con `pa`, `tablero`, `cuentas` y
    `trama-estado` como `.cmd` que instala junto a la app.
-
-## Instalar en Linux (Ubuntu, Debian o WSL2 con systemd)
-
-Desde la raíz de este árbol:
-
-```bash
-cd app && npm ci && npm run build && cd ..                 # compila la interfaz y el motor (dist-electron/)
-sudo bash motor/scripts/instalar-producto.sh --solo-apt    # paquetes del sistema, una vez
-bash motor/scripts/instalar-producto.sh                    # instalación de usuario
-```
-
-Deja `pa`, `tablero`, `trama-estado` y `trama-motor` en `~/.local/bin`, el motor como servicio de usuario
-(`trama-motor.service`), los hooks de Claude Code y el plugin de Gemini si hay `agy`. Es idempotente: si
-algo no se puede hacer, lo dice como aviso, y `trama-estado --json` muestra qué quedó.
-
-Los comandos son enlaces a esta carpeta: no la muevas ni la borres. Al terminar, abrí
-`http://localhost:8791`.
 
 ## Modelos
 
