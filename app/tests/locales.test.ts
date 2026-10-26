@@ -440,14 +440,12 @@ test("probar: una unit con -c fijo (no lee LLAMA_CTX) falla al toque con otro va
   }
 });
 
-test("leer: ctxFijo dice el -c de la unit instalada que no lee LLAMA_CTX; las plantillas de systemd/locales/ lo leen", async () => {
+test("leer: ctxFijo dice el -c de la unit instalada que no lee LLAMA_CTX", async () => {
   const e = await entorno({ units: { "llama-server-ejemplo.service": UNIT_FIJA } });
   try {
     const r = await leerLocales(e.d);
     assert.equal(r.modelos[0].ctxFijo, 32768);
     assert.equal(r.modelos[1].ctxFijo, null, "sin unit instalada no se sabe: null");
-    const plantillas = await leerLocales({ ...e.d, env: { ...e.d.env, HILOS_UNITS_DIR: path.join(import.meta.dirname, "..", "systemd", "locales") } });
-    assert.deepEqual(plantillas.modelos.map((m) => m.ctxFijo), [null, null]);
   } finally {
     await e.limpiar();
   }

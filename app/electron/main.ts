@@ -105,7 +105,7 @@ else if (guion || captura || png) {
   app.setPath("userData", perfil);
   process.on("exit", () => rmSync(perfil, { recursive: true, force: true }));
 }
-// La unidad de systemd (systemd/trama.service). Los líderes no la heredan: un `trama` corrido desde uno es el lanzador de siempre.
+// La unidad de systemd. Los líderes no la heredan: un `trama` corrido desde uno es el lanzador de siempre.
 const unidad = process.env.TRAMA_UNIDAD === "1";
 delete process.env.TRAMA_UNIDAD;
 const escondida = process.argv.includes("--escondida");

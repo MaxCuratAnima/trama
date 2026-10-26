@@ -3,7 +3,7 @@
 // Cuáles son: los declara el usuario en `~/.config/trama/locales.json` (electron/locales-config.ts); sin ese archivo no hay ninguno.
 // Qué se escribe y adónde:
 //   - `$HILOS_LOCALES_DIR/<clave>.env` (default `~/.config/trama/locales/`) con `LLAMA_CTX=<n>`: lo lee la unit
-//     (`EnvironmentFile=-…` y `-c ${LLAMA_CTX}`, plantillas en `systemd/locales/`), así el valor llega al `-c` real;
+//     (`EnvironmentFile=-…` y `-c ${LLAMA_CTX}`), así el valor llega al `-c` real;
 //   - `contextWindow` de ese modelo en `~/.dsh/settings.yaml` (`HILOS_DSH_SETTINGS`), que tiene que ser igual al `-c`.
 // Guardar NO carga nada: el valor rige en la próxima carga del modelo. Sólo Probar toca la GPU (la pide el usuario con un clic).
 // Sin `electron`: lo prueba tests/locales.test.ts con `Deps` falsos; nunca corre `nvidia-smi` ni `systemctl` de verdad.
@@ -62,7 +62,7 @@ export type LocalInfo = {
   /** El tamaño de los pesos usado, y si se midió en disco. */
   pesosMiB: number;
   /**
-   * El `-c` fijo de la unit instalada si NO lee `LLAMA_CTX` (no es la plantilla de `systemd/locales/`): carga siempre con
+   * El `-c` fijo de la unit instalada si NO lee `LLAMA_CTX`: carga siempre con
    * ese, guarde trama lo que guarde. `null`: la unit lee el valor de trama (o no se pudo leer).
    */
   ctxFijo: number | null;

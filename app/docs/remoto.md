@@ -129,7 +129,7 @@ navegador de la PC no puede (pasos 2 y 3).
 
 ## Límites conocidos
 
-- **Sin el proceso que sirve no hay nada**: el servidor vive en el motor (`electron/motor.ts`, `systemd/trama-motor.service`,
+- **Sin el proceso que sirve no hay nada**: el servidor vive en el motor (`electron/motor.ts`,
   `docs/estado/motor.md`) o, si no hay motor, en la ventana (todo en uno). Cerrar la ventana no lo toca. Por eso corre siempre,
   como unidad de systemd (`docs/estado/siempre-viva.md`): arranca con la sesión gráfica y vuelve
   sola si muere (el motor a los 0,5 s) o al reiniciarlo por un build nuevo (el celular dice "Reconectando" y se pone al día). Sin sesión gráfica abierta (la PC en la
