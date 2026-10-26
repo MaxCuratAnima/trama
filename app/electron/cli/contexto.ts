@@ -1,12 +1,13 @@
 // Lo que los comandos de `pa` necesitan de afuera (dónde está el estado, la hora, git, qué pid vive), en un solo objeto
 // inyectable: los tests arman uno con carpetas temporales y relojes fijos; `contextoReal()` es el de verdad.
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { deStat, esWindows } from "../procesos.ts";
-import { dirEstadoPa, rutaRegistry, type Env } from "../plataforma.ts";
+import { dirEstadoPa, rutaRegistry, type Env, type Plataforma } from "../plataforma.ts";
 import { slugDe } from "./estado-archivos.ts";
+import { resolver } from "./proyecto-ruta.ts";
 
 export type CtxPa = {
   /** `PA_STATE`: `~/.local/state/pa` · `%LOCALAPPDATA%\Trama\state\pa`. */
@@ -44,19 +45,16 @@ const git = (ruta: string, args: string[]): string | null => {
 };
 
 /**
- * Registry de proyectos → ruta del tree principal, igual que `nombre_registry` + `proyecto-ruta` del bash para un slug:
- * el nombre del primer proyecto cuya carpeta (en minúscula) se llama así, su ruta con `~` expandido, la carpeta si
- * apunta a un archivo, y la ruta real. (Cuando exista `cli/proyecto-ruta.ts`, esto se apoya en él.)
+ * Slug de carpeta → ruta del tree principal, igual que `nombre_registry` + `proyecto-ruta` del bash: el nombre del primer
+ * proyecto cuya carpeta (en minúscula) se llama así, y después `resolver` de `proyecto-ruta.ts` con ese nombre.
  */
-export function rutaPorSlug(slug: string, registry: string, home: string): string | null {
+export function rutaPorSlug(slug: string, env: Env, plataforma: Plataforma, home: string): string | null {
   try {
-    const reg = JSON.parse(readFileSync(registry, "utf8")) as { projects?: { name?: string; path?: string }[] };
+    const reg = JSON.parse(readFileSync(rutaRegistry(plataforma, env, home), "utf8")) as { projects?: { name?: string; path?: string }[] };
     const p = (reg.projects ?? []).find((x) => x.path && slugDe(x.path) === slug);
-    if (!p?.path) return null;
-    let r = p.path.replace(/^~(?=$|[\\/])/, home);
-    if (statSync(r).isFile()) r = path.dirname(r);
-    r = realpathSync(r);
-    return statSync(r).isDirectory() ? r : null;
+    if (!p?.name) return null;
+    const r = resolver([p.name], env, plataforma, home);
+    return r.codigo === 0 ? r.out.replace(/\n$/, "") : null;
   } catch {
     return null;
   }
@@ -88,7 +86,7 @@ export function contextoReal(env: Env = process.env as Env, plataforma: NodeJS.P
         return false;
       }
     },
-    rutaDeSlug: (slug) => rutaPorSlug(slug, rutaRegistry(plataforma, env, home), home),
+    rutaDeSlug: (slug) => rutaPorSlug(slug, env, plataforma, home),
     ramasPa: (ruta, slug) =>
       (git(ruta, ["for-each-ref", "--format=%(refname:short)", `refs/heads/pa/${slug}/`]) ?? "").split("\n").filter(Boolean),
     commitsSobre: (ruta, rama) => (git(ruta, ["rev-list", "--count", `HEAD..${rama}`]) ?? "").trim(),
