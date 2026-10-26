@@ -3,28 +3,39 @@
 // entera en el tooltip. Sin React: lo prueban los tests.
 import type { Hilo } from "../datos/contrato.ts";
 import { t } from "../i18n/index.ts";
+import { parsearModelo } from "../datos/modelo-id.ts";
 
-export type Familia = "opus" | "sonnet" | "fable" | "haiku" | "otro";
+export type Familia = "opus" | "sonnet" | "fable" | "haiku" | "google" | "otro";
 
-const FAMILIAS: Exclude<Familia, "otro">[] = ["opus", "sonnet", "fable", "haiku"];
-
-/** "claude-sonnet-5-5[1m]" → "sonnet". Lo que no es de la casa (un local, etc.), "otro". */
-export const familiaDe = (modelo: string | null | undefined): Familia =>
-  FAMILIAS.find((f) => modelo?.toLowerCase().includes(f)) ?? "otro";
+/**
+ * "claude-sonnet-5-5[1m]" → "sonnet". Manda el proveedor (src/datos/modelo-id.ts): todo lo que sirve Google
+ * ("gemini-3.8-flash-high", "agy:claude-opus-5-5-high") es "google", nunca "opus". Lo demás (un local, etc.), "otro".
+ */
+export const familiaDe = (modelo: string | null | undefined): Familia => {
+  const p = parsearModelo(modelo);
+  if (p.proveedor === "google") return "google";
+  return p.proveedor === "anthropic" && p.linea !== "otro" && p.linea !== "gemini" ? p.linea : "otro";
+};
 
 /** El nombre corto de cada familia: va en la fila tal cual (nada de letras sueltas que no se entienden). */
-export const CORTO: Record<Exclude<Familia, "otro">, string> = { opus: "Opus", sonnet: "Sonnet", fable: "Fable", haiku: "Haiku" };
+export const CORTO: Record<Exclude<Familia, "otro">, string> = { opus: "Opus", sonnet: "Sonnet", fable: "Fable", haiku: "Haiku", google: "Google" };
 
 /**
  * Lo que dice el chip del modelo en la fila: el nombre de la familia o, si no
- * es de la casa, la primera palabra del id ("modelo-local-ejemplo" → "Modelo"). `null`
- * sin modelo: no hay chip.
+ * es de la casa, la primera palabra del id ("modelo-local-ejemplo" → "Modelo"). Lo que sirve Google
+ * lo dice: "Gemini", o "Opus · Google" para un Claude que pasa por ahí. `null` sin modelo: no hay chip.
  */
 export function modeloCorto(modelo: string | null | undefined): string | null {
+  const p = parsearModelo(modelo);
+  if (p.proveedor === "google") {
+    if (p.linea === "gemini") return "Gemini";
+    const base = p.linea === "otro" ? (p.nombre.split(" ")[0] || "Google") : CORTO[p.linea];
+    return `${base} · Google`;
+  }
   const f = familiaDe(modelo);
   if (f !== "otro") return CORTO[f];
-  const p = modelo?.trim().split(/[-_:/\s.[]/).find(Boolean);
-  return p ? p[0].toUpperCase() + p.slice(1, 10) : null;
+  const x = modelo?.trim().split(/[-_:/\s.[]/).find(Boolean);
+  return x ? x[0].toUpperCase() + x.slice(1, 10) : null;
 }
 
 /**

@@ -1,16 +1,45 @@
 /* El panel de consumo (src/paneles/Consumo.tsx): una columna a la derecha de la conversación.
    Todo en rem; los colores y las letras son los de la barra y los paneles (`pn-`). */
 .cs {
+  position: relative;
   display: flex;
-  width: clamp(26rem, 30vw, 36rem);
-  min-width: 25rem;
-  max-width: 42rem;
+  /* `--ancho-consumo` lo pone el tirador del borde izquierdo (Consumo.tsx); sin él, el de siempre. */
+  width: var(--ancho-consumo, clamp(26rem, 30vw, 36rem));
+  min-width: 20rem;
+  max-width: min(60rem, 65vw);
   flex: none;
   flex-direction: column;
   border-left: 1px solid var(--borde-1);
   background: var(--sup-0);
   color: var(--txt-3);
   font-size: var(--letra-4);
+}
+/* El borde izquierdo se arrastra para cambiar el ancho (como el de la barra); doble clic lo restaura. */
+.cs-tirador {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 6;
+  width: 0.4375rem;
+  cursor: col-resize;
+  touch-action: none;
+}
+.cs-tirador::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 1px;
+  background: transparent;
+  transition: background-color 0.15s;
+}
+.cs-tirador:is(:hover, :focus-visible)::after,
+.app[data-arr-cs] .cs-tirador::after {
+  background: var(--borde-6);
+}
+.app[data-arr-cs] {
+  cursor: col-resize;
+  user-select: none;
 }
 .cs-cab {
   display: flex;
@@ -69,6 +98,10 @@
   color: var(--txt-1);
   font-family: var(--font-mono);
   font-size: var(--letra-3);
+}
+.cs-tabla .cs-total {
+  color: var(--txt-1);
+  font-weight: 600;
 }
 .cs-tabla tfoot :is(th, td) {
   border-top: 1px solid var(--borde-1);
@@ -223,5 +256,9 @@
     width: auto;
     flex: 1;
     border-left: 0;
+  }
+  /* Ocupando toda la pantalla no hay ancho que elegir. */
+  .cs-tirador {
+    display: none;
   }
 }

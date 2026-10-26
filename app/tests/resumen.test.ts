@@ -86,7 +86,7 @@ test("resumen del período: agregados, por modelo y proyecto, sólo evaluadas", 
     [["Opus", 600], ["Sonnet", 300], ["Fable", 100], ["otro", 0]],
   );
   assert.deepEqual(r.porProyecto.map((p) => p.nombre), ["atlas", "brote"]);
-  assert.deepEqual(r.porProyecto[0].modelos, { Opus: 600, Sonnet: 0, Fable: 100, otro: 0 });
+  assert.deepEqual(r.porProyecto[0].modelos, { Opus: 600, Sonnet: 0, Fable: 100, Google: 0, otro: 0 });
   assert.deepEqual(r.porDia.map((d) => d.n), [1, 0, 0, 0, 1, 0, 2]);
 });
 

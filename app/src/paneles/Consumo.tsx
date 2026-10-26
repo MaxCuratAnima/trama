@@ -4,14 +4,15 @@
 // contexto, tokens y compactaciones. Los números los lee el main de los transcripts
 // (electron/consumo.ts) y sólo mientras el panel está a la vista; lo que no se sabe dice "sin dato".
 // En el celular no existe (lo decide la barra: `useAngosto`).
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as TeclaReact, type PointerEvent as PunteroReact } from "react";
 import { PanelRightClose } from "lucide-react";
 import type { Hilo, Lider } from "../datos/contrato";
 import { fuente } from "../datos/fuente";
 import { contextoFila, resumen, totalSesion, type Consumo as Datos, type FilaConsumo, type Suma } from "../datos/consumo";
 import { tareaDe, tipoDe } from "../barra/piezas";
-import { modeloDe, nombreModelo } from "../hilo/opciones";
+import { claveConsumo, modeloDe, nombreModelo } from "../hilo/opciones";
 import { locale, t } from "../i18n";
+import { MODO } from "../modo";
 import { useIdioma } from "../i18n/react";
 import "./consumo-estilos.css";
 
@@ -23,6 +24,25 @@ type Props = {
   carpeta: (proyecto: string) => string;
   alCerrar: () => void;
 };
+
+// El ancho del panel lo elige el usuario arrastrando su borde izquierdo (igual que el de la barra, src/barra/Barra.tsx):
+// en rem, entre estos límites, guardado en `localStorage`. Sin valor, el del CSS. Con ancho intermedio (67rem) el panel
+// ocupa toda la pantalla y el tirador no existe.
+const CLAVE_ANCHO = "hilos:consumo:ancho";
+const REM_MIN = 20;
+const REM_MAX = 60;
+const acotar = (r: number) => Math.max(REM_MIN, Math.min(REM_MAX, Math.round(r * 4) / 4));
+const remEnPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
+function anchoGuardado(): number | null {
+  if (MODO.datosFijos) return null;
+  try {
+    const n = Number(localStorage.getItem(CLAVE_ANCHO));
+    return Number.isFinite(n) && n > 0 ? acotar(n) : null;
+  } catch {
+    return null;
+  }
+}
 
 const vivo = (h: Hilo) => h.estado === "trabajando" || h.estado === "colgado";
 const miles = (n: number) => n.toLocaleString(locale());
@@ -128,6 +148,56 @@ export const Consumo = memo(function Consumo({ lideres, hilos, carpeta, alCerrar
   // La respuesta a un pedido y los avisos del main no llegan en orden entre sí: vale lo más nuevo.
   const poner = useCallback((c: Datos) => setDatos((a) => (a && a.n > c.n ? a : c)), []);
 
+  // El ancho elegido (rem); `null`: el del CSS.
+  const [ancho, setAncho] = useState<number | null>(anchoGuardado);
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (MODO.datosFijos) return;
+    try {
+      if (ancho === null) localStorage.removeItem(CLAVE_ANCHO);
+      else localStorage.setItem(CLAVE_ANCHO, String(ancho));
+    } catch {}
+  }, [ancho]);
+  const anchoAhora = () => (panel.current ? panel.current.getBoundingClientRect().width / remEnPx() : REM_MIN);
+
+  // Arrastrar el borde: mientras dura se escribe directo en el DOM (ni un render por movimiento); el estado se asienta al soltar.
+  const arrastrar = (e: PunteroReact<HTMLDivElement>) => {
+    const el = panel.current;
+    if (e.button !== 0 || !el) return;
+    e.preventDefault();
+    const tirador = e.currentTarget;
+    const app = el.closest(".app");
+    const x0 = e.clientX;
+    const w0 = anchoAhora();
+    const rem = remEnPx();
+    let w = w0;
+    tirador.setPointerCapture(e.pointerId);
+    app?.setAttribute("data-arr-cs", "");
+    const mover = (ev: PointerEvent) => {
+      // El borde es el izquierdo: arrastrar hacia la izquierda ensancha.
+      w = acotar(w0 + (x0 - ev.clientX) / rem);
+      el.style.setProperty("--ancho-consumo", `${w}rem`);
+    };
+    const soltar = () => {
+      tirador.removeEventListener("pointermove", mover);
+      tirador.removeEventListener("pointerup", soltar);
+      tirador.removeEventListener("pointercancel", soltar);
+      app?.removeAttribute("data-arr-cs");
+      setAncho(w);
+    };
+    tirador.addEventListener("pointermove", mover);
+    tirador.addEventListener("pointerup", soltar);
+    tirador.addEventListener("pointercancel", soltar);
+  };
+  const teclaTirador = (e: TeclaReact) => {
+    const paso = ({ ArrowLeft: 1, ArrowRight: -1 } as Record<string, number>)[e.key];
+    if (paso) setAncho(acotar((ancho ?? anchoAhora()) + paso));
+    else if (e.key === "Home") setAncho(REM_MIN);
+    else if (e.key === "End") setAncho(REM_MAX);
+    else return;
+    e.preventDefault();
+  };
+
   useEffect(() => {
     let sigue = true;
     fuente
@@ -146,7 +216,7 @@ export const Consumo = memo(function Consumo({ lideres, hilos, carpeta, alCerrar
     };
   }, [poner]);
 
-  const r = useMemo(() => (datos ? resumen(datos, (m) => modeloDe(m) ?? m) : null), [datos]);
+  const r = useMemo(() => (datos ? resumen(datos, claveConsumo) : null), [datos]);
   // Los workers vivos, colgados de su líder; los que no lo tienen a la vista, de su proyecto.
   const { deLider, sueltos } = useMemo(() => {
     const ids = new Set(lideres.map((l) => l.id));
@@ -174,7 +244,20 @@ export const Consumo = memo(function Consumo({ lideres, hilos, carpeta, alCerrar
   );
 
   return (
-    <aside className="cs" aria-label={t("consumo.titulo")}>
+    <aside ref={panel} className="cs" aria-label={t("consumo.titulo")} style={ancho === null ? undefined : ({ "--ancho-consumo": `${ancho}rem` } as CSSProperties)}>
+      <div
+        role="separator"
+        tabIndex={0}
+        className="cs-tirador"
+        aria-orientation="vertical"
+        aria-label={t("consumo.anchoAjustar")}
+        aria-valuemin={REM_MIN}
+        aria-valuemax={REM_MAX}
+        aria-valuenow={ancho ?? undefined}
+        onPointerDown={arrastrar}
+        onDoubleClick={() => setAncho(null)}
+        onKeyDown={teclaTirador}
+      />
       <header className="cs-cab">
         <b>{t("consumo.titulo")}</b>
         <button type="button" className="lado" aria-label={t("consumo.ocultar")} data-tip={t("consumo.ocultar")} onClick={alCerrar}>
@@ -198,6 +281,7 @@ export const Consumo = memo(function Consumo({ lideres, hilos, carpeta, alCerrar
                   <th>{t("comun.modelo")}</th>
                   <th>{t("consumo.lideres")}</th>
                   <th>{t("consumo.workers")}</th>
+                  <th>{t("consumo.total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,14 +290,18 @@ export const Consumo = memo(function Consumo({ lideres, hilos, carpeta, alCerrar
                     <th>{nombreModelo(x.modelo)}</th>
                     <td data-tip={desglose(x.deLideres)}>{miles(x.lideres)}</td>
                     <td data-tip={desglose(x.deWorkers)}>{miles(x.workers)}</td>
+                    <td className="cs-total" data-tip={t("consumo.totalTip", { l: miles(x.lideres), w: miles(x.workers) })}>
+                      {miles(x.total)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <th>{t("consumo.total")}</th>
-                  <td>{miles(r.lideres)}</td>
-                  <td>{miles(r.workers)}</td>
+                  <td colSpan={3} className="cs-total" data-tip={t("consumo.totalTip", { l: miles(r.lideres), w: miles(r.workers) })}>
+                    {miles(r.total)}
+                  </td>
                 </tr>
               </tfoot>
             </table>

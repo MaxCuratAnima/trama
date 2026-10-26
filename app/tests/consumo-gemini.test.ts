@@ -30,3 +30,28 @@ test("la fila de un líder de Gemini sale de su transcript en gemini/", async ()
   assert.equal(f.uso?.input_tokens, 2374);
   assert.equal(f.uso?.output_tokens, 2230);
 });
+
+test("el 'hoy' incluye al líder de Gemini aunque nadie lo pida", async () => {
+  const c = await consumo.mirar({ lideres: [], workers: [] });
+  const g = c.lideres["gemini-3.8-flash-high"];
+  assert.ok(g, "el líder de Gemini no cuenta en el resumen de hoy");
+  assert.equal(g.entrada, 2474);
+  assert.equal(g.salida, 2240);
+});
+
+test("un worker nuevo cuyo .sid llega tarde no se suma a Líderes", async () => {
+  const WSID = "bbbbbbbb-34fc-4639-9b5e-31017dd42f71";
+  const ID = "20260310-100000-111";
+  const linea = JSON.stringify({ type: "assistant", timestamp: new Date().toISOString(), message: { id: "w1", role: "assistant", model: "claude-sonnet-5-5", content: [{ type: "text", text: "x" }], usage: { input_tokens: 7, output_tokens: 3 } } }) + "\n";
+  mkdirSync(path.join(proyectos, "-tmp-w"), { recursive: true });
+  writeFileSync(path.join(proyectos, "-tmp-w", `${WSID}.jsonl`), linea);
+  // El transcript ya existe pero `pa` todavía no escribió el .sid: hoy cuenta como líder.
+  const antes = await consumo.mirar({ lideres: [], workers: [ID] });
+  assert.equal(antes.lideres["claude-sonnet-5-5"]?.entrada, 7);
+  // Llega el .sid: el repaso lo relee y pasa a workers.
+  mkdirSync(path.join(tmp, "pa", "proy"), { recursive: true });
+  writeFileSync(path.join(tmp, "pa", "proy", `${ID}.sid`), WSID);
+  const despues = await consumo.mirar({ lideres: [], workers: [ID] });
+  assert.equal(despues.lideres["claude-sonnet-5-5"], undefined);
+  assert.equal(despues.workers["claude-sonnet-5-5"]?.entrada, 7);
+});

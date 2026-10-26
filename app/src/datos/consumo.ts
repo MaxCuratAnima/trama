@@ -54,13 +54,13 @@ export function consumoDe(x: unknown): Consumo {
 /** Todo lo de una sesión, sumados sus modelos (la cuenta de Estadísticas: sin el caché escrito). */
 export const totalSesion = (t: Record<string, Suma>): number => Object.values(t).reduce((n, s) => n + total(s), 0);
 
-export type RenglonModelo = { modelo: string; lideres: number; workers: number; deLideres?: Suma; deWorkers?: Suma };
+export type RenglonModelo = { modelo: string; lideres: number; workers: number; /** Líderes + workers. */ total: number; deLideres?: Suma; deWorkers?: Suma };
 
 /**
  * El resumen: un renglón por modelo (el que más consumió, arriba) y el total de cada columna.
  * `clave` junta los ids que son el mismo modelo ("claude-opus-5-5[1m]" y "claude-opus-5-5").
  */
-export function resumen(c: Consumo, clave: (modelo: string) => string = (m) => m): { renglones: RenglonModelo[]; lideres: number; workers: number } {
+export function resumen(c: Consumo, clave: (modelo: string) => string = (m) => m): { renglones: RenglonModelo[]; lideres: number; workers: number; total: number } {
   const junta = (de: Record<string, Suma>) => {
     const r: Record<string, Suma> = {};
     for (const [modelo, s] of Object.entries(de)) {
@@ -74,10 +74,15 @@ export function resumen(c: Consumo, clave: (modelo: string) => string = (m) => m
   };
   const [l, w] = [junta(c.lideres), junta(c.workers)];
   const renglones = [...new Set([...Object.keys(l), ...Object.keys(w)])]
-    .map((modelo) => ({ modelo, lideres: l[modelo] ? total(l[modelo]) : 0, workers: w[modelo] ? total(w[modelo]) : 0, deLideres: l[modelo], deWorkers: w[modelo] }))
-    .filter((r) => r.lideres + r.workers > 0)
-    .sort((a, b) => b.lideres + b.workers - (a.lideres + a.workers) || a.modelo.localeCompare(b.modelo));
-  return { renglones, lideres: renglones.reduce((n, r) => n + r.lideres, 0), workers: renglones.reduce((n, r) => n + r.workers, 0) };
+    .map((modelo) => {
+      const [lideres, workers] = [l[modelo] ? total(l[modelo]) : 0, w[modelo] ? total(w[modelo]) : 0];
+      return { modelo, lideres, workers, total: lideres + workers, deLideres: l[modelo], deWorkers: w[modelo] };
+    })
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total || a.modelo.localeCompare(b.modelo));
+  const [lideres, workers] = [renglones.reduce((n, r) => n + r.lideres, 0), renglones.reduce((n, r) => n + r.workers, 0)];
+  // `total` es el número del pie: líderes + workers en uno solo; el desglose queda para el tooltip.
+  return { renglones, lideres, workers, total: lideres + workers };
 }
 
 export type ContextoFila = { usados: number; ventana: number; pct: number; nivel: Nivel };

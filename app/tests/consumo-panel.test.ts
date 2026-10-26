@@ -12,7 +12,7 @@ registerHooks({
     if (spec.startsWith(".") && !path.extname(spec) && ctx.parentURL?.includes("/src/")) {
       const base = path.join(path.dirname(fileURLToPath(ctx.parentURL)), spec);
       for (const f of [base + ".ts", base + ".tsx", path.join(base, "index.ts")])
-        if (existsSync(f)) return next(path.relative(path.dirname(fileURLToPath(ctx.parentURL)), f).replace(/^(?!\.)/, "./"), ctx);
+        if (existsSync(f)) return next(path.relative(path.dirname(fileURLToPath(ctx.parentURL)), f).split(path.sep).join("/").replace(/^(?!\.)/, "./"), ctx);
     }
     return next(spec, ctx);
   },
@@ -68,11 +68,12 @@ test("el resumen: un renglón por modelo, el que más consumió arriba, y los to
       ["claude-fable-5-1", 110, 0],
     ],
   );
-  assert.deepEqual([r.lideres, r.workers], [3260, 484]);
+  assert.deepEqual([r.lideres, r.workers, r.total], [3260, 484, 3744]);
+  assert.deepEqual(r.renglones.map((x) => x.total), [3202, 432, 110]);
   // El desglose de cada modelo sí trae el caché escrito.
   assert.deepEqual(r.renglones[0].deLideres, s(10, 200, 3100, 40));
   assert.equal(totalSesion(c.workers), 484);
-  assert.deepEqual(resumen(consumoDe({})), { renglones: [], lideres: 0, workers: 0 });
+  assert.deepEqual(resumen(consumoDe({})), { renglones: [], lideres: 0, workers: 0, total: 0 });
 });
 
 test("el contexto de una fila: lo que entró en el último mensaje contra la ventana de su modelo", () => {

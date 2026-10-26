@@ -1684,4 +1684,7 @@ export const es: { [K in keyof typeof en]: string } = {
   "main.cuentasDato": "Ese nombre de cuenta o proveedor no vale",
   "main.cuentasSinTerminal": "No hay una terminal para iniciar sesión",
   "bv.otrasCuentas": "Más cuentas",
+  // --- stats ---
+  "consumo.totalTip": "Líderes {l} · Workers {w}",
+  "consumo.anchoAjustar": "Ancho del panel de consumo: arrastrá para cambiarlo, doble clic para restaurarlo",
 };

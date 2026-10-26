@@ -1696,4 +1696,7 @@ export const en = {
   "main.cuentasDato": "That account name or provider isn't valid",
   "main.cuentasSinTerminal": "There is no terminal to sign in from",
   "bv.otrasCuentas": "More accounts",
+  // --- stats ---
+  "consumo.totalTip": "Leaders {l} · Workers {w}",
+  "consumo.anchoAjustar": "Consumption panel width: drag to change it, double-click to restore it",
 } as const;

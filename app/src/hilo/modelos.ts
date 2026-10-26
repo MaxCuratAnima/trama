@@ -2,6 +2,7 @@
 // (y su texto en i18n); los niveles de esfuerzo que muestra, cuál es el de arranque y si corre en la GPU
 // local salen de su fila. Sin JSX ni imports locales de verdad: lo prueban los tests.
 import type { ClaveSola } from "../i18n";
+import { parsearModelo } from "../datos/modelo-id.ts";
 
 /** Los niveles de esfuerzo de Claude Code: `pa` y `claude --effort` los conocen. */
 export const EFFORTS_CLAUDE = ["low", "medium", "high", "xhigh", "max"] as const;
@@ -131,15 +132,22 @@ export function ponerConfig(c: ConfigModelos | null): { modelo: string; effort: 
   return { modelo: fila.id, effort };
 }
 
-/** La fila de un modelo por su id exacto (o por la clave dentro del id de un hilo, que puede traer fecha o sufijo). */
+/**
+ * La fila de un modelo por su id exacto o, si es de Claude, por su familia (el id de un hilo puede traer fecha, `[1m]` u
+ * otra versión). Quién lo sirve manda (src/datos/modelo-id.ts): un `agy:claude-opus-…` o un `gemini-…` sólo
+ * es la fila de Google con ese mismo id, nunca la de Opus de Anthropic; los de Ollama y los locales, también por id exacto.
+ */
 export const defDe = (modelo: string | null | undefined): ModeloDef | undefined => {
   if (!modelo) return undefined;
   const base = partirGeminiId(modelo)[0];
-  const prefijo = /^(?:ollama|agy):/.exec(modelo)?.[0];
-  return (
-    TABLA.find((m) => m.id === modelo || m.id === base) ??
-    TABLA.find((m) => (prefijo ? m.id.startsWith(prefijo) : !/^(?:ollama|agy):/.test(m.id)) && modelo.includes(m.clave))
-  );
+  const exacta = TABLA.find((m) => m.id === modelo || m.id === base);
+  if (exacta) return exacta;
+  const p = parsearModelo(modelo);
+  if (p.proveedor === "google") return TABLA.find((m) => m.empresa === "google" && m.id === p.id);
+  if (p.proveedor === "local") return TABLA.find((m) => m.empresa === "ollama" && modelo.includes(m.clave));
+  if (p.proveedor === "otro") return TABLA.find((m) => m.local && modelo.includes(m.clave));
+  if (p.proveedor !== "anthropic" || p.linea === "otro" || p.linea === "gemini") return undefined;
+  return TABLA.find((m) => m.empresa === "anthropic" && m.clave === p.linea);
 };
 
 export const esLocal = (modelo: string | null | undefined) => defDe(modelo)?.local === true;

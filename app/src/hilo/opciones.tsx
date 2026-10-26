@@ -5,7 +5,8 @@
 import { t, type ClaveSola } from "../i18n";
 import type { Opcion } from "./Selector";
 import { GENERAL, type Lider } from "../datos/contrato";
-import { defDe, effortDeModelo, effortsDe, EMPRESAS, partirGeminiId, ponerConfig, TABLA, type ConfigModelos, type ModeloDef } from "./modelos";
+import { parsearModelo } from "../datos/modelo-id.ts";
+import { defDe, effortDeModelo, effortsDe, EMPRESAS, ponerConfig, TABLA, type ConfigModelos, type ModeloDef } from "./modelos";
 import { Logo } from "./Logos";
 
 // La descripción se dice al leerla: cambia con el idioma sin rearmar las listas.
@@ -62,23 +63,17 @@ export let MODELO_DEFAULT = "claude-opus-5-5";
 export const EFFORT_DEFAULT = "high";
 
 /** El id del selector para el modelo de un hilo ("claude-sonnet-5-5[1m]" → Sonnet). */
-export const modeloDe = (m: string | null | undefined) => {
-  if (!m) return null;
-  const base = partirGeminiId(m)[0];
-  const prefijo = /^(?:ollama|agy):/.exec(m)?.[0];
-  return (
-    (
-      MODELOS.find((x) => x.id === m || x.id === base) ??
-      MODELOS.find((x) => (prefijo ? x.id.startsWith(prefijo) : !/^(?:ollama|agy):/.test(x.id)) && m.includes(x.clave))
-    )?.id ?? null
-  );
-};
+export const modeloDe = (m: string | null | undefined) => defDe(m)?.id ?? null;
+
+/** Lo que junta las filas del consumo: la fila del selector o, si no hay, el id sin fecha ni nivel (`agy:claude-opus-5-5-high` y `-low` son uno). */
+export const claveConsumo = (m: string) => modeloDe(m) ?? (parsearModelo(m).id || m);
 
 /** El esfuerzo si es un nivel del modelo (sin modelo, de cualquiera); si no, `null`. */
 export const effortDe = (e: string | null | undefined, modelo?: string | null) =>
   modelo ? effortDeModelo(modelo, e) : (Object.keys(DESC_EFFORT).find((x) => x === e) ?? null);
 
-export const nombreModelo = (id: string) => MODELOS.find((m) => m.id === id)?.nombre ?? id;
+/** Cómo se llama un modelo: el de la tabla o, si no está, el que dice su id ("Claude Opus 5.5 · por Google"). */
+export const nombreModelo = (id: string) => MODELOS.find((m) => m.id === id)?.nombre ?? (parsearModelo(id).etiqueta || id);
 
 /** Un líder recién lanzado, hasta que el statusline lo lista. */
 export function fantasma(sid: string, e: { modelo: string; effort: string; modo?: string; texto?: string; maquina?: string }, proyecto: string = GENERAL): Lider {
