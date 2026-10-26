@@ -31,7 +31,9 @@ export function aplicar(args: string[], entrada: string, ctx: ContextoCompactand
       mkdirSync(dir, { recursive: true });
       closeSync(openSync(marca, "w"));
     } else rmSync(marca, { force: true });
-  } catch {}
+  } catch (e) {
+    console.error(`[hook-compactando] no pude actualizar la marca ${marca}: ${(e as Error).message}`);
+  }
 }
 
 async function leerStdin(): Promise<string> {
@@ -44,6 +46,8 @@ async function leerStdin(): Promise<string> {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     aplicar(process.argv.slice(2), await leerStdin(), { plataforma: process.platform, env: process.env as Env, home: os.homedir() });
-  } catch {}
+  } catch (e) {
+    console.error(`[hook-compactando] falló el hook: ${(e as Error).message}`);
+  }
   process.exitCode = 0;
 }

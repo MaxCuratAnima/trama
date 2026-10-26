@@ -1336,7 +1336,7 @@ export const en = {
   "modelo.ollama": "A local model served by Ollama · no workers, no Claude limits",
   "lider.ollamaSinWorkers": "This local model answers on its own: it can't delegate to workers (pa)",
   "ajustes.mdlTitulo": "Models and providers",
-  "ajustes.mdlIntro": "Which model the leader and each kind of worker use: Claude, Gemini or a local one through Ollama. It is saved in ~/.config/trama/modelos.json, the same file pa reads. A -m typed on the command line always wins.",
+  "ajustes.mdlIntro": "Which model the leader and each kind of worker use: Claude, Gemini or a local one through Ollama. It is saved in ~/.config/trama/modelos.json (on Windows, %APPDATA%\Trama\modelos.json), the same file pa reads. A -m typed on the command line always wins.",
   "ajustes.mdlSinArchivo": "No file yet: this shows what runs today. Nothing is written until you change something and save.",
   "ajustes.mdlLider": "Leader",
   "ajustes.mdlLiderQue": "The model a new leader starts with.",

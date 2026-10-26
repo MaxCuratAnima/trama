@@ -124,13 +124,15 @@ test("entornoGrafico: completa la pantalla que le falta al motor de systemd (Han
   writeFileSync(path.join(run, "wayland-1.lock"), "");
   writeFileSync(path.join(x11, "X1"), "");
   writeFileSync(path.join(x11, "X1_"), "");
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11).WAYLAND_DISPLAY, "wayland-1");
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11).DISPLAY, undefined);
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: path.join(tmp, "nada") }, 1000, x11).DISPLAY, ":1");
+  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11, "linux").WAYLAND_DISPLAY, "wayland-1");
+  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11, "linux").DISPLAY, undefined);
+  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: path.join(tmp, "nada") }, 1000, x11, "linux").DISPLAY, ":1");
   // lo que ya trae el entorno no se pisa
-  const dado = entornoGrafico({ XDG_RUNTIME_DIR: run, WAYLAND_DISPLAY: "wayland-9" }, 1000, x11);
+  const dado = entornoGrafico({ XDG_RUNTIME_DIR: run, WAYLAND_DISPLAY: "wayland-9" }, 1000, x11, "linux");
   assert.equal(dado.WAYLAND_DISPLAY, "wayland-9");
-  assert.equal(entornoGrafico({}, 4242, x11).XDG_RUNTIME_DIR, "/run/user/4242");
+  assert.equal(entornoGrafico({}, 4242, x11, "linux").XDG_RUNTIME_DIR, "/run/user/4242");
+  // En Windows no hay Wayland ni X11: el entorno queda tal cual.
+  assert.deepEqual(entornoGrafico({ A: "1" }, 1000, x11, "win32"), { A: "1" });
 });
 
 // --- El modelo (dictado-modelos.ts): lo que se elige en Ajustes y lo que va con `--model` ---

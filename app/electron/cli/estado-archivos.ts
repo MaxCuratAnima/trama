@@ -153,8 +153,9 @@ export async function anotarFin(dir: string, id: string, ahora: number): Promise
   if (await leerCampo(hilo, "fin")) return;
   try {
     await hiloPoner(hilo, "fin", ahora);
-  } catch {
+  } catch (e) {
     // nunca rompe: la app estima la hora de muerte
+    console.error(`[estado-archivos] no pude anotar el fin de ${id}: ${(e as Error).message}`);
   }
 }
 
@@ -178,8 +179,9 @@ export async function evento(estado: string, tipo: string, id: string, proyecto:
     if (rc !== undefined && rc !== "") o.rc = typeof rc === "number" || !/^-?\d+$/.test(rc) ? rc : Number(rc);
     await mkdir(estado, { recursive: true });
     await appendFile(path.join(estado, "eventos.jsonl"), JSON.stringify(o) + "\n");
-  } catch {
+  } catch (e) {
     // la app lo recupera sondeando
+    console.error(`[estado-archivos] no pude anotar el evento ${tipo} de ${id}: ${(e as Error).message}`);
   }
 }
 
