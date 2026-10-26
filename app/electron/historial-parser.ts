@@ -163,6 +163,87 @@ export function nombreArchivo(ruta: string, casa: string): string {
 
 /** El proyecto de una sesión: el nombre de la carpeta donde corre ("~" si es la del usuario). */
 export const nombreProyecto = (cwd: string, casa: string): string => limpio(carpetaDe(cwd, casa)) || "~";
+/** ¿Una ruta de Windows (`C:\...`, `C:/...`, `\\servidor\...`)? Con `\` ya alcanza para tratarla así. */
+const esWindows = (dir: string): boolean => /^[a-zA-Z]:[\\/]/.test(dir) || dir.includes("\\");
+
+/**
+ * La ruta para comparar: sin separadores de más al final y sin el `@N` de un worktree de `pa`. En Windows, `/` en vez de
+ * `\` y sin mayúsculas (`C:\Trama\Atlas` y `c:/trama/atlas` son la misma carpeta).
+ */
+function normalizada(dir: string): string {
+  const r = dir.replace(/[\\/]+$/, "").replace(/@\d+$/, "");
+  return esWindows(dir) ? r.replace(/\\/g, "/").toLowerCase() : r;
+}
+
+/**
+ * La clave con que se agrupan los chats de una carpeta: su ruta completa normalizada (no sólo el nombre, que puede
+ * repetirse). Un worktree de `pa` (`atlas@2`) cae en la de `atlas`. La carpeta del usuario es siempre "~".
+ */
+export function claveCarpeta(cwd: string, casa: string): string {
+  return normalizada(cwd) === normalizada(casa) ? "~" : normalizada(cwd);
+}
+
+/** La ruta de una carpeta como se muestra: con sus mayúsculas, sin el `@N` del worktree; la del usuario, "~". */
+export function rutaProyecto(cwd: string, casa: string): string {
+  if (normalizada(cwd) === normalizada(casa)) return "~";
+  return cwd.replace(/[\\/]+$/, "").replace(/@\d+$/, "");
+}
+
+/**
+ * El nombre con que se ve cada carpeta de un conjunto (clave → ruta): su nombre de carpeta. Si dos claves distintas se
+ * llaman igual, se suma la carpeta padre (`app/atlas` y `otro/atlas`), y así hasta que no choquen o hasta la ruta entera.
+ */
+export function nombresDeCarpetas(rutas: ReadonlyMap<string, string>): Map<string, string> {
+  const partes = new Map<string, string[]>();
+  for (const [k, r] of rutas) partes.set(k, r === "~" ? ["~"] : r.split(/[\\/]/).filter(Boolean));
+  const prof = new Map<string, number>([...partes.keys()].map((k) => [k, 1]));
+  const nombre = (k: string): string => partes.get(k)!.slice(-prof.get(k)!).join("/") || "~";
+  for (;;) {
+    const porNombre = new Map<string, string[]>();
+    for (const k of partes.keys()) porNombre.set(nombre(k), [...(porNombre.get(nombre(k)) ?? []), k]);
+    let cambio = false;
+    for (const ks of porNombre.values()) {
+      if (ks.length < 2) continue;
+      for (const k of ks) {
+        if (prof.get(k)! < partes.get(k)!.length) {
+          prof.set(k, prof.get(k)! + 1);
+          cambio = true;
+        }
+      }
+    }
+    if (!cambio) break;
+  }
+  return new Map([...partes.keys()].map((k) => [k, nombre(k)]));
+}
+
+/** Un chat con la carpeta donde corrió (`cwd`) y su última actividad (`fin`, epoch ms). Sin `cwd`, no se agrupa. */
+export type ChatConCarpeta = { cwd: string; fin: number | null };
+
+/** Una carpeta con sus chats: el más reciente primero; las carpetas, por su chat más reciente. */
+export type CarpetaDeChats<T> = { clave: string; ruta: string; nombre: string; ultimo: number; chats: T[] };
+
+/**
+ * Los chats agrupados por carpeta (la ruta completa normalizada, no el nombre), como Claude Code los guarda en
+ * `projects/<carpeta>/`: dentro de cada una, por última actividad; las carpetas, por la de su chat más reciente.
+ * Los que no tienen `cwd` se saltean. Es una función pura: quien la llama es el que sabe el `cwd` de cada chat.
+ */
+export function agruparPorCarpeta<T extends ChatConCarpeta>(chats: readonly T[], casa: string): CarpetaDeChats<T>[] {
+  const rutas = new Map<string, string>();
+  const grupos = new Map<string, T[]>();
+  for (const c of chats) {
+    if (!c.cwd) continue;
+    const k = claveCarpeta(c.cwd, casa);
+    if (!rutas.has(k)) rutas.set(k, rutaProyecto(c.cwd, casa));
+    grupos.set(k, [...(grupos.get(k) ?? []), c]);
+  }
+  const nombres = nombresDeCarpetas(rutas);
+  return [...grupos]
+    .map(([clave, lista]) => {
+      const ordenados = [...lista].sort((a, b) => (b.fin ?? 0) - (a.fin ?? 0));
+      return { clave, ruta: rutas.get(clave)!, nombre: nombres.get(clave)!, ultimo: ordenados[0]?.fin ?? 0, chats: ordenados };
+    })
+    .sort((a, b) => b.ultimo - a.ultimo || (a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0));
+}
 
 const GUION = /([\w.-]+\.(?:sh|bash|fish|zsh|py|mjs|cjs|js|ts|rb|pl))(?![\w.-])/;
 const DE_PLUGIN = /\/plugins\/(?:cache|marketplaces)\/[^/\s]+\/([^/\s]+)\//;

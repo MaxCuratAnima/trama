@@ -78,6 +78,7 @@ export const es: { [K in keyof typeof en]: string } = {
   "barra.ocultarTerminados": "Ocultar terminados",
   "fila.trabadoSinAvance": "Trabado · sin avance ",
   "ficha.proyecto": "Proyecto: {v}",
+  "ficha.ruta": "Ruta: {v}",
   "ficha.maquina": "Máquina: {v}",
   "ficha.local": "local",
   "ficha.localEn": "local ({maquina})",

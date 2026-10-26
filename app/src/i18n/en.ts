@@ -79,6 +79,7 @@ export const en = {
   "barra.ocultarTerminados": "Hide done",
   "fila.trabadoSinAvance": "Stuck · no progress ",
   "ficha.proyecto": "Project: {v}",
+  "ficha.ruta": "Path: {v}",
   "ficha.maquina": "Machine: {v}",
   "ficha.local": "local",
   "ficha.localEn": "local ({maquina})",
