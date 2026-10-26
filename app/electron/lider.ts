@@ -60,7 +60,7 @@ import { convDe } from "./conv-cache.ts";
 import { guardada, igual, juntar, lecturaDe, oficialDe, type Lectura } from "./uso.ts";
 import { errorT } from "./errores.ts";
 import { ESTADO, escribirAtomico } from "./pa.js";
-import { grupoPropio, matarArbol } from "./procesos.js";
+import { grupoPropio, matarArbol, spawnCmd } from "./procesos.js";
 import { esElProceso, sesionesVivas, type Sesion } from "./sesiones.js";
 import { irA, ubicar } from "./terminal.js";
 import { log, silencio } from "./log.js";
@@ -437,7 +437,7 @@ function lanzar(g: Guardado, resume: boolean, local?: Local, extra: Extra = {}):
           // El mismo Electron/Node que el motor, como Node pelado; el prefacio (agy no lee CLAUDE.md) va por el entorno.
           { ...opciones, env: { ...base.env, ELECTRON_RUN_AS_NODE: "1", TRAMA_AGY_PREFACIO: extra.prefacio ?? "" } },
         )
-      : spawn(CLAUDE, argvLider({ modelo: g.modelo, effort: g.effort, sid: g.sid, nombre: g.nombre, resume, modo: g.modo, local, ollama: extra.ollama }), opciones);
+      : spawnCmd(CLAUDE, argvLider({ modelo: g.modelo, effort: g.effort, sid: g.sid, nombre: g.nombre, resume, modo: g.modo, local, ollama: extra.ollama }), opciones);
   const x: Proc = { p, modelo: g.modelo, effort: g.effort, clase, local, ocupado: false, pedido: 0, avisado: 0, resto: "", stderr: "", adrede: false, libre: [], pedidos: new Map(), controles: new Map(), estilo: null };
   procs.set(g.sid, x);
   p.stdout!.setEncoding("utf8");
@@ -603,7 +603,7 @@ function usoDeUnRato(): Promise<void> {
   return new Promise((listo) => {
     let p: ChildProcess;
     try {
-      p = spawn(CLAUDE, argvUso(), { ...(opcionesLider(process.env, HOME) as { cwd: string; env: NodeJS.ProcessEnv }), stdio: ["pipe", "pipe", "ignore"] });
+      p = spawnCmd(CLAUDE, argvUso(), { ...(opcionesLider(process.env, HOME) as { cwd: string; env: NodeJS.ProcessEnv }), stdio: ["pipe", "pipe", "ignore"] });
     } catch (e) {
       log.escribir("aviso", "lider", `get_usage: ${(e as Error).message}`);
       return listo();

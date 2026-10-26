@@ -2,7 +2,7 @@
 // lo que lanzó, y el shell para un comando suelto. En Linux es lo de siempre (`/proc`, grupos de procesos, `bash -c`);
 // en Windows, PowerShell para el arranque, `taskkill /T` para el árbol y `cmd /d /s /c`. Todo recibe la plataforma y
 // los efectos por `Deps`, así se prueba cada rama sin salir de Linux.
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawn, spawnSync, type ChildProcess, type ExecFileException, type ExecFileOptions, type ExecFileSyncOptions, type SpawnOptions, type SpawnSyncOptions, type SpawnSyncReturns } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
@@ -149,4 +149,58 @@ export function guionTerminalWindows(argv: string[], marca: string): string {
     'if not "%rc%"=="0" (echo. & echo [rc=%rc%] Pulsa una tecla para cerrar & pause >nul)',
     "",
   ].join("\r\n");
+}
+
+const METACARACTERES_CMD = /([()\][%!^"`<>&|;, *?])/g;
+const ES_BATCH = /\.(cmd|bat)$/i;
+
+/** ¿Es un `.cmd`/`.bat` de Windows? Desde Node 18.20/20.12 (CVE-2024-27980) `spawn`/`execFile` los rechazan con EINVAL si no pasan por un shell. */
+export const esBatch = (bin: string, plataforma: NodeJS.Platform = process.platform) => esWindows(plataforma) && ES_BATCH.test(bin);
+
+/**
+ * Un argumento para la línea de `cmd /d /s /c "…"` de un `.cmd`: primero como lo lee el runtime de C (barras antes de las
+ * comillas, todo entre comillas) y después cada metacaracter de cmd con `^`. Dos veces: cmd lo lee al armar la línea y los
+ * `.cmd` lo vuelven a leer cuando reenvían `%*` (el escape de cross-spawn). Los saltos de línea no pasan por cmd (corta la línea ahí): van como un espacio.
+ */
+function argumentoCmd(a: string): string {
+  let r = `${a}`.replace(/\r\n|\r|\n/g, " ").replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, "$1$1");
+  r = `"${r}"`;
+  return r.replace(METACARACTERES_CMD, "^$1").replace(METACARACTERES_CMD, "^$1");
+}
+
+export type ComandoEjecutable = { file: string; args: string[]; opciones: { windowsVerbatimArguments?: true } };
+
+/**
+ * Cómo lanzar `bin args` sin shell: igual, salvo un `.cmd`/`.bat` en Windows, que va por `cmd /d /s /c "<línea>"` con la línea ya
+ * armada (`windowsVerbatimArguments`) y cada argumento escapado, porque llevan texto libre del usuario (las tareas). `plataforma`
+ * y `env` son inyectables para probar. Sin `shell: true`: la línea sólo la interpreta cmd con todo lo peligroso escapado.
+ */
+export function comandoEjecutable(bin: string, args: readonly string[], plataforma: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): ComandoEjecutable {
+  if (!esBatch(bin, plataforma)) return { file: bin, args: [...args], opciones: {} };
+  const linea = [`"${bin}"`, ...args.map(argumentoCmd)].join(" ");
+  return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `"${linea}"`], opciones: { windowsVerbatimArguments: true } };
+}
+
+/** `execFile` que acepta un `.cmd`/`.bat` en Windows (ver `comandoEjecutable`). */
+export function execFileCmd(bin: string, args: readonly string[], opciones: ExecFileOptions, cb: (e: ExecFileException | null, stdout: string, stderr: string) => void): ChildProcess {
+  const c = comandoEjecutable(bin, args);
+  return execFile(c.file, c.args, { ...opciones, ...c.opciones, encoding: "utf8" } as ExecFileOptions & { encoding: "utf8" }, cb as never);
+}
+
+/** `execFileSync` que acepta un `.cmd`/`.bat` en Windows. */
+export function execFileSyncCmd(bin: string, args: readonly string[], opciones: ExecFileSyncOptions & { encoding: BufferEncoding }): string {
+  const c = comandoEjecutable(bin, args);
+  return execFileSync(c.file, c.args, { ...opciones, ...c.opciones });
+}
+
+/** `spawn` que acepta un `.cmd`/`.bat` en Windows. */
+export function spawnCmd(bin: string, args: readonly string[], opciones: SpawnOptions = {}): ChildProcess {
+  const c = comandoEjecutable(bin, args);
+  return spawn(c.file, c.args, { ...opciones, ...c.opciones });
+}
+
+/** `spawnSync` que acepta un `.cmd`/`.bat` en Windows. */
+export function spawnSyncCmd(bin: string, args: readonly string[], opciones: SpawnSyncOptions = {}): SpawnSyncReturns<string | Buffer> {
+  const c = comandoEjecutable(bin, args);
+  return spawnSync(c.file, c.args, { ...opciones, ...c.opciones });
 }

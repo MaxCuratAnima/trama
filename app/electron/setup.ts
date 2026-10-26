@@ -3,7 +3,7 @@
 // "Revisar"), nunca con un reloj. Sólo se avisa en el producto (`TRAMA_LOCAL=1`, la carcasa de Windows) o con
 // `HILOS_SETUP=1`: en una instalación propia o en un servidor hay otras cosas y no se molesta con lo que a propósito no tienen.
 // Cada falta se descarta aparte y queda en `$HILOS_STATE/setup.json`. Sin `electron`: lo prueba tests/setup.test.ts.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -122,7 +122,7 @@ const sondasReales = (): Sondas => ({
 });
 
 function correrTexto(bin: string, args: string[], timeout: number): Promise<string> {
-  return new Promise((ok, mal) => execFile(bin, args, { timeout, maxBuffer: 1 << 20 }, (e, stdout) => (e ? mal(Object.assign(e, { stdout: String(stdout) })) : ok(String(stdout)))));
+  return new Promise((ok, mal) => execFileCmd(bin, args, { timeout, maxBuffer: 1 << 20 }, (e, stdout) => (e ? mal(Object.assign(e, { stdout: String(stdout) })) : ok(String(stdout)))));
 }
 
 export const setupDeEstaMaquina = () => estadoSetup(sondasReales());

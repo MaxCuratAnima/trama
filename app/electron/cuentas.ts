@@ -7,7 +7,7 @@
 //   como error (no como "sin conectar") cuando el CLI sale con código ≠ 0 o no contesta a tiempo.
 // Cada vez que se pregunta se mira de nuevo (sin caché); el binario se busca en el PATH, en `~/.local/bin` y donde lo dejan
 // sus instaladores (`resolverAgy`): bajo systemd o WSL el PATH viene pelado. Sin `electron`: lo prueba tests/cuentas.test.ts.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import os from "node:os";
 import { pathConLocal, resolverAgy, resolverBinario } from "./binario.ts";
 
@@ -88,7 +88,7 @@ export async function estadoCuentas(d: Deps): Promise<EstadoCuentas> {
 
 export const correrReal: Deps["correr"] = (bin, args, env, timeout) =>
   new Promise((ok) => {
-    const hijo = execFile(bin, args, { env, timeout, maxBuffer: 1 << 20 }, (e, stdout, stderr) => {
+    const hijo = execFileCmd(bin, args, { env, timeout, maxBuffer: 1 << 20 }, (e, stdout, stderr) => {
       const err = e as (NodeJS.ErrnoException & { killed?: boolean; code?: number | string }) | null;
       ok({
         code: err ? (typeof err.code === "number" ? err.code : null) : 0,

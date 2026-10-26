@@ -9,7 +9,7 @@
 // fondo ni de corrido. Sin sesión (`--no-session-persistence`): no deja transcript ni ensucia el registro.
 // Lo medido se guarda en `$HILOS_STATE/arranque-medido.json` y se sigue mostrando, con su fecha, hasta
 // que se mide de nuevo. Sin Electron: `tests/arranque.test.ts`.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { escribirAtomico } from "./pa.ts";
@@ -90,7 +90,7 @@ export function crearArranque(o: OpcionesArranque) {
 
   const correr = (extra: readonly string[]) =>
     new Promise<string>((listo, falla) => {
-      execFile(
+      execFileCmd(
         o.claude,
         ["-p", MENSAJE, "--output-format", "json", "--no-session-persistence", ...extra],
         { cwd: o.cwd, env: o.env, timeout: TOPE_MS, maxBuffer: 16 * 1024 * 1024 },

@@ -11,7 +11,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
-import { esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
+import { comandoEjecutable, esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
 import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import type { CtxPa } from "./contexto.ts";
@@ -409,7 +409,9 @@ async function correr(b: Base): Promise<number> {
     // el claude: stdout al .json, stderr al .err, en su propio grupo para poder bajarlo entero
     const fo = openSync(out, "w");
     const fe = openSync(err, "w");
-    const hijo = spawn(claudeBin, args, {
+    const orden = comandoEjecutable(claudeBin, args, ctx.plataforma);
+    const hijo = spawn(orden.file, orden.args, {
+      ...orden.opciones,
       cwd: rutaTrabajo, windowsHide: true, detached: !esWindows(ctx.plataforma), stdio: ["ignore", fo, fe],
       // la cuenta (sacar ANTHROPIC_API_KEY, poner CLAUDE_CONFIG_DIR…) va SÓLO en el proceso del worker
       env: entornoConCuenta({

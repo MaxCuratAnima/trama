@@ -3,7 +3,7 @@
 //   HILOS_PA=scripts/pa-falso.sh node -e 'import("./dist-electron/pa.js").then(m => m.cerrar(…))'
 // `pa` se busca en `HILOS_PA`, el PATH o `~/.local/bin` (ver binario.ts). La app nunca lee
 // `$PA_STATE` a mano: sólo mira `eventos.jsonl` para saber cuándo releer.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import { mkdirSync } from "node:fs";
 import { mirarCarpeta } from "./mirar.ts";
 import { open, readFile, rename, stat, writeFile } from "node:fs/promises";
@@ -37,7 +37,7 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 /** Corre `pa` y devuelve su stdout; si falla, rechaza con lo último que dijo por stderr. */
 function correr(args: string[], env: NodeJS.ProcessEnv = ENV): Promise<string> {
   return new Promise((ok, mal) => {
-    execFile(PA, args, { maxBuffer: MAX_BUFFER, env }, (err, stdout, stderr) => {
+    execFileCmd(PA, args, { maxBuffer: MAX_BUFFER, env }, (err, stdout, stderr) => {
       if (!err) return ok(stdout);
       const dijo = String(stderr).trim().split("\n").filter(Boolean).slice(-2).join(" · ");
       mal(new Error(dijo || `${path.basename(PA)} ${args[0]}: ${err.message}`));

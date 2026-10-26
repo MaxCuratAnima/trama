@@ -2,12 +2,12 @@
 // `reparto --cupos --json` (contrato `version: 1`, `suscripciones[]` con `ventanas[]` o `grupos[]`),
 // el único lector. Genérico: una suscripción nueva aparece sola en la cabecera, sin tocar esto.
 // Lo que no se sabe es `null` ("sin dato"), nunca un número inventado.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import { homedir } from "node:os";
-import { promisify } from "node:util";
 import { entornoPa, resolverBinario } from "./binario.js";
 
-const execFileP = promisify(execFile);
+const execFileP = (bin: string, args: string[], o: { env: NodeJS.ProcessEnv; timeout: number; maxBuffer: number }) =>
+  new Promise<{ stdout: string }>((ok, mal) => execFileCmd(bin, args, o, (e, stdout) => (e ? mal(e) : ok({ stdout }))));
 
 /** Una ventana de cupo: `pct` 0..100 (`null`: sin dato) y cuándo vuelve (epoch s, `null`: no se sabe). */
 export interface VentanaCupo {

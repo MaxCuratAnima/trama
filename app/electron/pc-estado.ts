@@ -3,7 +3,7 @@
 // nunca se conecta al motor de la PC, sólo mira si su puerto acepta una conexión TCP (lo mismo que hace
 // `prender-pc --esperar`) y la ventana ofrece abrirla. Sin polling en reposo: se mira cuando alguien lo pide y,
 // mientras "Prendiendo…", cada pocos segundos hasta que contesta o se acaba el plazo.
-import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -57,7 +57,7 @@ export type OpcionesPc = {
 
 const correrComando = (comando: string) =>
   new Promise<void>((resolver, rechazar) => {
-    execFile(rutaDe(comando), [], { timeout: TOPE_COMANDO_MS }, (e, _out, err) => {
+    execFileCmd(rutaDe(comando), [], { timeout: TOPE_COMANDO_MS }, (e, _out, err) => {
       if (e) rechazar(new Error(motivo(e, String(err))));
       else resolver();
     });

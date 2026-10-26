@@ -7,7 +7,7 @@
 // shell) o una terminal (`enTerminal`, kitty) que se espera hasta que el comando termina, para lo que pide contraseña
 // (paru). Los usos: electron/actualizacion.ts (claude) y electron/actualizacion-agy.ts (agy, en terminal).
 //   HILOS_TERMINAL  la terminal de Actualizar en terminal (en la prueba, un falso). Por default, kitty.
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
@@ -17,7 +17,7 @@ import { textoT } from "./errores.js";
 import { avisoDe, CADA_MS, comparar, desdeArchivo, hayQueConsultar, normal, type Aviso, type Chequeo } from "./version.js";
 import { silencio } from "./log.js";
 import { carpetasPath, caminos, separadorPath } from "./plataforma.js";
-import { guionTerminalWindows } from "./procesos.js";
+import { execFileCmd, guionTerminalWindows } from "./procesos.js";
 
 /** Abierta desde el menú de apps la sesión gráfica puede no traer estas carpetas en el PATH (ver binario.ts). */
 export function entorno(): NodeJS.ProcessEnv {
@@ -32,7 +32,7 @@ export function entorno(): NodeJS.ProcessEnv {
 /** Lo que imprime el comando, normalizado a "x.y.z"; null si falló o no se entiende. */
 export const versionDe = (bin: string, args: string[], timeout: number) =>
   new Promise<string | null>((listo) => {
-    execFile(bin, args, { timeout, env: entorno(), maxBuffer: 64 * 1024 }, (err, stdout) => listo(err ? null : normal(String(stdout))));
+    execFileCmd(bin, args, { timeout, env: entorno(), maxBuffer: 64 * 1024 }, (err, stdout) => listo(err ? null : normal(String(stdout))));
   });
 
 /** Lo que pasó al apretar Actualizar: la versión que quedó, o el error (corto y entero). */
@@ -192,7 +192,7 @@ export function crearActualizador(cfg: Config) {
     const a = cfg.actualizar;
     if ("terminal" in a) return enTerminal(a.terminal, cfg.entornoActualizar());
     return new Promise((listo) =>
-      execFile(cfg.bin, a.args, { timeout: 5 * 60_000, env: cfg.entornoActualizar(), maxBuffer: 1024 * 1024 }, (err, stdout, stderr) =>
+      execFileCmd(cfg.bin, a.args, { timeout: 5 * 60_000, env: cfg.entornoActualizar(), maxBuffer: 1024 * 1024 }, (err, stdout, stderr) =>
         listo({ err: err ? err.message : null, dijo: ultimas(`${String(stderr ?? "")}\n${String(stdout ?? "")}`) }),
       ),
     );

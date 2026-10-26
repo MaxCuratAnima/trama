@@ -18,6 +18,7 @@ import os from "node:os";
 import { pathToFileURL } from "node:url";
 import { resolverAgy, resolverBinario } from "../binario.ts";
 import { correrReal, sondearAgy, sondearClaude, sondearCodex, type Cuenta } from "../cuentas.ts";
+import { comandoEjecutable } from "../procesos.ts";
 import { caminos, dirConfigTrama, esWindows, pathConLocal, type Env, type Plataforma } from "../plataforma.ts";
 import { conCandado } from "./candado.ts";
 
@@ -313,9 +314,10 @@ export async function ejecutar(argv: string[], d: Deps): Promise<{ rc: number; o
   }
 }
 
-/** Login interactivo: hereda la terminal; un `.cmd` de Windows (claude.cmd) necesita shell. */
+/** Login interactivo: hereda la terminal; un `.cmd` de Windows (claude.cmd) va por cmd.exe (`comandoEjecutable`). */
 const loginReal: Deps["login"] = (bin, args, env) => {
-  const r = spawnSync(bin, args, { env: env as NodeJS.ProcessEnv, stdio: "inherit", shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(bin) });
+  const c = comandoEjecutable(bin, args);
+  const r = spawnSync(c.file, c.args, { env: env as NodeJS.ProcessEnv, stdio: "inherit", ...c.opciones });
   if (r.error) {
     process.stderr.write(`cuentas: no pude correr ${bin}: ${r.error.message}\n`);
     return 1;

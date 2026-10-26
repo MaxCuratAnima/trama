@@ -3,6 +3,7 @@
 // puro, como pa.ts, para probarlo desde la terminal con el `pa` falso:
 //   HILOS_PA=scripts/pa-falso.sh node -e 'import("./dist-electron/paneles.js").then(m => m.accionRama(…))'
 import { execFile } from "node:child_process";
+import { execFileCmd } from "./procesos.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { decisionDeConversacion, resultadoDeConversacion, type DatosPasar, type RamaBrief } from "./asistente.js";
@@ -21,7 +22,7 @@ import { silencio } from "./log.js";
  */
 export function ejecutar(args: string[], env: NodeJS.ProcessEnv = ENV): Promise<{ rc: number; out: string; dijo: string }> {
   return new Promise((ok) => {
-    execFile(PA, args, { env, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFileCmd(PA, args, { env, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
       const dijo = String(stderr).trim().split("\n").filter(Boolean).slice(-2).join(" · ");
       if (!err) return ok({ rc: 0, out: stdout, dijo });
       ok({

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { esWindows, estadoDeProceso, grupoPropio, inicioDeProceso, inicioDeProcesoSync, matarArbol, shellDe, deStat } from "../electron/procesos.ts";
+import { esWindows, estadoDeProceso, grupoPropio, inicioDeProceso, inicioDeProcesoSync, matarArbol, shellDe, deStat, comandoEjecutable, esBatch } from "../electron/procesos.ts";
 
 const STAT = "123 (mi (proc) raro) S 1 123 123 0 -1 4194560 100 0 0 0 1 2 0 0 20 0 1 0 987654 1000 10 18446744073709551615";
 
@@ -115,4 +115,36 @@ test("guionTerminalWindows: corre con call, anota el rc por .tmp y espera una te
   assert.equal(l[1], 'call "C:\\Users\\Ana\\.local\\bin\\cuentas.cmd" "login" "100%%"');
   assert.match(g, /move \/y "C:\\Temp\\x\\rc\.tmp" "C:\\Temp\\x\\rc"/);
   assert.match(g, /if not "%rc%"=="0" .*pause/);
+});
+
+test("comandoEjecutable: en Windows un .cmd/.bat va por cmd /d /s /c con la línea armada; lo demás queda igual", () => {
+  const env = { ComSpec: "C:\\Windows\\System32\\cmd.exe" };
+  const c = comandoEjecutable("C:\\Program Files\\Trama\\bin\\pa.cmd", ["--hilos", "--json"], "win32", env);
+  assert.equal(c.file, "C:\\Windows\\System32\\cmd.exe");
+  assert.deepEqual(c.args.slice(0, 3), ["/d", "/s", "/c"]);
+  assert.equal(c.args[3], '""C:\\Program Files\\Trama\\bin\\pa.cmd" ^^^"--hilos^^^" ^^^"--json^^^""');
+  assert.deepEqual(c.opciones, { windowsVerbatimArguments: true });
+  assert.equal(comandoEjecutable("x.BAT", [], "win32", {}).file, "cmd.exe");
+  // .exe, sin extensión y cualquier cosa en Linux: tal cual
+  assert.deepEqual(comandoEjecutable("C:\\bin\\agy.exe", ["a b"], "win32", env), { file: "C:\\bin\\agy.exe", args: ["a b"], opciones: {} });
+  assert.deepEqual(comandoEjecutable("git", ["log"], "win32", env), { file: "git", args: ["log"], opciones: {} });
+  assert.deepEqual(comandoEjecutable("/home/x/pa.cmd", ["a b"], "linux", env), { file: "/home/x/pa.cmd", args: ["a b"], opciones: {} });
+  assert.equal(esBatch("pa.cmd", "linux"), false);
+  assert.equal(esBatch("pa.cmd", "win32"), true);
+});
+
+test("comandoEjecutable: una tarea con comillas, &, %PATH% y espacios no deja nada suelto para cmd", () => {
+  const tarea = 'arregla "esto" & aquello | otro > x < y ^ z con %PATH% y   espacios';
+  const c = comandoEjecutable("pa.cmd", ["--tarea", tarea, "termina\\", "a\nb"], "win32", {});
+  const linea = c.args[3];
+  // cada metacaracter de cmd va con ^ dos veces (cmd lo lee al armar la línea y otra vez cuando el .cmd reenvía %*)
+  const sinEscapar = linea.replace(/\^\^\^./g, "");
+  assert.doesNotMatch(sinEscapar.replace(/^"/, "").replace(/"$/, "").replace('"pa.cmd"', ""), /[&|<>%^"]/);
+  assert.match(linea, /\^\^\^%PATH\^\^\^%/);
+  assert.match(linea, /\^\^\^&/);
+  assert.ok(!linea.includes("\n"), "los saltos de línea no pasan por cmd: van como espacio");
+  assert.match(linea, /a\^\^\^ b/);
+  // las comillas de la tarea van con barra (como las lee el runtime de C) y el backslash final se duplica
+  assert.match(linea, /\\\^\^\^"esto/);
+  assert.match(linea, /termina\\\\\^\^\^"/);
 });

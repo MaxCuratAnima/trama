@@ -18,7 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buscarEjecutable, caminos, carpetasPath, dirBinLocal, dirClaudeConfig, dirEstadoApp, esEjecutable, esWindows, rutaModelos, type Env, type Plataforma } from "../plataforma.ts";
-import { shellDe } from "../procesos.ts";
+import { comandoEjecutable } from "../procesos.ts";
 
 export type Entorno = { plataforma: Plataforma; env: Env; home: string };
 export type Estado = {
@@ -33,14 +33,9 @@ const aqui = (): Entorno => ({ plataforma: process.platform, env: process.env as
 
 function salida(cmd: string[], plataforma: Plataforma, env: Env, espera = 10000): { rc: number; out: string } {
   try {
-    let bin = cmd[0];
-    let args = cmd.slice(1);
-    let opciones: { windowsVerbatimArguments?: true } = {};
-    if (plataforma === "win32" && /\.(cmd|bat)$/i.test(bin)) {
-      // un .cmd (claude instalado por npm) no se lanza directo: va por cmd.exe
-      ({ bin, args, opciones } = shellDe([bin, ...args].map((a) => `"${a}"`).join(" "), plataforma, env as NodeJS.ProcessEnv));
-    }
-    const r = spawnSync(bin, args, { encoding: "utf-8", timeout: espera, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, ...opciones });
+    // un .cmd (claude instalado por npm) no se lanza directo: va por cmd.exe
+    const c = comandoEjecutable(cmd[0], cmd.slice(1), plataforma, env as NodeJS.ProcessEnv);
+    const r = spawnSync(c.file, c.args, { encoding: "utf-8", timeout: espera, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, ...c.opciones });
     if (r.error || r.status === null) return { rc: 1, out: "" };
     return { rc: r.status, out: r.stdout ?? "" };
   } catch {

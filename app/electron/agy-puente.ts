@@ -15,7 +15,7 @@
 // `~/.claude/projects`, aparte para que no entren al consumo ni al historial de Claude) y su
 // `sessions/<pid>.json` (la barra lo ve vivo; `pa` busca al jefe de un worker subiendo por los padres hasta un pid
 // con ese archivo: sin él, los workers de un líder de Gemini quedarían sueltos).
-import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
@@ -28,7 +28,7 @@ import { avisoDestrabo, REINTENTOS_MAX, Vigilante, type Bucle, type Senal } from
 import { cerrarDestrabo, registrarDestrabo } from "./destrabar-registro.ts";
 import { destrabarModelo, modeloAgy } from "./modelos-config.ts";
 import { ESTADO } from "./estado.ts";
-import { grupoPropio, inicioDeProcesoSync, matarArbol } from "./procesos.ts";
+import { execFileSyncCmd, grupoPropio, inicioDeProcesoSync, matarArbol, spawnCmd } from "./procesos.ts";
 import { SESIONES } from "./sesiones.ts";
 
 /** El `agy` de verdad: bajo la unidad de systemd el PATH no trae `~/.local/bin` y el binario pelado no se encuentra. */
@@ -213,7 +213,7 @@ function correrAgy(prompt: string, conversacion: string | null, tr: Traductor): 
     const args = ["-p", prompt, "--model", modeloAgy(modelo), "--output-format", "stream-json", "--dangerously-skip-permissions", "--print-timeout", TIMEOUT_TURNO];
     if (conversacion) args.push("--conversation", conversacion);
     // Su propio grupo: al interrumpir caen también los comandos que lanzó.
-    const p = spawn(AGY, args, { cwd, env: ENTORNO, stdio: ["ignore", "pipe", "pipe"], ...grupoPropio() });
+    const p = spawnCmd(AGY, args, { cwd, env: ENTORNO, stdio: ["ignore", "pipe", "pipe"], ...grupoPropio() });
     hijo = p;
     const v: Vuelta = { pasos: 0, sinConversacion: false, conversacion: !!conversacion, bucle: null, exito: null };
     let resto = "";
@@ -436,7 +436,7 @@ let comandosCache: ReturnType<typeof comandosPluginAgy> | null = null;
 function comandosDeAgy() {
   if (comandosCache) return comandosCache;
   try {
-    const out = execFileSync(AGY, ["plugin", "list", "--json"], { env: ENTORNO, encoding: "utf8", timeout: 3000, stdio: ["ignore", "pipe", "ignore"] });
+    const out = execFileSyncCmd(AGY, ["plugin", "list", "--json"], { env: ENTORNO, encoding: "utf8", timeout: 3000, stdio: ["ignore", "pipe", "ignore"] });
     comandosCache = comandosPluginAgy(out);
   } catch {
     comandosCache = [];

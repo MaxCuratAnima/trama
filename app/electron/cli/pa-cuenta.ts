@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { caminos, dirConfigTrama } from "../plataforma.ts";
-import { shellDe } from "../procesos.ts";
+import { comandoEjecutable } from "../procesos.ts";
 import type { CtxPa } from "./contexto.ts";
 
 export type Proveedor = "claude" | "google" | "chatgpt";
@@ -27,19 +27,18 @@ export const llamarCuentasEnv: LlamarCuentas = (ctx, id) => {
   const fijo = ctx.env.PA_CUENTAS_BIN;
   let bin: string;
   let args: string[];
-  let opciones: { windowsVerbatimArguments?: true } = {};
   const propio = (b: string) => /\.(ts|js|mjs)$/.test(b);
   if (fijo && !propio(fijo)) {
     bin = fijo;
     args = ["env", id, "--json"];
-    if (ctx.plataforma === "win32" && /\.(cmd|bat)$/i.test(fijo)) ({ bin, args, opciones } = shellDe([fijo, "env", id, "--json"].map((a) => `"${a}"`).join(" "), ctx.plataforma, ctx.env as NodeJS.ProcessEnv));
   } else {
     const script = fijo ?? fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "./cuentas.ts" : "./cuentas.js", import.meta.url));
     bin = process.execPath;
     args = [script, "env", id, "--json"];
   }
-  const r = spawnSync(bin, args, {
-    encoding: "utf8", windowsHide: true, timeout: 30000, stdio: ["ignore", "pipe", "pipe"], ...opciones,
+  const c = comandoEjecutable(bin, args, ctx.plataforma, ctx.env as NodeJS.ProcessEnv);
+  const r = spawnSync(c.file, c.args, {
+    encoding: "utf8", windowsHide: true, timeout: 30000, stdio: ["ignore", "pipe", "pipe"], ...c.opciones,
     env: { ...process.env, ...ctx.env, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {}) } as NodeJS.ProcessEnv,
   });
   if (r.error || r.status === null) return { rc: 1, out: r.error ? String(r.error.message) : "" };
