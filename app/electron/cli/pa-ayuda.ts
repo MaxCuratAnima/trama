@@ -13,6 +13,8 @@ Uso:
   pa <proyecto> "<tarea>"              delegar (el worker puede escribir, en su worktree de un puesto)
   pa <proyecto> --leer "<pregunta>"    sólo lectura (Read/Grep/Glob + git de lectura por Bash, sin Edit)
                                        NO toma puesto: corre en paralelo con los que escriben y con otros --leer
+  pa <proyecto> --archivo-tarea <ruta> la tarea sale de ese archivo (\`-\` = stdin), entera y con sus saltos de línea. Usalo para tareas de
+                                       varias líneas desde pa.cmd: cmd.exe corta el argumento en el primer salto de línea
   pa <proyecto> --async "<tarea>"      lanzar desacoplado y volver enseguida (si no hay puesto libre, hace cola)
   pa <proyecto> --integrar <id>        mergear la rama de esa corrida en el tree principal (rebase en su puesto + ff, sin forzar)
   pa <proyecto> --descartar <id>       tirar la rama de esa corrida (borra sus commits: confirmarlo antes)

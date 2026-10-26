@@ -14,7 +14,17 @@ import { lanzar } from "./pa-lanzar.ts";
 import { cmdRinde } from "./medicion.ts";
 import { AYUDA } from "./pa-ayuda.ts";
 import { cmdModelos } from "./pa-modelos.ts";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+
+/**
+ * La tarea de `--archivo-tarea <ruta>` (`-` = stdin), sin BOM ni salto final. Existe porque cmd.exe corta la línea de comandos en el
+ * primer salto de línea: una tarea de varias líneas pasada por `pa.cmd` llega sólo hasta ahí (y pierde lo que sigue). Por archivo llega entera.
+ */
+export function tareaDeArchivo(ruta: string): string {
+  const txt = readFileSync(ruta === "-" ? 0 : ruta, "utf8");
+  return txt.replace(/^\uFEFF/, "").replace(/(\r?\n)+$/, "");
+}
 
 const modeloLocal = (env: CtxPa["env"]) =>
   env.CLAUDE_LOCAL === "1" || /^([a-zA-Z]+:\/\/)?(localhost|127\.[0-9.]+|\[::1\]|::1)([:/]|$)/.test(env.ANTHROPIC_BASE_URL ?? "");
@@ -66,6 +76,13 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
   if (r.clase === "error") return ctx.err(r.mensaje + "\n"), r.codigo;
   if (r.clase === "ayuda") return ctx.out(AYUDA), 0;
   if (r.clase === "proyecto") {
+    if (r.opciones.archivoTarea) {
+      try {
+        r.opciones.tarea = tareaDeArchivo(r.opciones.archivoTarea);
+      } catch (e) {
+        return ctx.err(`pa: no pude leer --archivo-tarea ${r.opciones.archivoTarea}: ${(e as Error).message}\n`), 2;
+      }
+    }
     const g = await gestionDeProyecto(ctx, r.opciones);
     return g ?? lanzar(ctx, r.opciones);
   }

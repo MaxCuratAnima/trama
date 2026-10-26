@@ -37,6 +37,8 @@ export type OpcionesProyecto = {
   tipo: string;
   /** `--cuenta <id>`: la cuenta de la suscripción con la que corre el worker ("" = la de siempre). */
   cuenta: string;
+  /** `--archivo-tarea <ruta>` (o `-` = stdin): la tarea sale de ese archivo, entera y con sus saltos de línea. pa.ts la lee y la pone en `tarea`. */
+  archivoTarea: string;
   okDueno: boolean;
   /** Las `--nota` pegadas a la llamada, en orden. */
   notas: string[];
@@ -65,6 +67,7 @@ const error = (mensaje: string, codigo = 2): Parseado => ({ clase: "error", codi
 const CON_VALOR: Record<string, string> = {
   "--max-turns": "maxTurns", "--id": "id", "--integrar": "integrar", "--descartar": "descartar", "--actualizar": "actualizar",
   "--nota": "nota", "--max-budget-usd": "maxBudget", "-m": "modelo", "--model": "modelo", "--effort": "esfuerzo", "--tipo": "tipo", "--cuenta": "cuenta",
+  "--archivo-tarea": "archivoTarea",
 };
 
 export function parsearArgs(argv: readonly string[], ent: EntornoArgs = {}): Parseado {
@@ -82,7 +85,7 @@ export function parsearArgs(argv: readonly string[], ent: EntornoArgs = {}): Par
     proyecto: argv[0], tarea: "", modelo: "", esfuerzo: env.PA_EFFORT ?? "", esfuerzoFlag: false, seguir: false, leer: false,
     olvidar: false, matar: false, mcp: false, async: false, sinJefe: false, maxTurns: ent.plan === "max" ? "150" : ent.plan === "pro" ? "100" : "150",
     maxBudget: "", id: "", sucioMio: false, aca: false, integrar: "", tests: false, descartar: "", actualizar: "", ramas: false,
-    force: false, tipo: env.PA_TIPO ?? "", cuenta: "", okDueno: false, notas: [],
+    force: false, tipo: env.PA_TIPO ?? "", cuenta: "", archivoTarea: "", okDueno: false, notas: [],
   };
   const dueno = (ent.nombreDueno ?? "").toLowerCase();
   const a = argv.slice(1);
