@@ -12,7 +12,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statS
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { caminos, dirEstadoPa, entornoConLocal, type Env, type Plataforma } from "../plataforma.ts";
+import { caminos, dirEstadoPa, entornoConLocal, esWindows, type Env, type Plataforma } from "../plataforma.ts";
 import { grupoPropio, matarArbol } from "../procesos.ts";
 import { enPalabras, estado } from "./trama-estado.ts";
 
@@ -87,7 +87,8 @@ export async function iniciar(e: Entorno): Promise<number> {
 export async function detener(e: Entorno): Promise<number> {
   const pid = pidVivo(e);
   if (!pid) return 0;
-  matarArbol(pid, false);
+  // Windows no tiene SIGTERM para un proceso sin ventana: `taskkill` sin /F no lo baja, así que va directo con /F.
+  matarArbol(pid, esWindows(e.plataforma));
   for (let i = 0; i < 40 && vivo(pid); i++) await dormir(250);
   if (vivo(pid)) {
     matarArbol(pid, true);
