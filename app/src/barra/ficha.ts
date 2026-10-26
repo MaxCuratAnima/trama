@@ -47,11 +47,12 @@ export type Lugar = "local" | "nube";
 export const lugarDe = (_h: Hilo): Lugar => "local";
 
 /** El tooltip de la fila: proyecto, máquina, rama y modelo completo, un dato por renglón. */
-export function ficha(h: Hilo, maquina: string | null): string {
+export function ficha(h: Hilo, maquina: string | null, ruta?: string | null): string {
   const lugar = lugarDe(h);
   const donde = lugar === "nube" ? t("ficha.nube") : maquina ? t("ficha.localEn", { maquina }) : t("ficha.local");
   return [
     t("ficha.proyecto", { v: h.proyecto }),
+    ...(ruta ? [t("ficha.ruta", { v: ruta })] : []),
     t("ficha.maquina", { v: donde }),
     t("ficha.rama", { v: h.rama ?? t("comun.sinRama") }),
     t("ficha.modelo", { v: `${h.modelo || t("comun.sinDato")}${h.effort ? ` · ${h.effort}` : ""}` }),
