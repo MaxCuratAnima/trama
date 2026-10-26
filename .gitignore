@@ -1,0 +1,4 @@
+# Salidas de build y de pruebas: no se versionan
+app/dist/
+app/dist-electron/
+app/bench-resultados/
