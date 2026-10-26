@@ -46,7 +46,7 @@ function Lista() {
         <div className="at-cuerpo">
           {listaAtajos().map((g) => (
             <section key={g.grupo}>
-              <h3>{t(`atajos.grupo.${g.grupo}`)}</h3>
+              <h3 className="pn-h">{t(`atajos.grupo.${g.grupo}`)}</h3>
               <dl>
                 {g.items.map((a) => (
                   <Fragment key={a.id}>

@@ -185,6 +185,7 @@ export function CuposTarjetas({ b, uso, plan }: { b: Borrador; uso: Uso | null; 
 
   return (
     <section className="cu-sec">
+      <h2 className="pn-h">{t("ajustes.cuposH")}</h2>
       {avisos.map((a) => (
         <div key={a.ventana} className="pn-aviso mdl-cruce cu-aviso" role="status">
           <div>
@@ -283,6 +284,7 @@ export function AjustesCupos({ Dato, b, cambiar }: { Dato: FilaDato; b: Borrador
 
   return (
     <section className="pn-sec pn-edita">
+      <h2 className="pn-h">{t("ajustes.reservasH")}</h2>
       <Dato nombre="ajustes.cuposGuardar" que="ajustes.cuposGuardarQue">
         <Interruptor activo={b.guardar} alCambiar={(v) => cambiar({ ...b, guardar: v })} aria-label={t("ajustes.cuposGuardar")} />
       </Dato>
