@@ -3,7 +3,6 @@
 // los workers, que lo heredan de `process.env`. Se importa primero en main.ts: `pa.ts` y otros leen el entorno al cargarse.
 // Fuera de Windows no hace nada. Sin `electron`: lo prueba tests/entorno-windows.test.ts.
 import { existsSync } from "node:fs";
-import path from "node:path";
 import { caminos, entornoConDir, esWindows, type Env, type Plataforma } from "./plataforma.ts";
 
 /**
