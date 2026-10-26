@@ -208,6 +208,11 @@ contextBridge.exposeInMainWorld("hilos", {
     quitar: (id: string, borrarCredenciales: boolean): Promise<unknown> => ipcRenderer.invoke("cuentas:quitar", id, borrarCredenciales),
     login: (id: string): Promise<unknown> => ipcRenderer.invoke("cuentas:login", id),
   },
+  /** Skills, agentes, plugins y servidores MCP de la carpeta de config de una cuenta de Claude (electron/extensiones.ts). */
+  extensiones: {
+    leer: (cuenta: string): Promise<unknown> => ipcRenderer.invoke("extensiones:leer", cuenta),
+    importar: (cuenta: string): Promise<unknown> => ipcRenderer.invoke("extensiones:importar", cuenta),
+  },
   /** Sólo por la tailnet (lo arma electron/remoto-cliente.ts; en la ventana no llega nunca): `false` = se cayó la conexión con la PC. */
   conexion: {
     alCambiar: oir("remoto:conexion"),

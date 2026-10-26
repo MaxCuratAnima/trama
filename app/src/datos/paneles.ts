@@ -238,7 +238,7 @@ const fija: FuentePaneles = {
     // `?falla=modelos-guardar`: el primer Guardar falla (el archivo de ahora no se puede leer); el siguiente anda.
     if (MODO.falla === "modelos-guardar" && !FALLO.has("modelos")) {
       FALLO.add("modelos");
-      throw new Error(textoT("main.modelosRoto", { ruta: "~/.config/trama/modelos.json", e: "Unexpected token } in JSON at position 41" }));
+      throw new Error(textoT("main.modelosRoto", { ruta: "%APPDATA%\\Trama\\modelos.json", e: "Unexpected token } in JSON at position 41" }));
     }
     modelosFijos = { ...(modelosFijos ?? MODELOS_FIJOS(false)), existe: true, config: structuredClone(config) };
     return structuredClone(modelosFijos);

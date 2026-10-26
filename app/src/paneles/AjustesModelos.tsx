@@ -340,6 +340,7 @@ export function AjustesModelos({ Dato, plan = null }: { Dato: FilaDato; plan?: s
     <div className="aj-sin-caja" ref={sec as RefObject<HTMLDivElement>} data-modelos>
       <Cat id="modelos">
         <section className="pn-sec pn-edita">
+          <h2 className="pn-h">{t("ajustes.mdlModelosH")}</h2>
           <Fijo k="ajustes.mdlIntro" bloque className="pn-nota pn-intro" />
           {!e.existe ? <Fijo k="ajustes.mdlSinArchivo" bloque className="pn-nota pn-intro" /> : null}
 
@@ -487,6 +488,7 @@ export function AjustesModelos({ Dato, plan = null }: { Dato: FilaDato; plan?: s
 
       <Cat id="locales">
         <section className="pn-sec pn-edita">
+          <h2 className="pn-h">{t("ajustes.mdlLocales")}</h2>
           <GuiaOllama estado={ollama} entorno={entorno} alMirar={() => void mirarOllama()} />
 
           {instaladosOl ? (

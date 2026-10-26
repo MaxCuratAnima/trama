@@ -282,6 +282,11 @@ type Main = {
     quitar(id: string, borrarCredenciales: boolean): Promise<unknown>;
     login(id: string): Promise<unknown>;
   };
+  /** Lo que tiene la carpeta de config de una cuenta de Claude (`"claude"` = la de siempre), sin validar; `importar` copia lo que falta desde la de siempre. */
+  extensiones: {
+    leer(cuenta: string): Promise<unknown>;
+    importar(cuenta: string): Promise<unknown>;
+  };
   /** Por la tailnet (el celular): `false` cuando se cae la conexión con la PC, `true` al volver. En la ventana no avisa nunca. */
   conexion: {
     alCambiar(fn: (conectado: unknown) => void): Soltar;
