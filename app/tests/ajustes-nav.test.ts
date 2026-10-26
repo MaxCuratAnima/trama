@@ -44,7 +44,7 @@ test("cada fila del índice y cada categoría tienen texto en inglés y en espa�
 });
 
 test("cada fila del índice está dibujada con su data-opc (el salto la encuentra)", () => {
-  const fuente = ["Ajustes.tsx", "AjustesModelos.tsx", "AjustesEditar.tsx", "AjustesCuentas.tsx", "AjustesCarcasa.tsx", "AjustesCupos.tsx", "AjustesCompactar.tsx"]
+  const fuente = ["Ajustes.tsx", "AjustesModelos.tsx", "AjustesEditar.tsx", "AjustesCuentas.tsx", "AjustesCupos.tsx", "AjustesCompactar.tsx"]
     .map((f) => readFileSync(path.join(import.meta.dirname, "..", "src", "paneles", f), "utf8"))
     .join("\n");
   // Los tipos de worker se dibujan con la clave armada (`mdl.t.${tipo}`); el resto, con su clave literal.
@@ -139,7 +139,6 @@ test("declarar anota qué categorías existen", () => {
 
 test("cada variante de captura de Ajustes cae en la categoría de lo que muestra", () => {
   assert.equal(deVariante("cuentas-una"), "cuentas");
-  assert.equal(deVariante("carcasa-restos"), "actualizaciones");
   assert.equal(deVariante("mdl-agregar"), "locales");
   assert.equal(deVariante("mdl-tope"), "cupos");
   assert.equal(deVariante("celular"), "celular");

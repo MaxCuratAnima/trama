@@ -4,7 +4,7 @@
 import type { Clave, ClaveSola } from "../i18n";
 import { TIPOS } from "../../electron/modelos-tipos";
 
-export const CATS = ["cuentas", "modelos", "cupos", "locales", "celular", "actualizaciones", "general"] as const;
+export const CATS = ["cuentas", "modelos", "cupos", "locales", "celular", "general"] as const;
 export type CatId = (typeof CATS)[number];
 
 export const esCat = (x: unknown): x is CatId => typeof x === "string" && (CATS as readonly string[]).includes(x);
@@ -53,8 +53,6 @@ export const ITEMS: readonly Item[] = [
   { cat: "celular", nombre: "ajustes.celPuerto", que: "ajustes.celPuertoQue", sin: "telefono movil phone mobile tailscale tailnet remoto remote port" },
   { cat: "celular", nombre: "ajustes.celDisp", que: "ajustes.celDispQue", sin: "telefono movil phone mobile tailscale tailnet dispositivos devices permitidos allowed agregar add" },
 
-  { cat: "actualizaciones", nombre: "carcasa.act", que: "carcasa.actQue", sin: "windows update version buscar check descargar download reiniciar restart exe" },
-  { cat: "actualizaciones", nombre: "carcasa.restos", que: "carcasa.restosQue", sin: "windows limpiar clean restos leftovers versiones anteriores previous desinstalar uninstall" },
 
   { cat: "general", nombre: "ajustes.idioma", que: "ajustes.idiomaQue", sin: "language english espanol ingles spanish traduccion idioma" },
   { cat: "general", nombre: "ajustes.letra", que: "ajustes.letraQue", sin: "tamano size texto text zoom font fuente grande chico letra" },
@@ -179,7 +177,6 @@ export function inicial(cat: CatId) {
 export function deVariante(v: string | null | undefined): CatId | null {
   if (!v) return null;
   if (v.startsWith("cuentas")) return "cuentas";
-  if (v.startsWith("carcasa")) return "actualizaciones";
   if (v === "mdl-agregar" || v === "mdl-bajando" || v === "mdl-sinollama" || v === "mdl-apagado" || v === "mdl-sugeridos") return "locales";
   if (v === "mdl-tope" || v.startsWith("cupos") || v === "editando" || v === "editando-mal") return "cupos";
   if (v === "celular") return "celular";

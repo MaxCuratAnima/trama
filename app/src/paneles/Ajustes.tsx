@@ -18,7 +18,6 @@ import { AjustesCuentas } from "./AjustesCuentas";
 import { AjustesModelos } from "./AjustesModelos";
 import { Compactar } from "./AjustesCompactar";
 import { IcAtajos, IcAviso, IcCodigo, ICONO, IcIdioma, IcLetra, IcTiernos, IcTipografia } from "../ui/iconos";
-import { Carcasa } from "./AjustesCarcasa";
 import { AjustesMarco, Cat } from "./AjustesNav";
 import { ErrorCarga } from "./ErrorCarga";
 import { useIdioma } from "../i18n/react";
@@ -245,9 +244,6 @@ export function Ajustes() {
         </Cat>
         <AjustesModelos Dato={Dato} plan={a?.plan ?? null} />
         <Celular Dato={Dato} />
-        <Cat id="actualizaciones">
-          <Carcasa Dato={Dato} />
-        </Cat>
       </AjustesMarco>
       <BarraGuardar />
     </>
