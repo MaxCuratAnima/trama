@@ -13,11 +13,11 @@
 // (separadores ", " y ": ", sin escapar acentos). Entorno (para probar): TRAMA_CLAUDE / TRAMA_AGY (otro nombre del binario),
 // TRAMA_MODELOS (otro modelos.json), TRAMA_PUERTO (puerto del motor, default 8791), OLLAMA_HOST (si modelos.json no dice).
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buscarEjecutable, caminos, carpetasPath, dirBinLocal, dirClaudeConfig, dirEstadoApp, esEjecutable, rutaModelos, type Env, type Plataforma } from "../plataforma.ts";
+import { buscarEjecutable, caminos, carpetasPath, dirBinLocal, dirClaudeConfig, dirEstadoApp, esEjecutable, esWindows, rutaModelos, type Env, type Plataforma } from "../plataforma.ts";
 import { shellDe } from "../procesos.ts";
 
 export type Entorno = { plataforma: Plataforma; env: Env; home: string };
@@ -49,9 +49,9 @@ function salida(cmd: string[], plataforma: Plataforma, env: Env, espera = 10000)
 }
 
 /** Como `shutil.which`, más `~/.local/bin` (un PATH pelado —systemd, wsl.exe— no lo trae). */
-export function enPath(nombre: string, { plataforma, env, home }: Entorno): string | null {
+export function enPath(nombre: string, { plataforma, env, home }: Entorno, extra: string[] = []): string | null {
   if (/[\\/]/.test(nombre)) return esEjecutable(nombre, plataforma) ? nombre : null;
-  const dirs = [...carpetasPath(plataforma, env), dirBinLocal(plataforma, home)];
+  const dirs = [...carpetasPath(plataforma, env), dirBinLocal(plataforma, home), ...extra];
   return buscarEjecutable(plataforma, env, nombre, dirs, (f) => esEjecutable(f, plataforma));
 }
 
@@ -72,17 +72,28 @@ export function claude(e: Entorno = aqui()): Estado["claude"] {
   return { instalado: true, logueado };
 }
 
-export function agy(e: Entorno = aqui()): Estado["agy"] {
-  const ruta = enPath(e.env.TRAMA_AGY || "agy", e);
-  if (!ruta) return { instalado: false, logueado: false };
-  // agy guarda el login de Google en ~/.gemini/oauth_creds.json (la cuenta, no una API key).
-  const cred = caminos(e.plataforma).join(e.home, ".gemini", "oauth_creds.json");
+/** `agy models`: una línea por modelo, "id<TAB>nombre". Sin sesión no hay ninguna. */
+const MODELO_AGY = /^[a-z0-9][a-z0-9.-]*\t/;
+
+/** Dónde cae agy si no está en el PATH: `/usr/local/bin` (en Windows no hay) y la carpeta bin de `~/.antigravity*` del instalador. */
+export function dirsAgy({ plataforma, home }: Entorno): string[] {
+  const c = caminos(plataforma);
+  let propios: string[] = [];
   try {
-    const s = statSync(cred);
-    return { instalado: true, logueado: s.isFile() && s.size > 2 };
+    propios = readdirSync(home).filter((n) => n.startsWith(".antigravity")).sort().map((n) => c.join(home, n, "bin"));
   } catch {
-    return { instalado: true, logueado: false };
+    // sin home legible
   }
+  return [...(esWindows(plataforma) ? [] : ["/usr/local/bin"]), ...propios];
+}
+
+export function agy(e: Entorno = aqui()): Estado["agy"] {
+  const ruta = enPath(e.env.TRAMA_AGY || "agy", e, dirsAgy(e));
+  if (!ruta) return { instalado: false, logueado: false };
+  // agy guarda el login de Google en el llavero del sistema (no hay archivo que mirar): con sesión lista modelos.
+  // Colgado: salida() corta a los 15 s y devuelve "" (queda en false).
+  const { out } = salida([ruta, "models"], e.plataforma, e.env, 15000);
+  return { instalado: true, logueado: out.split("\n").some((l) => MODELO_AGY.test(l)) };
 }
 
 function modelosJson(e: Entorno): Record<string, unknown> {

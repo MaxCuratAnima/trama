@@ -26,7 +26,9 @@ falso("claude-ok", `echo '{"loggedIn": true}'`);
 falso("claude-fuera", `echo '{"loggedIn": false}'`);
 falso("claude-viejo", `echo 'comando desconocido'`); // rc 0 pero sin JSON: cae al archivo de credenciales
 falso("claude-error", `exit 3`);
-falso("agy-falso", `exit 0`);
+falso("agy-falso", `exit 0`); // sin sesión: `agy models` no lista nada
+falso("agy-con-sesion", `printf 'gemini-4-argon\tGemini 4 Argon\nclaude-sonnet-5-5\tClaude Sonnet\n'`);
+falso("agy-sin-modelos", `printf 'Sesión: ninguna\n'`);
 
 let ollama: http.Server, motor: http.Server;
 let puertoOllama = 0;
@@ -71,12 +73,11 @@ test("trama-estado: sin nada instalado sale igual que el script", async () => {
   assert.equal(j.motor.vivo, false);
 });
 
-test("trama-estado: claude con sesión, agy con credenciales, ollama y motor andando", async () => {
+test("trama-estado: claude con sesión, agy con modelos, ollama y motor andando", async () => {
   const env = casa("todo", (h) => {
-    escribir(path.join(h, ".gemini", "oauth_creds.json"), '{"a": 1}');
     escribir(path.join(h, ".config", "trama", "modelos.json"), JSON.stringify({ locales: [{ nombre: "sin url" }, { url: `http://127.0.0.1:${puertoOllama}/` }] }));
     escribir(path.join(h, ".local", "state", "hilos", "dueno"), JSON.stringify({ pid: process.pid }));
-    return { TRAMA_CLAUDE: "claude-ok", TRAMA_AGY: "agy-falso", TRAMA_PUERTO: String(puertoMotor) };
+    return { TRAMA_CLAUDE: "claude-ok", TRAMA_AGY: "agy-con-sesion", TRAMA_PUERTO: String(puertoMotor) };
   });
   const { ts, py } = await ambos(env);
   assert.equal(ts, py);
@@ -87,10 +88,9 @@ test("trama-estado: claude con sesión, agy con credenciales, ollama y motor and
   assert.deepEqual(j.motor, { vivo: true, url: `http://127.0.0.1:${puertoMotor}`, proceso: true });
 });
 
-test("trama-estado: OLLAMA_HOST sin esquema, y credenciales de agy vacías", async () => {
-  const env = casa("host", (h) => {
-    escribir(path.join(h, ".gemini", "oauth_creds.json"), "{}");
-    return { TRAMA_AGY: "agy-falso", OLLAMA_HOST: `127.0.0.1:${puertoOllama}/` };
+test("trama-estado: OLLAMA_HOST sin esquema, y agy sin sesión (no lista modelos)", async () => {
+  const env = casa("host", () => {
+    return { TRAMA_AGY: "agy-sin-modelos", OLLAMA_HOST: `127.0.0.1:${puertoOllama}/` };
   });
   const { ts, py } = await ambos(env);
   assert.equal(ts, py);
@@ -155,4 +155,17 @@ test("jsonPython/enPalabras: formato de json.dumps con acentos sin escapar", () 
   assert.equal(jsonPython({ a: [1, "é"], b: {}, c: [] }), '{"a": [1, "é"], "b": {}, "c": []}');
   const est = { version: 1, claude: { instalado: false, logueado: false }, agy: { instalado: true, logueado: false }, ollama: { url: "http://x", responde: false, modelos: [] }, motor: { vivo: false, url: "http://y", proceso: false } };
   assert.match(enPalabras(est), /modelos: ninguno\n/);
+});
+
+test("trama-estado: agy fuera del PATH se encuentra en ~/.antigravity*/bin", async () => {
+  const env = casa("antigravity", (h) => {
+    const d = path.join(h, ".antigravity-ide", "bin");
+    mkdirSync(d, { recursive: true });
+    writeFileSync(path.join(d, "agy"), "#!/bin/sh\nprintf 'gemini-4-argon\\tGemini\\n'\n");
+    chmodSync(path.join(d, "agy"), 0o755);
+    return {};
+  });
+  const { ts, py } = await ambos(env);
+  assert.equal(ts, py);
+  assert.deepEqual(JSON.parse(ts).agy, { instalado: true, logueado: true });
 });
