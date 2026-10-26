@@ -43,6 +43,25 @@ const discoReal: Disco = {
   },
 };
 
+/** En Windows nativo: busca handy.exe en las rutas habituales. */
+export function handyExeEnWindows(env: Env = process.env, home = os.homedir(), disco: Disco = discoReal): string | null {
+  if (env.HILOS_HANDY_EXE) return disco.hay(env.HILOS_HANDY_EXE) ? env.HILOS_HANDY_EXE : null;
+  const local = env.LOCALAPPDATA ?? path.join(home, "AppData", "Local");
+  const pf = env.ProgramFiles ?? "C:\\Program Files";
+  const pfx86 = env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)";
+  const candidatas = [
+    path.join(local, "Handy", "handy.exe"),
+    path.join(local, "Programs", "Handy", "handy.exe"),
+    path.join(local, "Programs", "handy", "handy.exe"),
+    path.join(pf, "Handy", "handy.exe"),
+    path.join(pfx86, "Handy", "handy.exe"),
+  ];
+  for (const c of candidatas) {
+    if (disco.hay(c)) return c;
+  }
+  return null;
+}
+
 /** El `handy.exe` de Windows que se ve en `/mnt/c` (sin importar mayúsculas), o `null`. `HILOS_HANDY_EXE` manda. */
 export function handyExeEnMnt(env: Env = process.env, disco: Disco = discoReal, raiz = "/mnt/c"): string | null {
   if (env.HILOS_HANDY_EXE) return disco.hay(env.HILOS_HANDY_EXE) ? env.HILOS_HANDY_EXE : null;
@@ -113,11 +132,25 @@ type Opciones = {
 export async function motoresDictado(o: Opciones): Promise<Motor[]> {
   const env = o.env ?? process.env;
   const home = o.home ?? os.homedir();
+  const disco = o.disco ?? discoReal;
+
+  if (process.platform === "win32") {
+    const motores: Motor[] = [];
+    const winExe = handyExeEnWindows(env, home, disco);
+    if (winExe) {
+      motores.push({ nombre: "handy-windows", bin: winExe, args: async (a) => ["--transcribe-file", a] });
+    }
+    const ps = resolverBinario("powershell.exe", "HILOS_POWERSHELL", env, home, o.esEjecutable);
+    if (env.HILOS_SPEECH !== "0" && (ps !== "powershell.exe" || env.HILOS_POWERSHELL)) {
+      motores.push({ nombre: "windows", bin: ps, args: async (a) => argsSpeech(a) });
+    }
+    return motores;
+  }
+
   const linux = resolverBinario("handy", "HILOS_HANDY", env, home, o.esEjecutable);
   if (env.HILOS_HANDY || linux !== "handy") {
     return [{ nombre: "handy", bin: linux, args: async (a) => ["--transcribe-file", a] }];
   }
-  const disco = o.disco ?? discoReal;
   if (!esWsl(env, disco.hay)) return [];
   const motores: Motor[] = [];
   const exe = handyExeEnMnt(env, disco) ?? (await handyExePorWhere(o.correr, traductor(o.correr, "-u")));

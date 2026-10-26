@@ -2,8 +2,9 @@
    Todo en rem; los colores y las letras son los de la barra y los paneles (`pn-`). */
 .cs {
   display: flex;
-  width: 19rem;
-  min-width: 0;
+  width: clamp(26rem, 30vw, 36rem);
+  min-width: 25rem;
+  max-width: 42rem;
   flex: none;
   flex-direction: column;
   border-left: 1px solid var(--borde-1);
@@ -32,6 +33,7 @@
   flex-direction: column;
   gap: var(--esp-6);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--esp-4);
 }
 .cs .pn-h {
