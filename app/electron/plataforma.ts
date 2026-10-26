@@ -14,6 +14,21 @@ export const esWindows = (p: Plataforma) => p === "win32";
 /** `path.win32` o `path.posix`: las rutas de Windows se arman bien aunque corra en Linux (las pruebas). */
 export const caminos = (p: Plataforma) => (esWindows(p) ? path.win32 : path.posix);
 
+/** La ruta como clave de comparación: normalizada y, en Windows, sin distinguir mayúsculas ni `/` de `\` (git informa `C:/Users/.../trama`; nosotros armamos `C:\Users\...\Trama`). */
+export function claveRuta(p: Plataforma, ruta: string): string {
+  const n = caminos(p).normalize(ruta).replace(/[\\/]+$/, "");
+  return esWindows(p) ? n.toLowerCase() : n;
+}
+export const mismaRuta = (p: Plataforma, a: string, b: string) => claveRuta(p, a) === claveRuta(p, b);
+/** Lo que sigue de `base` en `ruta` si `ruta` está adentro de `base` (`""` si es la misma), o `null` si no. Conserva las mayúsculas de `ruta`. */
+export function restoDeRuta(p: Plataforma, ruta: string, base: string): string | null {
+  const r = claveRuta(p, ruta);
+  const b = claveRuta(p, base);
+  if (r === b) return "";
+  if (!r.startsWith(b + caminos(p).sep)) return null;
+  return caminos(p).normalize(ruta).replace(/[\\/]+$/, "").slice(b.length + 1);
+}
+
 /** `;` en Windows, `:` en el resto. */
 export const separadorPath = (p: Plataforma) => (esWindows(p) ? ";" : ":");
 
