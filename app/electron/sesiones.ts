@@ -5,7 +5,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { estadoDeProceso } from "./procesos.js";
+import { estadoDeProceso } from "./procesos.ts";
 
 export const SESIONES =
   process.env.HILOS_SESIONES ?? path.join(process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"), "sessions");
