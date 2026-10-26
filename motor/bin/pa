@@ -4074,7 +4074,9 @@ if [[ -z "$modelo" ]] && (( lanza )) && [[ "$(modelos_reparto)" == auto ]]; then
       fi
     else
       if (( rep_rc == 124 || rep_rc == 137 )); then reparto_fallo="timeout tras ${PA_REPARTO_TIMEOUT_S:-15}s"
-      elif (( rep_rc == 127 )); then reparto_fallo="no existe $REPARTO"
+      # El `reparto` de la casa no viaja con Trama (no está en motor/bin): sin él, el modelo sale de modelos.json o
+      # del default, y eso no es un fallo que avisar en cada lanzamiento. Sólo se avisa si PA_REPARTO apunta a uno que no está.
+      elif (( rep_rc == 127 )); then [[ -n "${PA_REPARTO:-}" ]] && reparto_fallo="no existe $REPARTO"
       else reparto_fallo="rc $rep_rc"; fi
     fi
   fi
