@@ -341,6 +341,9 @@ async function correr(b: Base): Promise<number> {
     hb = path.join(ctx.estado, `${slug}${sufijoPuesto(puesto)}.heartbeat`);
     await rm(run, { force: true }); // de un worker anterior de este puesto que murió sin limpiar: tenemos el candado
     await rm(hb, { force: true });
+    // el primer .running, ANTES de preparar el worktree (en Windows tarda segundos): sin él, --estado no ve un worker que ya tiene
+    // puesto y --esperar/--parar tampoco. Sin pid del claude todavía: vale el de pa (`pa_pid`).
+    await escribirRunning(run, { pa_pid: process.pid, inicio: ctx.ahora(), proyecto: slug, id: ts, ruta, ruta_trabajo: ruta, modelo, cuenta, leer: 0, puesto, tarea: o.tarea });
   }
   await rm(`${hb}.turnos`, { force: true });
 
