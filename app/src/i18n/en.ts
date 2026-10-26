@@ -1696,4 +1696,8 @@ export const en = {
   "main.cuentasDato": "That account name or provider isn't valid",
   "main.cuentasSinTerminal": "There is no terminal to sign in from",
   "bv.otrasCuentas": "More accounts",
+  // --- cuentas ---
+  "main.cuentasContrato": "The accounts command returned something Trama doesn't understand (a different contract version)",
+  "ajustes.ctaListaFallo": "Couldn't read the account list: {motivo}",
+  "ajustes.ctaSinComando": "Adding another account for the same provider needs the accounts command, and it isn't installed on this PC.",
 } as const;

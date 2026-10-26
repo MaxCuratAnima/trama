@@ -271,7 +271,7 @@ body,
   visibility: hidden;
 }
 .grupo {
-  --g-nombre: 6.25rem;
+  --g-nombre: 7rem;
   position: relative;
   display: grid;
   grid-template-columns: var(--g-nombre) minmax(0, 1fr) minmax(0, 1fr);
@@ -280,7 +280,7 @@ body,
 }
 @container (max-width: 17rem) {
   .grupo {
-    --g-nombre: 4.5rem;
+    --g-nombre: 5.75rem;
   }
   .g-hasta,
   .g-sub {

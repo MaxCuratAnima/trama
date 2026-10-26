@@ -10,18 +10,27 @@ import { deProveedor, type ListaCuentas, type PerfilCuenta, type ProveedorCuenta
 import { t, textoMain } from "../i18n";
 import { useIdioma } from "../i18n/react";
 
-/** La lista de cuentas: primero la rápida y enseguida la verificada (pregunta el login a cada CLI, tarda). Al volver a la ventana se vuelve a verificar. */
-export function useCuentas(): { lista: ListaCuentas | null; mirar: () => void } {
-  const [lista, setLista] = useState<ListaCuentas | null>(null);
+/**
+ * La lista de cuentas: primero la rápida y enseguida la verificada (pregunta el login a cada CLI, tarda). Al volver a la ventana se vuelve a verificar.
+ * `lista` es `null` sin el comando `cuentas` y también si falló; en ese caso `error` dice por qué (texto del main, para `textoMain`).
+ * `sinComando`: ya se preguntó y no hay comando (a diferencia de «todavía no contestó»).
+ */
+export function useCuentas(): { lista: ListaCuentas | null; error: string | null; sinComando: boolean; mirar: () => void } {
+  const [leida, setLista] = useState<ListaCuentas | null>(null);
+  const [listo, setListo] = useState(false);
   const vivo = useRef(true);
   const vuelta = useRef(0);
   useEffect(() => () => void (vivo.current = false), []);
   const mirar = useCallback(() => {
     const mia = ++vuelta.current;
-    const poner = (l: ListaCuentas | null) => vivo.current && mia === vuelta.current && setLista(l);
+    const poner = (l: ListaCuentas | null) => {
+      if (!vivo.current || mia !== vuelta.current) return;
+      setLista(l);
+      setListo(true);
+    };
     void fuente.listaCuentas(false).then((l) => {
       poner(l);
-      if (l) void fuente.listaCuentas(true).then(poner, () => undefined);
+      if (l && !l.error) void fuente.listaCuentas(true).then(poner, () => undefined);
     }, () => undefined);
   }, []);
   useEffect(() => {
@@ -29,7 +38,7 @@ export function useCuentas(): { lista: ListaCuentas | null; mirar: () => void } 
     window.addEventListener("focus", mirar);
     return () => window.removeEventListener("focus", mirar);
   }, [mirar]);
-  return { lista, mirar };
+  return { lista: leida?.error ? null : leida, error: leida?.error ?? null, sinComando: listo && !leida, mirar };
 }
 
 export const cuentasDe = deProveedor;

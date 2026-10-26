@@ -1684,4 +1684,8 @@ export const es: { [K in keyof typeof en]: string } = {
   "main.cuentasDato": "Ese nombre de cuenta o proveedor no vale",
   "main.cuentasSinTerminal": "No hay una terminal para iniciar sesión",
   "bv.otrasCuentas": "Más cuentas",
+  // --- cuentas ---
+  "main.cuentasContrato": "El comando cuentas devolvió algo que Trama no entiende (otra versión del contrato)",
+  "ajustes.ctaListaFallo": "No se pudo leer la lista de cuentas: {motivo}",
+  "ajustes.ctaSinComando": "Para sumar otra cuenta del mismo proveedor hace falta el comando cuentas, y no está instalado en esta PC.",
 };
