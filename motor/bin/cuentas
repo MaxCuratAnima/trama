@@ -1,0 +1,3 @@
+#!/bin/sh
+# cuentas — varias cuentas por proveedor (port en TypeScript: app/electron/cli/cuentas.ts). Corre el compilado, o el .ts si no hay build.
+d="$(dirname "$(readlink -f "$0")")/../../app"; for j in "$d/dist-electron/cli/cuentas.js" "$d/electron/cli/cuentas.ts"; do [ -f "$j" ] && exec node "$j" "$@"; done; echo "cuentas: no encuentro cli/cuentas.js (corre npm run build en app)" >&2; exit 127
