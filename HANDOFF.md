@@ -15,7 +15,7 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
 - Cuentas en Ajustes, Bienvenida y Cupos por el motor (`fuente.cuentas`/`loginCuenta`); se borró `window.carcasa`.
 - `pa` de TS: `--estado` con varios vivos, rutas sin distinguir mayúsculas (`mismaRuta`), `--modelos`, `--ayuda` completa, `--archivo-tarea` (cmd.exe corta `%*` en el primer salto de línea) y el modelo sin `-m` sale de modelos.json (Sonnet), no Opus.
 - Versión 0.1.2 e ícono de Trama en `Trama.exe` (`signAndEditExecutable: true`, sin certificado).
-- Borrada la versión vieja: `Programs	rama-windows` (a mano, sin su desinstalador: comparte `%APPDATA%\Trama`) y en WSL `trama-motor.service`, `~/.local/share/trama`, `~/.config/trama`. Backups en `C:	rama-winackup-antes-de-borrar-vieja` y `C:	rama-winersion-vieja-wsl\sesiones-y-estado.tgz`. Logins de Gemini y antigravity copiados de WSL a Windows.
+- Borrada la versión vieja: `Programs\trama-windows` (a mano, sin su desinstalador: comparte `%APPDATA%\Trama`) y en WSL `trama-motor.service`, `~/.local/share/trama`, `~/.config/trama`. Backups en `C:\trama-win\backup-antes-de-borrar-vieja` y `C:\trama-win\version-vieja-wsl\sesiones-y-estado.tgz`. Logins de Gemini y antigravity copiados de WSL a Windows.
 
 ## Pendiente
 - `pa --seguir` y `pa --actualizar` no están en el `pa` de TS.
