@@ -19,9 +19,8 @@ Tiene dos partes:
 ## Instalar en Windows 11
 
 1. Bajá `Trama-Setup-<versión>.exe` de la página de Releases del repositorio y ejecutalo.
-2. El asistente prepara WSL2 con Ubuntu 24.04 (puede pedir reiniciar), instala el motor adentro de
-   Ubuntu, conecta tu cuenta y ofrece configurar Ollama.
-3. Abrí Trama desde el menú Inicio.
+2. Abrí Trama desde el menú Inicio: corre nativo en Windows (sin WSL), con `pa`, `tablero`, `cuentas` y
+   `trama-estado` como `.cmd` que instala junto a la app.
 
 ## Instalar en Linux (Ubuntu, Debian o WSL2 con systemd)
 
