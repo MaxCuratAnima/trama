@@ -1366,7 +1366,7 @@ entorno:  TABLERO_DIR  TABLERO_VISTA  PA_STATE  PROYECTOS_REGISTRY
 
 /** Como el argparse del script: `--x v`, `--x=v`, prefijos únicos de opciones, `--` y valores con espacios que empiezan con `-`. */
 function parsear(nombre: string, spec: Spec, args: string[]): It {
-  const a: It = { cmd: nombre };
+  const a: It = { cmd: nombre, ...(nombre === "resumen" ? { max: 12 } : nombre === "archivar" ? { dias: 30 } : {}) }; // los default de argparse
   const pos: string[] = [];
   const buscarOpcion = (flag: string): [string, Opcion] => {
     if (flag in spec.opts) return [flag, spec.opts[flag]];

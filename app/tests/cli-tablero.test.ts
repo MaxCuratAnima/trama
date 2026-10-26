@@ -40,7 +40,9 @@ const norm = (s: string, l: Lado) =>
   s
     .split(l.dir.replace(/\/tablero$/, "")).join("<D>")
     .replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(\+00:00|Z)/g, "<T>")
-    .replace(/^usage:.*\n/gm, "")
+    // argparse repite el uso (en varias líneas) antes del error y nombra el subcomando; el port da sólo el error.
+    .replace(/^[\s\S]*?^tablero( \w+)?: error:/m, "tablero: error:")
+    .replace(/\[Errno 2\] No such file or directory: '([^']*)'|ENOENT: no such file or directory, open '([^']*)'/g, "<ENOENT>")
     .replace(/\b[0-9a-f]{7,40}\b/g, "<H>")
     .replace(/\(\d+(m|h|d|s)\)/g, "(<edad>)");
 
@@ -61,7 +63,7 @@ function archivos(l: Lado) {
   const r: Record<string, string> = {};
   const rec = (d: string, pre = "") => {
     for (const f of readdirSync(d, { withFileTypes: true })) {
-      if (f.name === ".git") continue;
+      if (f.name === ".git" || f.name === ".lock") continue; // el candado de candado.ts no deja archivo; el de flock sí
       if (f.isDirectory()) rec(path.join(d, f.name), pre + f.name + "/");
       else r[pre + f.name] = norm(readFileSync(path.join(d, f.name), "utf-8"), l);
     }
