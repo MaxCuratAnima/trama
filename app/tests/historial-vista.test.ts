@@ -1,4 +1,4 @@
-// Lo que Estadísticas saca de una consulta del historial (src/paneles/historial.ts). Los imports de src/ van
+// Lo que Estadísticas saca de una consulta del historial (src/paneles/historial-datos.ts). Los imports de src/ van
 // sin extensión (los resuelve Vite): acá un hook les busca el `.ts` (como en tests/fuente.test.ts).
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,7 +20,7 @@ registerHooks({
 });
 Object.assign(globalThis, { location: { search: "?fixtures=0" }, window: {} });
 
-const { arranque, cargadas, porFamilia, total, usadas } = await import("../src/paneles/historial.ts");
+const { arranque, cargadas, porFamilia, total, usadas } = await import("../src/paneles/historial-datos.ts");
 const { historialFalso, MEDICION } = await import("../src/datos/fixtures-paneles.ts");
 const { resumir } = await import("../src/paneles/resumen.ts");
 

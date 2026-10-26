@@ -1,7 +1,7 @@
 // La tarjeta de actividad del chat (dirección C, referencias/maquetas/actividad): mientras un líder de la app responde, una
 // escena de 2.75rem que actúa lo que hace, el estado (punto de color + verbo), qué modelo y esfuerzo corre, lo concreto, el tiempo,
 // los tokens y los pasos de atrás con su icono (los últimos tres; el resto, tras "+N pasos"), y Parar.
-// Qué evento da cada tipo y cómo se limpia el detalle: src/hilo/actividad.ts. El movimiento: src/barra/latido-escenas.ts.
+// Qué evento da cada tipo y cómo se limpia el detalle: src/hilo/actividad-datos.ts. El movimiento: src/barra/latido-escenas.ts.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Bot, Brain, Check, ChevronDown, FilePlus, FileText, Globe, Hand, MessageSquare, Pencil, Search, Terminal, Wrench, X, type LucideIcon } from "lucide-react";
 import { latir } from "../barra/latido";
@@ -9,7 +9,7 @@ import { Reloj } from "../barra/piezas";
 import { t, type Clave } from "../i18n";
 import { pintorDura } from "../tiempo";
 import { alScroll, bajar, seguidor, seguir } from "./seguir";
-import { estadoDe, iconoDe, muyLargo, PASOS, textoPaso, type Actividad as Act, type Icono, type Paso } from "./actividad";
+import { estadoDe, iconoDe, muyLargo, PASOS, textoPaso, type Actividad as Act, type Icono, type Paso } from "./actividad-datos";
 import { Escena } from "./Escenas";
 import { Tierno } from "./Tierno";
 

@@ -14,7 +14,7 @@ import { nombreModelo } from "./opciones";
 import { Tierno, useTiernos } from "./Tierno";
 import { Compactando, Hojas } from "./Posta";
 import { Actividad } from "./Actividad";
-import { clasificar, clasificarPedido } from "./actividad";
+import { clasificar, clasificarPedido } from "./actividad-datos";
 import { enCurso, indicador, razonDelTurno, razona, suscribir, type Indicador } from "./vivo";
 
 const LEER = new Set(["Read", "WebFetch", "NotebookRead"]);

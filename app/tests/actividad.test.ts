@@ -1,9 +1,9 @@
-// La tarjeta de actividad del chat: de qué evento del stream sale cada tipo y su detalle (src/hilo/actividad.ts), lo concreto que
+// La tarjeta de actividad del chat: de qué evento del stream sale cada tipo y su detalle (src/hilo/actividad-datos.ts), lo concreto que
 // saca el main (detalleHace) y los pasos de atrás. Sin React ni i18n: el módulo devuelve claves, y acá se comprueba que existan.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { detalleHace, parsearLinea } from "../electron/lider-arma.ts";
-import { avanzar, clasificar, clasificarPedido, delegaPa, dominio, estadoDe, iconoDe, limpiarComando, muyLargo, PLIEGUE, rutaLegible, sinPasos, textoPaso, unaLinea, MAX_PASOS, PASOS, type Actividad } from "../src/hilo/actividad.ts";
+import { avanzar, clasificar, clasificarPedido, delegaPa, dominio, estadoDe, iconoDe, limpiarComando, muyLargo, PLIEGUE, rutaLegible, sinPasos, textoPaso, unaLinea, MAX_PASOS, PASOS, type Actividad } from "../src/hilo/actividad-datos.ts";
 import { en } from "../src/i18n/en.ts";
 import { es } from "../src/i18n/es.ts";
 import type { HaceLider } from "../src/datos/contrato.ts";

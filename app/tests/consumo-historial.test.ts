@@ -24,7 +24,7 @@ registerHooks({
 
 const { resumen } = await import("../src/datos/consumo.ts");
 const { total } = await import("../src/datos/tokens.ts");
-const { porFamilia } = await import("../src/paneles/historial.ts");
+const { porFamilia } = await import("../src/paneles/historial-datos.ts");
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "hilos-hoy-"));
 after(() => rmSync(tmp, { recursive: true, force: true }));

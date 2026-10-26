@@ -2,7 +2,7 @@
 // dibujos quietos: el movimiento de cada pieza (`e-…`) lo pone `src/barra/latido-escenas.ts`; sin él (movimiento reducido)
 // quedan en la pose que fija el CSS ("escenas" en src/index.css). El color sale de `currentColor` (`--c` del tipo).
 import type { ReactNode } from "react";
-import type { Tipo } from "./actividad";
+import type { Tipo } from "./actividad-datos";
 
 const Svg = ({ children }: { children: ReactNode }) => (
   <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

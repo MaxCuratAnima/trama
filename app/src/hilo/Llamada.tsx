@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { useIdioma } from "../i18n/react";
 import { MODO } from "../modo";
 import { cambios, cuerpo, type Grupo, type LineaDiff, type Uso } from "./herramientas";
-import { HERRAMIENTA_PREGUNTAS, respondidas } from "./preguntas";
+import { HERRAMIENTA_PREGUNTAS, respondidas } from "./preguntas-datos";
 import { LlamadaPreguntas } from "./Preguntas";
 
 /** Las líneas de un Write largo que se muestran antes de "… N líneas más". */

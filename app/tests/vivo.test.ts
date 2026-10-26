@@ -49,7 +49,7 @@ Object.assign(globalThis, {
 
 const { confirmar, contestado, enCurso, enviado, mensajesVistos, suscribir } = await import("../src/hilo/vivo.ts");
 const { turnos } = await import("../src/hilo/turnos.ts");
-const { tandasPendientes } = await import("../src/hilo/preguntas.ts");
+const { tandasPendientes } = await import("../src/hilo/preguntas-datos.ts");
 
 const viejo = (i: number, rol: Mensaje["rol"], texto: string): Mensaje => ({ i, rol, texto, herramientas: [], ts: null, modelo: rol === "assistant" ? "claude-opus-5-5" : null });
 /** Lo que ya estaba en el transcript antes del turno. */

@@ -59,7 +59,7 @@ import { MODO } from "../modo";
 import { MaquinaMigas } from "../barra/Maquina";
 import { hayVarias, nombreMaquina, opcionesMaquina, puedeMaquina, useMaquinas } from "../maquinas";
 import { Vacio } from "./Vacio";
-import "./tablero.css";
+import "./tablero-estilos.css";
 
 const NOMBRE: Record<Columna, ClaveSola> = {
   bandeja: "tablero.col.bandeja",

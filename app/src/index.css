@@ -439,7 +439,7 @@ body,
   transform-origin: left;
   background: var(--acento);
 }
-/* Cerca del tope: ámbar desde 70 %, rojo desde 90 % (`nivel`, src/hilo/contexto.ts). */
+/* Cerca del tope: ámbar desde 70 %, rojo desde 90 % (`nivel`, src/hilo/contexto-datos.ts). */
 .uso[data-nivel="ambar"] .riel i {
   background: var(--aviso);
 }
@@ -3353,7 +3353,7 @@ kbd {
   }
 }
 /* --- B17: mensajes tiernos --------------------------------------------------
-   La frase la escribe el reloj (src/hilo/tierno.ts) y en cada cambio alterna
+   La frase la escribe el reloj (src/hilo/tierno-datos.ts) y en cada cambio alterna
    `data-par`: pasar de unos keyframes a los otros relanza la entrada, una sola
    vez y sólo con opacity y transform. Con prefers-reduced-motion cambia sin
    animar (la regla de arriba apaga toda animación). */

@@ -1,10 +1,10 @@
 // La frase tierna que rota donde decía "Trabajando" / "Pensando" (B17,
-// src/hilo/tierno.ts). La escribe el reloj: cambiar de frase no re-renderiza.
+// src/hilo/tierno-datos.ts). La escribe el reloj: cambiar de frase no re-renderiza.
 // Quien la usa pregunta `useTiernos()` y, apagados, pinta lo de siempre.
 import { useMemo, useSyncExternalStore } from "react";
 import { Reloj } from "../barra/piezas";
 import { t } from "../i18n";
-import { alCambiarTiernos, pintorTierno, tiernos } from "./tierno";
+import { alCambiarTiernos, pintorTierno, tiernos } from "./tierno-datos";
 
 /** Prendidos o apagados (Ajustes): quien lo usa se vuelve a pintar al cambiar. */
 export const useTiernos = () => useSyncExternalStore(alCambiarTiernos, tiernos);

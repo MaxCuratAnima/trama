@@ -60,7 +60,7 @@ import { Adjuntos, Miniaturas } from "./Imagenes";
 import { Dictar } from "./Dictar";
 import { Logo } from "./Logos";
 import { PedidoPreguntas } from "./Preguntas";
-import { tandasPendientes } from "./preguntas";
+import { tandasPendientes } from "./preguntas-datos";
 import { ARCHIVO_MAX, IMAGENES_MAX, type Imagen } from "../../electron/imagenes";
 import { separarAdjuntos } from "../../electron/adjunto";
 

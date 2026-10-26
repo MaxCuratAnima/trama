@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { leerUmbral, umbralDeSettings } from "../electron/contexto.ts";
 import { conversacionDe, parsearLinea } from "../electron/lider-arma.ts";
-import { cuenta, nivel, umbralDe, usados, ventanaDe, ventanaDicha } from "../src/hilo/contexto.ts";
+import { cuenta, nivel, umbralDe, usados, ventanaDe, ventanaDicha } from "../src/hilo/contexto-datos.ts";
 
 test("cuenta: usage → tokens usados, % y lo que falta", () => {
   const u = { input_tokens: 3, cache_creation_input_tokens: 1240, cache_read_input_tokens: 61872, output_tokens: 410 };

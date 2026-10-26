@@ -355,7 +355,7 @@ export type Mensaje = {
   modelo: string | null;
   /**
    * De dónde salió, si no lo escribió el usuario ni lo contestó el modelo (B18,
-   * src/hilo/sistema.ts). Los trae el transcript de un líder y `pa --hilo` (B19).
+   * src/hilo/sistema-datos.ts). Los trae el transcript de un líder y `pa --hilo` (B19).
    */
   /** `isMeta`: lo inyectó Claude Code (el cuerpo de una skill, una imagen, un caveat). */
   meta?: boolean;

@@ -1,7 +1,7 @@
 // El logo de cada proyecto para el encabezado de su carpeta. Sale, en orden:
 // del campo `icono` (o `icon`) del registry, o de un ícono que ya esté en el
 // repo, buscado en unos pocos lugares fijos (nada de recorrer el repo). Lo que
-// no tiene ninguno lleva un monograma, que arma el frontend (src/barra/logo.ts).
+// no tiene ninguno lleva un monograma, que arma el frontend (src/barra/logo-datos.ts).
 // Sin imports de Electron: el achicado de los PNG lo pasa ipc.ts.
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { conversacionDe } from "../electron/lider-arma.ts";
-import { sistemaDe, vuelve } from "../src/hilo/sistema.ts";
+import { sistemaDe, vuelve } from "../src/hilo/sistema-datos.ts";
 import { turnos, type Item } from "../src/hilo/turnos.ts";
 import type { Mensaje } from "../src/datos/contrato.ts";
 

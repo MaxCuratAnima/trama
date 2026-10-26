@@ -9,7 +9,7 @@ import { locale } from "../i18n/index";
 import { useIdioma } from "../i18n/react";
 import { duracion, pintorDura } from "../tiempo";
 import { Punto, Reloj } from "./piezas";
-import { activo, useSubagentes } from "./subagentes";
+import { activo, useSubagentes } from "./subagentes-datos";
 
 /** Cuántos que ya cerraron se ven sin pedirlos: lo que sigue está tras "N anteriores". */
 const VISTOS = 4;

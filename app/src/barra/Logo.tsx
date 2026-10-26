@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 import { Home } from "lucide-react";
 import { GENERAL } from "../datos/contrato";
 import { fuente } from "../datos/fuente";
-import { monograma, tono } from "./logo";
+import { monograma, tono } from "./logo-datos";
 
 /** slug → data URL. `null`: todavía no llegaron (no se pinta el monograma para después cambiarlo). */
 let iconos: Record<string, string> | null = null;

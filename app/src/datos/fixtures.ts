@@ -820,7 +820,7 @@ export function charlaLarga(sid: string, n = 3000): Mensaje[] {
   return out;
 }
 
-// Lo de sistema en una conversación (B18, src/hilo/sistema.ts): lo que inyecta Claude Code
+// Lo de sistema en una conversación (B18, src/hilo/sistema-datos.ts): lo que inyecta Claude Code
 // como si fuera del usuario y lo que dice él mismo. Inventado, con la forma de los reales.
 const SKILL = "Base directory for this skill: /Users/ana/.claude/skills/orquestar\n\n# Orquestar\n\nCómo lanzar un worker con `pa`, esperar su resultado y pasárselo a Ana.\n\n1. Elegí el modelo por la tabla de routing.\n2. Lanzalo con `pa <proyecto> --async`.\n3. Esperá la notificación y leé su RESULTADO.";
 const TAREA = (que: string) =>

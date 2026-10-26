@@ -1,4 +1,4 @@
-// Lo de sistema en la conversación (B18, src/hilo/sistema.ts), en la vista de
+// Lo de sistema en la conversación (B18, src/hilo/sistema-datos.ts), en la vista de
 // un worker y en el chat de un líder: lo que dice Claude Code, una línea chica
 // con su ícono (rojo el límite y los errores, gris lo demás); lo que inyecta
 // como si fuera del usuario, una tarjeta centrada y plegada que al abrirse
@@ -31,7 +31,7 @@ import { t, type ClaveSola } from "../i18n";
 import { useIdioma } from "../i18n/react";
 import { MODO } from "../modo";
 import { hora } from "./Hace";
-import type { ClaseTarjeta, Linea, Sistema as S, Tarjeta } from "./sistema";
+import type { ClaseTarjeta, Linea, Sistema as S, Tarjeta } from "./sistema-datos";
 
 const ICONO: Record<ClaseTarjeta, LucideIcon> = {
   skill: Puzzle,

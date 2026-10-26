@@ -9,7 +9,7 @@ import { locale, t } from "../i18n";
 import { ErrorCarga } from "./ErrorCarga";
 import { mensaje } from "../puente";
 import { MODO } from "../modo";
-import { arranque, cargadas, CATEGORIAS, porFamilia, total, usadas } from "./historial";
+import { arranque, cargadas, CATEGORIAS, porFamilia, total, usadas } from "./historial-datos";
 import { FAMILIAS, tokens, type Familia } from "./resumen";
 
 const pct = (x: number) => `${Math.round(x * 100)} %`;

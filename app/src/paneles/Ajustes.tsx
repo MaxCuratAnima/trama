@@ -23,7 +23,7 @@ import { AjustesMarco, Cat } from "./AjustesNav";
 import { ErrorCarga } from "./ErrorCarga";
 import { useIdioma } from "../i18n/react";
 import { enOtros, Fijo } from "../i18n/Fijo";
-import { cambiarTiernos } from "../hilo/tierno";
+import { cambiarTiernos } from "../hilo/tierno-datos";
 import { useTiernos } from "../hilo/Tierno";
 import { alCambiarAvisarEspera, avisarEspera, cambiarAvisarEspera } from "../espera";
 import { mensaje } from "../puente";

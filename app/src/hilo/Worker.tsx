@@ -16,7 +16,7 @@ import { useIdioma } from "../i18n/react";
 import { mensaje } from "../puente";
 import { Boton } from "../ui/componentes";
 import { pintorDura } from "../tiempo";
-import "./worker.css";
+import "./worker-estilos.css";
 import { Entero } from "./Entero";
 import { Filas } from "./Diff";
 import { defDe } from "./modelos";

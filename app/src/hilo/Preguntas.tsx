@@ -10,7 +10,7 @@ import { fuente } from "../datos/fuente";
 import { t as tr } from "../i18n";
 import { useIdioma } from "../i18n/react";
 import { mensaje } from "../puente";
-import { alternar, alternarOtro, armar, completo, escribirOtro, NADA, resumenRespondidas, type Eleccion, type Respondida } from "./preguntas";
+import { alternar, alternarOtro, armar, completo, escribirOtro, NADA, resumenRespondidas, type Eleccion, type Respondida } from "./preguntas-datos";
 import { contestado, type Pedido } from "./vivo";
 
 /** Lo elegido en cada pedido sin mandar: cambiar de líder y volver no lo pierde. */

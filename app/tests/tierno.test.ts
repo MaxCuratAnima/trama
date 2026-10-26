@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { en } from "../src/i18n/en.ts";
 import { es } from "../src/i18n/es.ts";
 import { cambiarIdioma } from "../src/i18n/index.ts";
-import { alCambiarTiernos, cambiarTiernos, CARAS, FRASES, formato, fraseIdx, pintorTierno, ritmo, textoTierno, tiernos } from "../src/hilo/tierno.ts";
+import { alCambiarTiernos, cambiarTiernos, CARAS, FRASES, formato, fraseIdx, pintorTierno, ritmo, textoTierno, tiernos } from "../src/hilo/tierno-datos.ts";
 
 const SEMILLAS = ["20261003-100100-11111", "20261003-100200-22222", "00000000-0000-4000-8000-000000000001", "a", ""];
 

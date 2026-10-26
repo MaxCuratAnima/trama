@@ -29,10 +29,10 @@ test("cada var(--x) sin valor de reserva está definido en un CSS o lo pone el c
 test("los CSS ya pasados a tokens no tienen literales", () => {
   const hechos = [
     "src/index.css",
-    "src/paneles/tablero.css",
+    "src/paneles/tablero-estilos.css",
     "src/paneles/paneles.css",
     "src/paneles/pendientes.css",
-    "src/paneles/consumo.css",
+    "src/paneles/consumo-estilos.css",
   ];
   const salida = execFileSync(process.execPath, [path.join(raiz, "scripts/tokens-faltan.mjs"), "--resumen", ...hechos], {
     cwd: raiz,

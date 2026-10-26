@@ -267,7 +267,7 @@ export const SALUD: EstadoSalud = {
 // El registro histórico (electron/historial.ts) inventado: 7 y 30 días. Los pesos por pieza son por sesión
 // (estimados); una skill, `pdf-forms`, se carga en todas las sesiones y nunca se usa.
 const M = 1e6;
-/** Lo que cuenta Estadísticas (entrada + caché leído + salida: `total` de src/paneles/historial.ts) repartido en sus tres partes; el caché escrito va aparte y no suma. */
+/** Lo que cuenta Estadísticas (entrada + caché leído + salida: `total` de src/paneles/historial-datos.ts) repartido en sus tres partes; el caché escrito va aparte y no suma. */
 const suma = (t: number) => {
   const entrada = Math.round(t * 0.004);
   const salida = Math.round(t * 0.016);

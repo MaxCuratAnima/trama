@@ -1,11 +1,11 @@
 // La conversación de `pa --hilo` como la muestra la vista: cada pedido de
 // El usuario y, por cada tanda seguida de mensajes del worker, un turno con lo que
 // contestó (su último texto) y el trabajo de antes colapsado en "Trabajó X m".
-// Lo que no es del usuario ni del modelo (src/hilo/sistema.ts) va aparte y corta
+// Lo que no es del usuario ni del modelo (src/hilo/sistema-datos.ts) va aparte y corta
 // la tanda. Puro: lo prueba `tests/turnos.test.ts`.
 import type { Mensaje } from "../datos/contrato";
 import { agrupar, usosDe, type Uso } from "./herramientas.ts";
-import { sistemaDe, type Sistema } from "./sistema.ts";
+import { sistemaDe, type Sistema } from "./sistema-datos.ts";
 
 /** Un renglón del trabajo: un texto suelto del worker y las herramientas que usó después (B19). */
 export type Paso = { texto: string; usos: Uso[] };

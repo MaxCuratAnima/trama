@@ -1,5 +1,5 @@
 // El anillo de contexto (B16): un circulito hueco que se llena con lo que pesa
-// la conversación abierta contra su umbral (la cuenta: src/hilo/contexto.ts):
+// la conversación abierta contra su umbral (la cuenta: src/hilo/contexto-datos.ts):
 // el de autocompact (a ese tamaño Claude Code compacta solo; electron/contexto.ts),
 // en un líder y en un worker. Va en la caja del líder y, de sólo lectura, en el pie de un worker. Clic (o Enter con foco) abre el detalle;
 // Esc o clic afuera lo cierra. Sólo se mueve el trazo (stroke-dashoffset).
@@ -9,7 +9,7 @@ import { Reloj } from "../barra/piezas";
 import { locale, t } from "../i18n";
 import { useIdioma } from "../i18n/react";
 import type { Pintor } from "../reloj";
-import { cuenta, umbralDe, ventanaDe, ventanaDicha } from "./contexto";
+import { cuenta, umbralDe, ventanaDe, ventanaDicha } from "./contexto-datos";
 import { contextoDe, escucharContexto, leerUmbral, suscribirContexto, suscribirUmbral, umbralLeido } from "./contextoVivo";
 import { modeloDe, nombreModelo } from "./opciones";
 

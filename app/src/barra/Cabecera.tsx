@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, PanelLeft, RotateCw } from "lucide-react";
 import type { Uso, Ventana, VentanaCupo } from "../datos/contrato";
 import { fuente } from "../datos/fuente";
-import { nivel } from "../hilo/contexto";
+import { nivel } from "../hilo/contexto-datos";
 import { LogoSuscripcion } from "../hilo/Logos";
 import { filasDeCupos, type FilaSusc } from "../datos/cuentas";
 import { MODO } from "../modo";

@@ -31,7 +31,7 @@ import {
   type Familia,
   type Paso,
 } from "./bienvenida-pasos";
-import "./bienvenida.css";
+import "./bienvenida-estilos.css";
 
 /** Sólo la ventana de la PC abre la bienvenida sola: el celular y el navegador la ven si la piden desde Ajustes. */
 const enVentana = typeof navigator !== "undefined" && /Electron\//.test(navigator.userAgent);

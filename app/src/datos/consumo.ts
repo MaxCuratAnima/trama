@@ -3,7 +3,7 @@
 // `usage` de un transcript; lo que no llegó es `null` ("sin dato"), nunca un cero puesto a mano.
 import type { Consumo, FilaConsumo, Pedido } from "../../electron/consumo";
 import type { Suma } from "../../electron/transcripts";
-import { nivel, usados, ventanaDe, type Nivel } from "../hilo/contexto";
+import { nivel, usados, ventanaDe, type Nivel } from "../hilo/contexto-datos";
 import { total } from "./tokens";
 
 export type { Consumo, FilaConsumo, Pedido, Suma };

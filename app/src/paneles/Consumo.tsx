@@ -13,7 +13,7 @@ import { tareaDe, tipoDe } from "../barra/piezas";
 import { modeloDe, nombreModelo } from "../hilo/opciones";
 import { locale, t } from "../i18n";
 import { useIdioma } from "../i18n/react";
-import "./consumo.css";
+import "./consumo-estilos.css";
 
 type Props = {
   /** Los líderes de la barra y todos los workers: el panel se queda con los vivos. */

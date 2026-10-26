@@ -26,7 +26,7 @@ export function useAngosto() {
 
 /**
  * El ancho intermedio: entre el celular y el escritorio holgado (67rem = 1072 px; misma consulta que el bloque de
- * src/paneles/consumo.css). Con la barra y el panel de consumo a la vez, la conversación quedaría de menos de 450 px.
+ * src/paneles/consumo-estilos.css). Con la barra y el panel de consumo a la vez, la conversación quedaría de menos de 450 px.
  */
 const MEDIO = "(max-width: 67rem)";
 const medio = consulta(MEDIO);

@@ -1,7 +1,7 @@
 // El menú del clic derecho (B20): qué acciones se ven según la fila y su estado.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { accionesCarpeta, accionesLider, accionesWorker, type Opcion } from "../src/barra/menu.ts";
+import { accionesCarpeta, accionesLider, accionesWorker, type Opcion } from "../src/barra/menu-datos.ts";
 import type { Estado } from "../src/datos/contrato.ts";
 
 const as = (xs: Opcion[]) => xs.map((x) => (x.confirmar ? `${x.a}?` : x.a));

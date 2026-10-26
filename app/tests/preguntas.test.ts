@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { inputRespondido, preguntasDe, respuestasValidas } from "../electron/preguntas.ts";
 import { parsearLinea } from "../electron/lider-arma.ts";
-import { alternar, alternarOtro, armar, completo, escribirOtro, NADA, respondidas, respuesta, resumenRespondidas, type Eleccion } from "../src/hilo/preguntas.ts";
+import { alternar, alternarOtro, armar, completo, escribirOtro, NADA, respondidas, respuesta, resumenRespondidas, type Eleccion } from "../src/hilo/preguntas-datos.ts";
 
 // La línea real de claude 2.1.289 (bypass + `--permission-prompt-tool stdio`): AskUserQuestion pide igual.
 const INPUT = {

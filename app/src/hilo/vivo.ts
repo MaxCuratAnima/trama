@@ -12,7 +12,7 @@
 import type { ComandoClaude, Estilos, EventoLider, HaceLider, Mensaje } from "../datos/contrato";
 import { fuente } from "../datos/fuente";
 import { sinReintento, sumarAviso, type AvisoVisto } from "./avisos";
-import { avanzar, type Paso } from "./actividad";
+import { avanzar, type Paso } from "./actividad-datos";
 import { crearEspejo, type AvisoCola, type Encolado } from "./cola";
 
 /** El indicador: el mismo objeto mientras no cambie (la fila se suscribe sólo a esto). */
@@ -115,7 +115,7 @@ function cambiar(sid: string, f: (e: EnCurso) => EnCurso) {
 /** El indicador con lo que cambió (el mismo objeto si no cambió nada). */
 function conInd(e: EnCurso, c: Partial<Pick<Indicador, "hace" | "desde" | "salida">>): EnCurso {
   const i = { ...e.ind, ...c };
-  // Lo que hace y sus pasos van juntos (src/hilo/actividad.ts): un turno nuevo o uno que terminó los borra.
+  // Lo que hace y sus pasos van juntos (src/hilo/actividad-datos.ts): un turno nuevo o uno que terminó los borra.
   if (c.hace !== undefined && c.hace !== e.ind.hace) {
     const s = avanzar({ hace: e.ind.hace, inicio: e.ind.inicio, pasos: e.ind.pasos, n: e.ind.pasosN }, c.hace, Date.now());
     i.inicio = s.inicio;

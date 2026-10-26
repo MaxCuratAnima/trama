@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "../barra/piezas";
 import { t } from "../i18n";
-import "./entero.css";
+import "./entero-estilos.css";
 import { muyLargo } from "./worker-datos";
 
 type Props = { texto: string; tag?: "p" | "blockquote"; className?: string };

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { monograma, PALETA, tono } from "../src/barra/logo.ts";
+import { monograma, PALETA, tono } from "../src/barra/logo-datos.ts";
 import { candidatos, iconoDe, iconosDe, LUGARES } from "../electron/iconos.ts";
 
 test("monograma: dos letras de una palabra, iniciales de dos", () => {

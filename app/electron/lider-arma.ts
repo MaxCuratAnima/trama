@@ -857,7 +857,7 @@ type Crudo = {
   modelo: string | null;
   mid: string | null;
   usage: unknown;
-  /** Lo que dice de dónde salió (espejo de `Mensaje` en src/datos/contrato.ts; src/hilo/sistema.ts). */
+  /** Lo que dice de dónde salió (espejo de `Mensaje` en src/datos/contrato.ts; src/hilo/sistema-datos.ts). */
   marcas: Marcas;
   /** Las imágenes que mandó el usuario (B26). */
   imagenes?: Imagen[];
