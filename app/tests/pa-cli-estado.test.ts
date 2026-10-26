@@ -124,8 +124,8 @@ test("formatos: mismas líneas y mismo orden que escribe el bash", () => {
     "ruta_trabajo=/w\nrama=pa/x/1\nbase=abc\nproyecto=x\norigen=\nleer=0\npuesto=1\njefe=j\njefe_id=ji\n",
   );
   assert.equal(
-    textoHilo({ tarea: "una\ntarea", modelo: "m", effort: "high", inicio: 5, proyecto: "x", ruta_trabajo: "/w", rama: "r", origen: "", leer: 0, puesto: 2, lanzo: "jefe", jefe: "j", jefe_id: "ji", tipo: "t" }),
-    "tarea=una tarea\nmodelo=m\neffort=high\ninicio=5\nproyecto=x\nruta_trabajo=/w\nrama=r\norigen=\nleer=0\npuesto=2\nlanzo=jefe\njefe=j\njefe_id=ji\ntipo=t\n",
+    textoHilo({ tarea: "una\ntarea", modelo: "m", effort: "high", inicio: 5, proyecto: "x", ruta_trabajo: "/w", rama: "r", origen: "", leer: 0, puesto: 2, lanzo: "jefe", jefe: "j", jefe_id: "ji", tipo: "t", cuenta: "claude" }),
+    "tarea=una tarea\nmodelo=m\neffort=high\ninicio=5\nproyecto=x\nruta_trabajo=/w\nrama=r\norigen=\nleer=0\npuesto=2\nlanzo=jefe\njefe=j\njefe_id=ji\ntipo=t\ncuenta=claude\n",
   );
   assert.equal(textoRunning({ pid: 1, pa_pid: 2, inicio: 3, proyecto: "x", id: "i", puesto: 1 }).split("\n").slice(0, 4).join("|"), "pid=1|pa_pid=2|inicio=3|proyecto=x");
   assert.equal(armarClaveValor([["a", "1"], ["b", undefined]]), "a=1\nb=\n");
