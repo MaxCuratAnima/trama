@@ -55,3 +55,10 @@ test("Windows: pa.exe del PATH con ; y PATHEXT, o claude.exe en %USERPROFILE%\\.
   assert.equal(pathConLocal({ Path: "C:\\Windows" }, WH, "win32"), "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
   assert.equal(entornoPa({ Path: "C:\\Windows" }, WH, "win32").Path, "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
 });
+
+test("Windows: entornoAgy deja ~\\.local\\bin y la carpeta de pa.exe adelante, con ; y la clave Path", () => {
+  const WH = "C:\\Users\\Ana";
+  const e = entornoAgy({ Path: "C:\\Windows;D:\\bin" }, WH, hay("D:\\bin\\pa.exe"), "win32");
+  assert.equal(e.Path, "C:\\Users\\Ana\\.local\\bin;D:\\bin;C:\\Windows");
+  assert.equal(e.PATH, undefined);
+});

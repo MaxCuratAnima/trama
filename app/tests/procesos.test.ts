@@ -107,3 +107,12 @@ test("real, Windows: el arranque de este proceso es un número estable y un pid 
   matarArbol(h.pid, true);
   await cierre;
 });
+
+test("guionTerminalWindows: corre con call, anota el rc por .tmp y espera una tecla si falló", async () => {
+  const { guionTerminalWindows } = await import("../electron/procesos.ts");
+  const g = guionTerminalWindows(["C:\\Users\\Ana\\.local\\bin\\cuentas.cmd", "login", "100%"], "C:\\Temp\\x\\rc");
+  const l = g.split("\r\n");
+  assert.equal(l[1], 'call "C:\\Users\\Ana\\.local\\bin\\cuentas.cmd" "login" "100%%"');
+  assert.match(g, /move \/y "C:\\Temp\\x\\rc\.tmp" "C:\\Temp\\x\\rc"/);
+  assert.match(g, /if not "%rc%"=="0" .*pause/);
+});

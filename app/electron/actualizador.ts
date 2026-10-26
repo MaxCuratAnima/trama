@@ -8,7 +8,7 @@
 // (paru). Los usos: electron/actualizacion.ts (claude) y electron/actualizacion-agy.ts (agy, en terminal).
 //   HILOS_TERMINAL  la terminal de Actualizar en terminal (en la prueba, un falso). Por default, kitty.
 import { execFile, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,13 +16,17 @@ import { escribirAtomico } from "./pa.js";
 import { textoT } from "./errores.js";
 import { avisoDe, CADA_MS, comparar, desdeArchivo, hayQueConsultar, normal, type Aviso, type Chequeo } from "./version.js";
 import { silencio } from "./log.js";
+import { carpetasPath, caminos, separadorPath } from "./plataforma.js";
+import { guionTerminalWindows } from "./procesos.js";
 
 /** Abierta desde el menú de apps la sesión gráfica puede no traer estas carpetas en el PATH (ver binario.ts). */
 export function entorno(): NodeJS.ProcessEnv {
   const home = os.homedir();
-  const extra = [path.join(home, ".local", "bin"), path.join(home, ".npm-global", "bin")];
-  const resto = (process.env.PATH ?? "").split(":").filter((d) => d && !extra.includes(d));
-  return { ...process.env, PATH: [...extra, ...resto].join(":") };
+  const c = caminos(process.platform);
+  const extra = [c.join(home, ".local", "bin"), c.join(home, ".npm-global", "bin")];
+  const resto = carpetasPath(process.platform, process.env).filter((d) => !extra.includes(d));
+  const clave = process.platform === "win32" ? (Object.keys(process.env).find((k) => k.toLowerCase() === "path") ?? "Path") : "PATH";
+  return { ...process.env, [clave]: [...extra, ...resto].join(separadorPath(process.platform)) };
 }
 
 /** Lo que imprime el comando, normalizado a "x.y.z"; null si falló o no se entiende. */
@@ -73,7 +77,13 @@ export function enTerminal(argv: string[], env: NodeJS.ProcessEnv): Promise<Corr
       cerrar({ err: falla, dijo: falla });
       return true;
     };
-    const p = spawn(term, ["sh", "-c", envoltorio, "sh", marca, ...argv], { env, stdio: "ignore" });
+    // Windows nativo sin HILOS_TERMINAL: una consola nueva (`start /wait`) que corre un .cmd en vez del envoltorio de sh.
+    const nativa = process.platform === "win32" && !process.env.HILOS_TERMINAL;
+    const guion = path.join(dir, "correr.cmd");
+    if (nativa) writeFileSync(guion, guionTerminalWindows(argv, marca));
+    const p = nativa
+      ? spawn(process.env.ComSpec || "cmd.exe", ["/d", "/c", "start", "", "/wait", guion], { env, stdio: "ignore" })
+      : spawn(term, ["sh", "-c", envoltorio, "sh", marca, ...argv], { env, stdio: "ignore" });
     p.on("error", () => cerrar({ err: textoT("main.terminalNo", { t: term }), dijo: null }));
     p.on("exit", () => {
       if (!mirar()) cerrar({ err: null, dijo: textoT("main.terminalCerro") });

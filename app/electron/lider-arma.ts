@@ -6,6 +6,7 @@ import path from "node:path";
 import { ttlDeUso } from "./cache.ts";
 import { errorT, textoT } from "./errores.ts";
 import { deDueno } from "./dueno.ts";
+import { entornoConLocal, type Plataforma } from "./plataforma.ts";
 import { contenidoUsuario, imagenesDeContenido, type Imagen } from "./imagenes.ts";
 import { HERRAMIENTA_PREGUNTAS, preguntasDe, type Pregunta } from "./preguntas.ts";
 
@@ -116,16 +117,14 @@ export function argvLider({ modelo, effort, sid, nombre, resume, modo = MODO_DEF
  * jefe equivocado), y sin nada de `ANTHROPIC_*` (facturación: siempre la
  * suscripción). `PA_STATE` queda (las pruebas lo usan). `~/.local/bin` adelante.
  */
-export function entornoLider(env: Env, home: string): Env {
+export function entornoLider(env: Env, home: string, plataforma: Plataforma = process.platform): Env {
   const out: Env = {};
   for (const [k, v] of Object.entries(env)) {
     if (/^CLAUDE/.test(k) || /^ANTHROPIC_/.test(k)) continue;
     if (/^PA_/.test(k) && k !== "PA_STATE") continue;
     out[k] = v;
   }
-  const local = path.join(home, ".local", "bin");
-  out.PATH = [local, ...(env.PATH ?? "").split(":").filter((d) => d && d !== local)].join(":");
-  return out;
+  return entornoConLocal(plataforma, out, home);
 }
 
 /** Sólo un llama-server de esta máquina: el endpoint de un líder local nunca sale de loopback (nada de proxies ni de Anthropic por otra puerta). */

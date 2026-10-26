@@ -132,3 +132,21 @@ export function shellDe(cmd: string, plataforma: NodeJS.Platform = process.platf
   if (!esWindows(plataforma)) return { bin: "bash", args: ["-c", cmd], opciones: {} };
   return { bin: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `"${cmd}"`], opciones: { windowsVerbatimArguments: true } };
 }
+
+const comillasCmd = (a: string) => `"${a.replace(/%/g, "%%").replace(/"/g, '""')}"`;
+
+/**
+ * El guion `.cmd` que corre una terminal de Windows para `enTerminal` (el equivalente del envoltorio `sh -c`): corre `argv`, anota su
+ * código en `marca` (por un `.tmp` y un `move`, para que nadie lea a medias) y, si falló, deja la ventana esperando una tecla.
+ */
+export function guionTerminalWindows(argv: string[], marca: string): string {
+  return [
+    "@echo off",
+    `call ${argv.map(comillasCmd).join(" ")}`,
+    'set "rc=%errorlevel%"',
+    `>${comillasCmd(`${marca}.tmp`)} echo %rc%`,
+    `move /y ${comillasCmd(`${marca}.tmp`)} ${comillasCmd(marca)} >nul`,
+    'if not "%rc%"=="0" (echo. & echo [rc=%rc%] Pulsa una tecla para cerrar & pause >nul)',
+    "",
+  ].join("\r\n");
+}

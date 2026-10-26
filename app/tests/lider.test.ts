@@ -521,3 +521,7 @@ test("argv (B23): nada que pise los settings de Ana (output style, prompt de sis
     for (const f of ["--setting-sources", "--settings", "--system-prompt", "--append-system-prompt", "--bare"]) assert.ok(!a.includes(f), f);
   }
 });
+
+test("entornoLider en Windows: ~\\.local\\bin adelante con ; sobre la clave Path", () => {
+  assert.equal(entornoLider({ Path: "C:\\Windows", CLAUDE_X: "1" }, "C:\\Users\\Ana", "win32").Path, "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
+});
