@@ -81,7 +81,7 @@ const aqui = import.meta.dirname;
 //   HILOS_VISTA=todo|lideres la vista de la barra. Sin la variable: la de preferencias.json; en
 //                            bench y captura, todo.
 //   --escondida              (argumento) arranca sin mostrar la ventana: así la levanta la unidad de
-//                            systemd al iniciar la sesión (systemd/trama.service). Abrirla desde el
+//                            systemd al iniciar la sesión. Abrirla desde el
 //                            lanzador la muestra.
 //   TRAMA_UNIDAD=1           lo pone la unidad: para reiniciarse alcanza con salir (Restart=always).
 //   HILOS_BANDEJA=1          con HILOS_PERFIL (una trama residente de prueba) no hay ícono en la bandeja salvo que se pida:
