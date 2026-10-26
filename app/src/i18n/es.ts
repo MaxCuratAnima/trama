@@ -1718,4 +1718,9 @@ export const es: { [K in keyof typeof en]: string } = {
   "ajustes.cuposH": "Cupos",
   "ajustes.reservasH": "Reservas",
   "ajustes.mdlModelosH": "Modelos y proveedores",
+  // --- inyectar ---
+  "inyectar.queLoLea": "Que lo lea ya",
+  "inyectar.tip": "Se lo paso en el próximo paso, sin esperar a que termine",
+  "main.inyectarGemini": "Gemini no lee mensajes a mitad de un turno: queda en la cola y sale cuando termine",
+  "main.inyectarSinProceso": "El líder ya no está respondiendo: el mensaje sale por la cola",
 };

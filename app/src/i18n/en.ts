@@ -1730,4 +1730,9 @@ export const en = {
   "ajustes.cuposH": "Quotas",
   "ajustes.reservasH": "Reserves",
   "ajustes.mdlModelosH": "Models and providers",
+  // --- inyectar ---
+  "inyectar.queLoLea": "Read it now",
+  "inyectar.tip": "Pass it along at the next step, without waiting for it to finish",
+  "main.inyectarGemini": "Gemini can't read messages mid-turn: it stays queued and goes out when it finishes",
+  "main.inyectarSinProceso": "The leader is no longer responding: the message goes out through the queue",
 } as const;

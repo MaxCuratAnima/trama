@@ -146,6 +146,8 @@ type Main = {
     ir(pid: number): Promise<boolean>;
     /** ¿Se puede ubicar la ventana de ese proceso? */
     ubicable(pid: number): Promise<boolean>;
+    /** Forzar: a mitad de un turno, lo lee en el próximo paso (sin esperar a que termine). Libre, es `mandar`. */
+    inyectar(x: { sid: string; texto: string; imagenes?: Imagen[]; modelo: string; effort: string }): Promise<void>;
     /** A la cola del líder (electron/cola.ts): sale cuando quede libre. */
     encolar(x: { sid: string; texto: string; imagenes?: Imagen[]; modelo: string; effort: string; modo?: string; nombre?: string }): Promise<void>;
     colaQuitar(x: { sid: string; id: number }): Promise<void>;

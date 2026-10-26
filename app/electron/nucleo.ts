@@ -820,6 +820,11 @@ export function armarNucleo() {
     verEspera(String(x?.sid));
     return lider.mandar({ sid: x?.sid, texto: x?.texto, imagenes: x?.imagenes, modelo: x?.modelo, effort: x?.effort });
   });
+  // Forzar: lo que se manda a mitad de un turno lo lee en el próximo paso, sin esperar a que termine.
+  manejar("lider:inyectar", (_e, x: { sid: string; texto: string; imagenes?: unknown; modelo: string; effort: string }) => {
+    verEspera(String(x?.sid));
+    return lider.inyectar({ sid: x?.sid, texto: x?.texto, imagenes: x?.imagenes, modelo: x?.modelo, effort: x?.effort });
+  });
   // El usuario abrió la conversación de un líder que lo esperaba (o la tiene a la vista y volvió a la ventana).
   manejar("lider:visto", (_e, sid: string) => verEspera(String(sid)));
   // Un archivo que no es imagen: a `adjuntos/` del estado propio; el mensaje lleva su ruta.

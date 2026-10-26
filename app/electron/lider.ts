@@ -801,6 +801,25 @@ export async function mandar(x: { sid: string; texto: string; imagenes?: unknown
 }
 
 /**
+ * Mandarle algo a un líder que está a mitad de un turno SIN esperar a que termine: la línea de usuario va por el stdin
+ * y `claude` la lee en el próximo paso (entre herramientas); el turno sigue siendo uno solo (un único `result`), así que
+ * `ocupado` no se toca. Libre (o sin proceso), es un `mandar` de siempre. Sólo el `claude` de stream-json: el puente de
+ * Gemini no va por acá: su puente metería el mensaje en su propia cola (agy-puente.ts), así que se rechaza y el mensaje queda
+ * en la cola del main, que lo manda al terminar.
+ */
+export async function inyectar(x: { sid: string; texto: string; imagenes?: unknown; modelo: string; effort: string }): Promise<void> {
+  const sid = String(x.sid);
+  const p = procs.get(sid);
+  if (!p?.ocupado || mandando.has(sid)) return mandar(x);
+  if (p.clase === "gemini") throw errorT("main.inyectarGemini");
+  const imagenes = imagenesDe(x.imagenes);
+  const texto = textoDe(x.texto, imagenes);
+  if (!p.p.stdin?.writable) throw errorT("main.inyectarSinProceso");
+  p.p.stdin.write(lineaUsuario(texto, imagenes));
+  alCambio();
+}
+
+/**
  * Los que acaban de traerse de una terminal, o de retomarse tras morir sin cerrar: su próximo mensaje lleva el
  * aviso de recoger a sus workers (`avisoTraido`, con el motivo que lo trajo).
  */

@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld("hilos", {
   lider: {
     nuevo: (x: unknown): Promise<string> => ipcRenderer.invoke("lider:nuevo", x),
     mandar: (x: unknown): Promise<void> => ipcRenderer.invoke("lider:mandar", x),
+    inyectar: (x: unknown): Promise<void> => ipcRenderer.invoke("lider:inyectar", x),
     archivo: (x: unknown): Promise<string> => ipcRenderer.invoke("lider:archivo", x),
     parar: (sid: string): Promise<void> => ipcRenderer.invoke("lider:parar", sid),
     modo: (x: unknown): Promise<void> => ipcRenderer.invoke("lider:modo", x),
