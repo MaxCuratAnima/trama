@@ -146,10 +146,22 @@ export async function lanzar(ctx: CtxPa, o: OpcionesProyecto): Promise<number> {
   }
   if (!o.tarea) return ctx.err("pa: falta la tarea.\n"), 2;
 
-  const claudeBin = enPath(env.TRAMA_CLAUDE || "claude", { plataforma: ctx.plataforma, env, home: ctx.home });
-  if (!claudeBin) {
-    ctx.err("pa: no encuentro claude (ni en el PATH ni en ~/.local/bin). Instalalo, o poné su ruta en TRAMA_CLAUDE.\n");
-    return 84;
+  const esGemini = modelo.toLowerCase().startsWith("gemini") || modelo.toLowerCase().startsWith("agy:");
+  let ejecutableBin = "";
+  if (esGemini) {
+    const agyBin = enPath(env.TRAMA_AGY || "agy", { plataforma: ctx.plataforma, env, home: ctx.home });
+    if (!agyBin) {
+      ctx.err("pa: no encuentro agy en el PATH. Instalalo, o poné su ruta en TRAMA_AGY.\n");
+      return 84;
+    }
+    ejecutableBin = agyBin;
+  } else {
+    const claudeBin = enPath(env.TRAMA_CLAUDE || "claude", { plataforma: ctx.plataforma, env, home: ctx.home });
+    if (!claudeBin) {
+      ctx.err("pa: no encuentro claude (ni en el PATH ni en ~/.local/bin). Instalalo, o poné su ruta en TRAMA_CLAUDE.\n");
+      return 84;
+    }
+    ejecutableBin = claudeBin;
   }
   const limite = await leerTexto(path.join(ctx.estado, "limite.hasta"));
   if (limite !== null && /^\d+$/.test(limite.trim())) {
@@ -162,7 +174,7 @@ export async function lanzar(ctx: CtxPa, o: OpcionesProyecto): Promise<number> {
   }
 
   if (cuenta && cuenta !== "claude" && cuenta !== "google") ctx.err(`pa: cuenta ${cuenta}.\n`);
-  const base: Base = { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin, cuenta, cuentaEntorno };
+  const base: Base = { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin: ejecutableBin, cuenta, cuentaEntorno };
   return o.async ? lanzarAsync(base) : correr(base);
 }
 
@@ -375,16 +387,23 @@ async function correr(b: Base): Promise<number> {
     const contrato = armarContrato({ dueno, jefe: jefe.nombre, plan, leer: o.leer, rama, rutaTrabajo });
     const nombreWorker = `pa/${slug}${o.leer ? "" : sufijoPuesto(puesto)}`;
     const autocompact = /^\d+$/.test(env.PA_AUTOCOMPACT ?? "") && Number(env.PA_AUTOCOMPACT) >= 100000 && Number(env.PA_AUTOCOMPACT) <= 1000000 ? env.PA_AUTOCOMPACT! : "180000";
-    const args = [
-      "-p", tarea, "--model", modelo, ...(esfuerzo ? ["--effort", esfuerzo] : []), "--output-format", "json", "--append-system-prompt", contrato,
-      "--permission-mode", "bypassPermissions", "--autocompact", autocompact, "--settings", settings, "--name", nombreWorker,
-    ];
-    if (!o.mcp) args.push("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
-    if (o.leer) args.push("--tools", "Read,Grep,Glob,Bash,ToolSearch,ListAgents,SendMessage");
-    else if (plan === "pro") args.push("--disallowedTools", "Agent");
-    if (o.maxTurns) args.push("--max-turns", o.maxTurns);
-    if (o.maxBudget) args.push("--max-budget-usd", o.maxBudget);
-    args.push("--session-id", sid);
+    const esGemini = modelo.toLowerCase().startsWith("gemini") || modelo.toLowerCase().startsWith("agy:");
+    const args: string[] = [];
+    if (esGemini) {
+      const modeloAgy = modelo.replace(/^agy:/i, "");
+      args.push("-p", `${contrato}\n\n${tarea}`, "--model", modeloAgy, "--dangerously-skip-permissions", "--output-format", "json");
+    } else {
+      args.push(
+        "-p", tarea, "--model", modelo, ...(esfuerzo ? ["--effort", esfuerzo] : []), "--output-format", "json", "--append-system-prompt", contrato,
+        "--permission-mode", "bypassPermissions", "--autocompact", autocompact, "--settings", settings, "--name", nombreWorker,
+      );
+      if (!o.mcp) args.push("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
+      if (o.leer) args.push("--tools", "Read,Grep,Glob,Bash,ToolSearch,ListAgents,SendMessage");
+      else if (plan === "pro") args.push("--disallowedTools", "Agent");
+      if (o.maxTurns) args.push("--max-turns", o.maxTurns);
+      if (o.maxBudget) args.push("--max-budget-usd", o.maxBudget);
+      args.push("--session-id", sid);
+    }
 
     // los registros de la corrida, antes de lanzar: una que muere a mitad es justo la que hay que poder retomar
     await escribirSid(dir, ts, sid);
@@ -452,6 +471,13 @@ async function correr(b: Base): Promise<number> {
       if (x && typeof x === "object" && !Array.isArray(x)) j = x as Record<string, unknown>;
     } catch {
       // sin JSON: murió antes de contestar
+    }
+    if (j && typeof j.response === "string" && j.result === undefined) {
+      j.result = j.response;
+      j.duration_ms = typeof j.duration_seconds === "number" ? j.duration_seconds * 1000 : 0;
+      j.session_id = typeof j.conversation_id === "string" ? j.conversation_id : sid;
+      j.total_cost_usd = 0;
+      j.num_turns = typeof j.num_turns === "number" ? j.num_turns : 1;
     }
     const resultado = typeof j?.result === "string" ? j.result : "";
     const esError = j?.is_error === true;

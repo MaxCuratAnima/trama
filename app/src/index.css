@@ -1973,8 +1973,48 @@ kbd {
   flex: none;
   align-items: center;
   gap: var(--esp-3);
-  padding: 0 var(--esp-6) 0 var(--esp-4);
+  padding: 0 8.5rem 0 var(--esp-4);
   border-bottom: 1px solid var(--capa-div);
+  -webkit-app-region: drag;
+}
+.migas * {
+  -webkit-app-region: no-drag;
+}
+.cab {
+  -webkit-app-region: drag;
+}
+.cab * {
+  -webkit-app-region: no-drag;
+}
+.controles-ventana {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  z-index: 1000;
+  -webkit-app-region: no-drag;
+}
+.control-btn {
+  width: 2.75rem;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--texto-6, #888);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--texto-1, #eee);
+}
+.control-btn.cerrar:hover {
+  background: #e81123;
+  color: #ffffff;
 }
 .lado {
   display: grid;

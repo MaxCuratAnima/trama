@@ -289,4 +289,11 @@ contextBridge.exposeInMainWorld("hilos", {
     leer: (): Promise<unknown> => ipcRenderer.invoke("borradores:leer"),
     guardar: (foto: unknown): Promise<void> => ipcRenderer.invoke("borradores:guardar", foto),
   },
+  /** Controles de ventana en Windows (minimizar, maximizar, cerrar). */
+  ventana: {
+    minimizar: (): Promise<void> => ipcRenderer.invoke("ventana:minimizar"),
+    maximizar: (): Promise<boolean> => ipcRenderer.invoke("ventana:maximizar"),
+    cerrar: (): Promise<void> => ipcRenderer.invoke("ventana:cerrar"),
+    esMaximizada: (): Promise<boolean> => ipcRenderer.invoke("ventana:esMaximizada"),
+  },
 });

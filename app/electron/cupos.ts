@@ -3,8 +3,11 @@
 // el único lector. Genérico: una suscripción nueva aparece sola en la cabecera, sin tocar esto.
 // Lo que no se sabe es `null` ("sin dato"), nunca un número inventado.
 import { execFileCmd } from "./procesos.js";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { entornoPa, resolverBinario } from "./binario.js";
+import path from "node:path";
+import { entornoPa, resolverAgy, resolverBinario } from "./binario.js";
+import { esteConfigTrama } from "./plataforma.js";
 
 const execFileP = (bin: string, args: string[], o: { env: NodeJS.ProcessEnv; timeout: number; maxBuffer: number }) =>
   new Promise<{ stdout: string }>((ok, mal) => execFileCmd(bin, args, o, (e, stdout) => (e ? mal(e) : ok({ stdout }))));
@@ -147,8 +150,44 @@ export function parsearCuposReparto(salida: string, ahoraMs = Date.now()): Cupos
   return { ts, ...(claude ? { claude } : {}), ...(claudeNombre ? { claudeNombre } : {}), suscripciones };
 }
 
+function cuposIniciales(): CuposLeidos | null {
+  try {
+    const cuentasPath = path.join(esteConfigTrama(), "cuentas.json");
+    const suscripciones: SuscripcionCupo[] = [];
+    const tsS = Math.round(Date.now() / 1000);
+    if (existsSync(cuentasPath)) {
+      const data = JSON.parse(readFileSync(cuentasPath, "utf8")) as { cuentas?: Array<{ id?: string; nombre?: string; proveedor?: string }> };
+      if (Array.isArray(data.cuentas)) {
+        for (const c of data.cuentas) {
+          if (c?.id && c.id !== "claude") {
+            suscripciones.push({
+              id: c.id,
+              nombre: c.nombre || c.id,
+              proveedor: c.proveedor || "claude",
+              cuenta: c.id,
+              ts: tsS,
+              ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }],
+            });
+          }
+        }
+      }
+    }
+    suscripciones.push({
+      id: "google",
+      nombre: "Gemini",
+      proveedor: "google",
+      cuenta: "google",
+      ts: tsS,
+      ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }],
+    });
+    return { ts: Date.now(), claudeNombre: "Claude", suscripciones };
+  } catch {
+    return null;
+  }
+}
+
 const TTL_CUPOS_MS = 60_000;
-let cacheCupos: CuposLeidos | null = null;
+let cacheCupos: CuposLeidos | null = cuposIniciales();
 let ultimoIntentoMs = 0;
 let enVuelo: Promise<CuposLeidos | null> | null = null;
 const oyentes = new Set<() => void>();
@@ -167,16 +206,132 @@ function modoAisladoSinCupos(): boolean {
   return process.env.HILOS_PRUEBA === "1" || process.env.HILOS_CAPTURA === "1" || process.env.HILOS_BENCH === "1";
 }
 
+async function consultarCuposNativo(): Promise<CuposLeidos | null> {
+  const ahora = Date.now();
+  const tsS = Math.round(ahora / 1000);
+  const suscripciones: SuscripcionCupo[] = [];
+
+  // 1. Cuentas adicionales de Claude desde cuentas.json
+  try {
+    const cuentasPath = path.join(esteConfigTrama(), "cuentas.json");
+    if (existsSync(cuentasPath)) {
+      const data = JSON.parse(readFileSync(cuentasPath, "utf8")) as { cuentas?: Array<{ id?: string; nombre?: string; proveedor?: string }> };
+      if (Array.isArray(data.cuentas)) {
+        for (const c of data.cuentas) {
+          if (c?.id && c.id !== "claude") {
+            suscripciones.push({
+              id: c.id,
+              nombre: c.nombre || c.id,
+              proveedor: c.proveedor || "claude",
+              cuenta: c.id,
+              ts: tsS,
+              ventanas: [
+                { id: "5h", pct: null, vuelve: null },
+                { id: "7d", pct: null, vuelve: null },
+              ],
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignorar */
+  }
+
+  // 2. Google / Gemini desde agy /quota
+  try {
+    const binAgy = resolverAgy(process.env, homedir());
+    const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;
+    const { stdout } = await execFileP(binAgy, ["-p", "/quota", "--output-format", "json"], { env, timeout: 12000, maxBuffer: 512 * 1024 });
+    const raw = JSON.parse(stdout) as { command?: { data?: { groups?: Array<{ name?: string; buckets?: Array<{ id?: string; window?: string; remaining_fraction?: number; reset_time?: string }> }> } } };
+    const groups = raw?.command?.data?.groups;
+    if (Array.isArray(groups) && groups.length > 0) {
+      const gruposCupo: GrupoCupo[] = [];
+      let geminiVentanas: VentanaCupo[] = [];
+
+      for (const g of groups) {
+        const gName = g?.name || "";
+        const buckets = Array.isArray(g?.buckets) ? g.buckets : [];
+        const ventanas: VentanaCupo[] = [];
+
+        for (const b of buckets) {
+          const rem = typeof b.remaining_fraction === "number" ? b.remaining_fraction : 1;
+          const pct = Math.max(0, Math.min(100, Math.round((1 - rem) * 100)));
+          const vuelve = b.reset_time ? Math.round(Date.parse(b.reset_time) / 1000) : null;
+          const id = (b.window === "weekly" || String(b.id).includes("weekly")) ? "7d" : "5h";
+          ventanas.push({ id, pct, vuelve: Number.isFinite(vuelve) ? vuelve : null });
+        }
+
+        if (ventanas.length > 0) {
+          gruposCupo.push({
+            id: gName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            nombre: gName,
+            ventanas,
+          });
+          if (gName.toLowerCase().includes("gemini") || geminiVentanas.length === 0) {
+            geminiVentanas = ventanas;
+          }
+        }
+      }
+
+      if (gruposCupo.length > 0) {
+        suscripciones.push({
+          id: "google",
+          nombre: "Gemini",
+          proveedor: "google",
+          cuenta: "google",
+          ts: tsS,
+          ventanas: geminiVentanas,
+          grupos: gruposCupo,
+        });
+      }
+    } else {
+      suscripciones.push({
+        id: "google",
+        nombre: "Gemini",
+        proveedor: "google",
+        cuenta: "google",
+        ts: tsS,
+        ventanas: [
+          { id: "5h", pct: null, vuelve: null },
+          { id: "7d", pct: null, vuelve: null },
+        ],
+      });
+    }
+  } catch {
+    suscripciones.push({
+      id: "google",
+      nombre: "Gemini",
+      proveedor: "google",
+      cuenta: "google",
+      ts: tsS,
+      ventanas: [
+        { id: "5h", pct: null, vuelve: null },
+        { id: "7d", pct: null, vuelve: null },
+      ],
+    });
+  }
+
+  if (suscripciones.length === 0) return null;
+  return {
+    ts: ahora,
+    claudeNombre: "Claude",
+    suscripciones,
+  };
+}
+
 async function consultarCupos(): Promise<CuposLeidos | null> {
   if (modoAisladoSinCupos()) return null;
   try {
     const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;
     const bin = resolverBinario("reparto", "HILOS_REPARTO", process.env, homedir());
     const { stdout } = await execFileP(bin, ["--cupos", "--json"], { env, timeout: 6000, maxBuffer: 512 * 1024 });
-    return parsearCuposReparto(stdout, Date.now());
+    const parsed = parsearCuposReparto(stdout, Date.now());
+    if (parsed) return parsed;
   } catch {
-    return null; // sin `reparto`: la cabecera queda con lo de Claude
+    /* sin reparto: usa el consultor nativo */
   }
+  return consultarCuposNativo();
 }
 
 /** Las suscripciones sin la hora de la lectura: lo que decide si hay algo nuevo que avisar. */

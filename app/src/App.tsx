@@ -1,4 +1,5 @@
 import { Barra } from "./barra/Barra";
+import { ControlesVentana } from "./barra/ControlesVentana";
 import { Bench } from "./Bench";
 import { Conexion } from "./Conexion";
 import { Atajos } from "./paneles/Atajos";
@@ -14,6 +15,7 @@ export function App() {
   if (MODO.captura === "error") throw new Error("Capture: this error is on purpose");
   return (
     <>
+      <ControlesVentana />
       <Barra />
       <Conexion />
       <Atajos />

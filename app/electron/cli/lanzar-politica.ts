@@ -118,8 +118,8 @@ export function resolverPolitica(e: EntradaPolitica): DecisionPolitica {
   if (!modelo) modelo = e.tipo === "mecanico" && !e.leer && !e.seguir ? "claude-haiku-5-5" : "claude-sonnet-5-5";
 
   const m = modelo.toLowerCase();
-  if (m.startsWith("gemini") || m.startsWith("agy:") || m.startsWith("codex:") || m.startsWith("ollama:")) {
-    return { error: `pa: el modelo '${modelo}' (Gemini/agy/codex/local) todavía no lo lanza la versión en TypeScript. Usá un modelo Claude con -m.` };
+  if (m.startsWith("codex:") || m.startsWith("ollama:")) {
+    return { error: `pa: el modelo '${modelo}' (codex/local) todavía no lo lanza la versión en TypeScript. Usá un modelo Claude o Gemini con -m.` };
   }
   const ef = esfuerzo.toLowerCase();
   if (!e.okDueno) {

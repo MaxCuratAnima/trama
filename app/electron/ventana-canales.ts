@@ -106,6 +106,29 @@ export function pedirSalida() {
  * eligió el usuario en el diálogo: devuelve cuántos líderes responden (y no hizo nada), o 0 y el proceso se va.
  */
 export function armarCanalesVentana(salir: (x: { modo: "seguir" | "parar"; forzar: boolean }) => Promise<number>) {
+  ipcMain.handle("ventana:minimizar", (e) => {
+    const v = BrowserWindow.fromWebContents(e.sender);
+    v?.minimize();
+  });
+  ipcMain.handle("ventana:maximizar", (e) => {
+    const v = BrowserWindow.fromWebContents(e.sender);
+    if (!v) return false;
+    if (v.isMaximized()) {
+      v.unmaximize();
+      return false;
+    } else {
+      v.maximize();
+      return true;
+    }
+  });
+  ipcMain.handle("ventana:cerrar", (e) => {
+    const v = BrowserWindow.fromWebContents(e.sender);
+    v?.close();
+  });
+  ipcMain.handle("ventana:esMaximizada", (e) => {
+    const v = BrowserWindow.fromWebContents(e.sender);
+    return v?.isMaximized() ?? false;
+  });
   ipcMain.handle("app:salir", (_e, x: unknown) => salir(pedidoDeSalida(x)));
   ipcMain.handle("bandeja:textos", (_e, x: unknown) => {
     const t = textosValidos(x);

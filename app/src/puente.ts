@@ -340,6 +340,13 @@ type Main = {
   volver: { leer(): Promise<unknown>; guardar(vista: unknown): Promise<void>; alPedir(fn: () => void): Soltar; anotar(vista: unknown): Promise<void> };
   /** Lo escrito sin mandar, en disco (sólo la ventana; electron/borradores.ts). */
   borradores: { leer(): Promise<unknown>; guardar(foto: unknown): Promise<void> };
+  /** Controles de ventana en Windows (minimizar, maximizar, cerrar). */
+  ventana?: {
+    minimizar(): Promise<void>;
+    maximizar(): Promise<boolean>;
+    cerrar(): Promise<void>;
+    esMaximizada(): Promise<boolean>;
+  };
 };
 
 declare global {
