@@ -18,6 +18,19 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
 - El `pa` de TS no tiene reparto, cupo de Gemini ni `cuenta_elegir` por cupo.
 - Las ramas `windows-nativo`, `windows-limpio` y `pa/trama/20261025-234454-92288` (WSL, obsoleta) se borran solo con OK de Gonza.
 
+## Hecho el 26/10 a la noche (rama `arreglo/sesion`, worktree C:	rama-wtsesion, sale de `integra/arreglos`)
+- **Cuota**: `agy -p /quota` en el agy de Windows NO es un comando: corre un turno del modelo (2 a 18 mil tokens por lectura, probado dos veces) y no trae `command.data.groups`. `cupos.ts` ahora lo llama solo con "Actualizar límites" (`manual`), nunca por el reloj. El `get_usage` de Claude y el `rate_limit_event` no gastan plan (control request sin turno).
+- `modelos.json` de Gonza (`%APPDATA%Trama`, backup `modelos.json.bak-20261026`): líder `agy:claude-sonnet-5-5-medium`, todos los workers `gemini-3.8-flash-high`, `diseno` en `agy:claude-opus-5-5-medium` (Opus solo para verificar o casos muy exigentes), sin `opus` en `excluir`. Regla de Gonza: líder Sonnet medio/high; si duda, consulta a Opus medio.
+- Arreglo de agy con Claude (venía sin commitear en D:	rama): nombres `claude-sonnet-*`/`claude-opus-*` → los 4-6 de agy. Se quitó `claude-haiku`→Sonnet: no se disfraza un modelo por otro.
+- `trama-motor` ya no pone `TRAMA_UNIDAD=1` en Windows (no hay supervisor: sin esto el motor se iba y nadie lo levantaba).
+- `ollama-entorno`: en Windows busca `ollama.exe`, sugiere `winget install --id Ollama.Ollama -e` y arranca con `ollama serve`; la plataforma es un parámetro (test nuevo). Los tests de Linux fijan `"linux"`.
+- Tests de referencia: `ollama-entorno` 2 fallas y `modelos-config` 1 ("sigue el symlink") son de antes (rutas/symlinks en Windows).
+
+## Pendiente (agregado el 26/10 a la noche)
+- `motor.sock` en Windows: `local.ts` hace `listen` sobre una ruta de archivo → EACCES (la ventana siempre corre "todo en uno", así que no afecta a la app; sí a `trama-motor.cmd`). Para usar el motor hay que pasarlo a una named pipe `\.pipe	rama-motor-<usuario>`.
+- Lecturas de `/proc` que en Windows caen en el catch y devuelven vacío: `cli/pa-esperar.ts` (sesión padre), `terminal.ts` (ppid), `bench.ts` (solo medición). `locales.ts`: cambio de modelos locales sigue sin soporte en Windows (rediseño: pedir OK a Gonza).
+- Esta rama no está integrada en `windows-0.1.2` ni instalada si el build falló: ver abajo. En `C:	rama-wtintegra` quedó un `pa-lanzar.ts` sin commitear de las 17:56 (trabajo de `--seguir`/`--cuenta` de otra sesión): no se tocó. El `D:	rama` (windows-0.1.2) sigue con su diff de agy sin commitear: ya está dentro de `arreglo/sesion`.
+
 ## Cómo verificar
 - Compilar desde WSL: en `app/`, `npx tsc --noEmit -p tsconfig.json` y `-p tsconfig.electron.json`.
 - Tests: `timeout 900 node --test --test-reporter=tap --test-timeout=60000 tests/*.test.ts`. Unas 17 a 19 fallas vienen de antes (agy, dictado, tailscale, `cuentas` sin node).
