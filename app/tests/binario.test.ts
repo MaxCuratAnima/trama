@@ -11,12 +11,12 @@ test("HILOS_PA gana siempre", () => {
 });
 
 test("pa del PATH si está", () => {
-  assert.equal(resolverPa({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa", "/home/ana/.local/bin/pa")), "/opt/bin/pa");
+  assert.equal(resolverPa({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa", "/home/ana/.local/bin/pa"), "linux"), "/opt/bin/pa");
 });
 
 test("sin pa en el PATH (sesión gráfica): ~/.local/bin/pa", () => {
-  assert.equal(resolverPa({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa")), "/home/ana/.local/bin/pa");
-  assert.equal(resolverPa({}, HOME, hay("/home/ana/.local/bin/pa")), "/home/ana/.local/bin/pa");
+  assert.equal(resolverPa({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa"), "linux"), "/home/ana/.local/bin/pa");
+  assert.equal(resolverPa({}, HOME, hay("/home/ana/.local/bin/pa"), "linux"), "/home/ana/.local/bin/pa");
 });
 
 test("en ningún lado: pa pelado (el error de spawn lo dice)", () => {
@@ -24,23 +24,23 @@ test("en ningún lado: pa pelado (el error de spawn lo dice)", () => {
 });
 
 test("el PATH de pa lleva ~/.local/bin adelante, una sola vez", () => {
-  assert.equal(pathConLocal({ PATH: "/usr/bin:/bin" }, HOME), "/home/ana/.local/bin:/usr/bin:/bin");
-  assert.equal(pathConLocal({ PATH: "/usr/bin:/home/ana/.local/bin" }, HOME), "/home/ana/.local/bin:/usr/bin");
-  assert.equal(pathConLocal({}, HOME), "/home/ana/.local/bin");
-  const env = entornoPa({ PATH: "/usr/bin", OTRA: "1" }, HOME);
+  assert.equal(pathConLocal({ PATH: "/usr/bin:/bin" }, HOME, "linux"), "/home/ana/.local/bin:/usr/bin:/bin");
+  assert.equal(pathConLocal({ PATH: "/usr/bin:/home/ana/.local/bin" }, HOME, "linux"), "/home/ana/.local/bin:/usr/bin");
+  assert.equal(pathConLocal({}, HOME, "linux"), "/home/ana/.local/bin");
+  const env = entornoPa({ PATH: "/usr/bin", OTRA: "1" }, HOME, "linux");
   assert.equal(env.OTRA, "1");
   assert.equal(env.PATH, "/home/ana/.local/bin:/usr/bin");
 });
 
 test("el entorno de agy trae la carpeta del pa encontrado, tras ~/.local/bin y sin repetirla", () => {
   // pa en una carpeta que el PATH de la app no tiene (HILOS_PA): se agrega para que el líder de Gemini lo llame.
-  assert.equal(entornoAgy({ HILOS_PA: "/opt/trama/pa", PATH: "/usr/bin" }, HOME, hay()).PATH, "/home/ana/.local/bin:/opt/trama:/usr/bin");
+  assert.equal(entornoAgy({ HILOS_PA: "/opt/trama/pa", PATH: "/usr/bin" }, HOME, hay(), "linux").PATH, "/home/ana/.local/bin:/opt/trama:/usr/bin");
   // pa en ~/.local/bin: nada de más.
-  assert.equal(entornoAgy({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa")).PATH, "/home/ana/.local/bin:/usr/bin");
+  assert.equal(entornoAgy({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa"), "linux").PATH, "/home/ana/.local/bin:/usr/bin");
   // pa en una carpeta que ya estaba en el PATH: pasa adelante, una sola vez.
-  assert.equal(entornoAgy({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa")).PATH, "/home/ana/.local/bin:/opt/bin:/usr/bin");
+  assert.equal(entornoAgy({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa"), "linux").PATH, "/home/ana/.local/bin:/opt/bin:/usr/bin");
   // sin pa en ningún lado: como pathConLocal, y el resto del entorno intacto.
-  const e = entornoAgy({ PATH: "/usr/bin", OTRA: "1" }, HOME, hay());
+  const e = entornoAgy({ PATH: "/usr/bin", OTRA: "1" }, HOME, hay(), "linux");
   assert.equal(e.PATH, "/home/ana/.local/bin:/usr/bin");
   assert.equal(e.OTRA, "1");
 });
