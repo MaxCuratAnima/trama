@@ -1,4 +1,4 @@
-// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar` y `--plan`; el resto
+// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar`, `--plan`, `--integrar`, `--descartar` y `--archivar`; el resto
 // (lanzar un worker, `--esperar`) lo traen pa-lanzar.ts y pa-esperar.ts. Salidas y códigos iguales a `motor/bin/pa`.
 import { pathToFileURL } from "node:url";
 import { parsearArgs } from "./args.ts";
@@ -9,6 +9,7 @@ import { cmdHilo } from "./hilo-mensajes.ts";
 import { calcularHilos, hilosEnJson, hilosEnTsv } from "./hilos.ts";
 import { cmdParar, type DepsParar } from "./parar.ts";
 import { esperar, esperarTodos } from "./pa-esperar.ts";
+import { cmdArchivar, cmdDescartar, cmdIntegrar, gestionDeProyecto } from "./pa-integrar.ts";
 import { lanzar } from "./pa-lanzar.ts";
 import path from "node:path";
 
@@ -66,13 +67,19 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
   const r = parsearArgs(argv, { plan, env, nombreDueno: env.TRAMA_DUENO, usuario: env.USER });
   if (r.clase === "error") return ctx.err(r.mensaje + "\n"), r.codigo;
   if (r.clase === "ayuda") return ctx.out(AYUDA + "\n"), 0;
-  if (r.clase === "proyecto") return lanzar(ctx, r.opciones);
+  if (r.clase === "proyecto") {
+    const g = await gestionDeProyecto(ctx, r.opciones);
+    return g ?? lanzar(ctx, r.opciones);
+  }
   switch (r.comando) {
     case "--estado": return cmdEstado(ctx);
     case "--plan": return cmdPlan(ctx, r.args[0]);
     case "--hilos": return cmdHilos(ctx, r.args);
     case "--hilo": return cmdHilo(ctx, r.args);
     case "--parar": return cmdParar(ctx, r.args, deps);
+    case "--integrar": return cmdIntegrar(ctx, r.args);
+    case "--descartar": return cmdDescartar(ctx, r.args);
+    case "--archivar": return cmdArchivar(ctx, r.args);
     case "--esperar": return esperar(ctx, r.args);
     case "--esperar-todos": return esperarTodos(ctx, r.args);
     default: throw new Error("no implementado todavia");
