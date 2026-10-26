@@ -327,10 +327,11 @@ test("--parar: una corrida en cola, una que no corre y un id que no existe", asy
   }
 });
 
-test("pa-esperar sigue siendo esqueleto: tira 'no implementado todavia'", async () => {
-  const { ctx, limpiar } = armar();
+test("pa-esperar sin proyecto da el uso", async () => {
+  const { ctx, salida, limpiar } = armar();
   try {
-    await assert.rejects(esperar(ctx, []), /no implementado todavia/);
+    assert.equal(await esperar(ctx, []), 2);
+    assert.match(salida.err, /^uso: pa --esperar <proyecto>/);
   } finally {
     limpiar();
   }
