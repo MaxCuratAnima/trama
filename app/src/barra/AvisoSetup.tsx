@@ -18,6 +18,8 @@ const K = {
   agy: { nombre: "setup.agy", nota: "setup.agyNota" },
   ollama: { nombre: "setup.ollama", nota: "setup.ollamaNota" },
   login: { nombre: "setup.login", nota: "setup.loginNota" },
+  claude: { nombre: "setup.claude", nota: "setup.claudeNota" },
+  git: { nombre: "setup.git", nota: "setup.gitNota" },
 } as const;
 
 /** Dónde de Ajustes se arregla cada una (sin categoría: se consigue afuera y nada se configura acá). */

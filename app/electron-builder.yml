@@ -1,0 +1,43 @@
+# Instalador NATIVO de Windows de Trama (sin WSL ni wine): `npm run build:win` desde cmd en Windows.
+# Salida: dist-installer/Trama-Setup-<version>.exe (y dist-installer/win-unpacked/ con la app sin instalar).
+appId: app.trama.desktop
+productName: Trama
+copyright: MIT
+directories:
+  output: dist-installer
+  buildResources: build
+files:
+  - package.json
+  - dist/**/*
+  - dist-electron/**/*
+  # El código ya viene empaquetado (vite + tsc) y no importa paquetes de npm: no hace falta node_modules.
+  - "!node_modules/**/*"
+# Sin asar a propósito: los .cmd de resources\bin corren con node suelto dist-electron\cli\*.js (pa, tablero, cuentas,
+# proyecto-ruta, trama-estado), y node no lee dentro de un .asar. Queda en resources\app\ (la 2.ª ruta de _trama-cli.cmd).
+asar: false
+# Lo que la app y los .cmd leen en tiempo de ejecución: <resources>\bin (entra al PATH, electron/entorno-windows.ts),
+# <resources>\skills y <resources>\plantillas.
+extraResources:
+  - from: ../motor/bin-win
+    to: bin
+    filter: ["**/*"]
+  - from: ../motor/skills
+    to: skills
+    filter: ["**/*"]
+  - from: ../motor/plantillas
+    to: plantillas
+    filter: ["**/*"]
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: Trama-Setup-${version}.${ext}
+  # Sin firma de código.
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  shortcutName: Trama

@@ -47,6 +47,13 @@ export function entornoConLocal(p: Plataforma, env: Env, home: string): Env {
   return { ...env, [clave]: pathConLocal(p, env, home) };
 }
 
+/** El entorno con `dir` adelante en el PATH (sin repetirlo; en Windows, sobre la clave que ya tenía, para no duplicarla). */
+export function entornoConDir(p: Plataforma, env: Env, dir: string): Env {
+  const clave = clavePath(p, env) ?? (esWindows(p) ? "Path" : "PATH");
+  const igual = (d: string) => (esWindows(p) ? d.toLowerCase() === dir.toLowerCase() : d === dir);
+  return { ...env, [clave]: [dir, ...carpetasPath(p, env).filter((d) => !igual(d))].join(separadorPath(p)) };
+}
+
 /** Las extensiones con que se prueba un nombre: ninguna en Linux; en Windows las de `PATHEXT` (con el nombre pelado primero). */
 export function extensionesEjecutable(p: Plataforma, env: Env): string[] {
   if (!esWindows(p)) return [""];

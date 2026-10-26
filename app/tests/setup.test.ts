@@ -20,7 +20,7 @@ registerHooks({
 });
 const tmp = mkdtempSync(path.join(os.tmpdir(), "hilos-setup-"));
 process.env.HILOS_STATE = path.join(tmp, "estado");
-const { descartarSetup, estadoSetup, leerDescartados, loginDe, URLS } = await import("../electron/setup.ts");
+const { descartarSetup, estadoSetup, hayGit, leerDescartados, loginDe, URLS } = await import("../electron/setup.ts");
 after(() => rmSync(tmp, { recursive: true, force: true }));
 
 const sondas = (o: Partial<Sondas> = {}): Sondas => ({
@@ -29,6 +29,8 @@ const sondas = (o: Partial<Sondas> = {}): Sondas => ({
   agy: () => true,
   ollama: async () => true,
   login: async () => true,
+  claude: () => true,
+  git: () => true,
   descartados: async () => [],
   ...o,
 });
@@ -78,4 +80,22 @@ test("loginDe: sólo `loggedIn: false` acusa; un claude falso o una salida rara 
   assert.equal(loginDe('{"loggedIn": true, "authMethod": "claude.ai"}'), true);
   assert.equal(loginDe("claude falso"), true);
   assert.equal(loginDe(""), true);
+});
+
+test("claude y git: faltan en su lugar; sin claude no se acusa también el login", async () => {
+  const r = await estadoSetup(sondas({ claude: () => false, git: () => false, login: async () => false }));
+  assert.deepEqual(r.faltas.map((f) => f.id), ["claude", "git"]);
+  for (const f of r.faltas) assert.equal(f.url, URLS[f.id]);
+  const sinLogin = await estadoSetup(sondas({ login: async () => false }));
+  assert.deepEqual(sinLogin.faltas.map((f) => f.id), ["login"]);
+});
+
+test("hayGit: sólo se pide en Windows; git.exe en el PATH o en Program Files cuentan", () => {
+  const casa = "C:\\Users\\Ana";
+  const conGit = (f: string) => f === "C:\\Program Files\\Git\\cmd\\git.exe";
+  assert.equal(hayGit("linux", {}, "/home/ana", () => false), true);
+  assert.equal(hayGit("win32", { Path: "C:\\Windows" }, casa, () => false), false);
+  assert.equal(hayGit("win32", { Path: "C:\\Windows" }, casa, conGit), true);
+  assert.equal(hayGit("win32", { Path: "D:\\Git\\cmd" }, casa, (f) => f === "D:\\Git\\cmd\\git.exe"), true);
+  assert.equal(hayGit("win32", { LOCALAPPDATA: "C:\\L" }, casa, (f) => f === "C:\\L\\Programs\\Git\\cmd\\git.exe"), true);
 });

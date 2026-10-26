@@ -3,6 +3,7 @@
 // Dos modos: todo en uno (el núcleo corre acá: pruebas, capturas, bench, dev, y sin motor) o cliente del
 // motor (electron/ventana-cliente.ts), si el motor responde en el socket local y `dueno` lo confirma.
 import { codigoSalida } from "./aislar.js"; // primero: en una corrida de prueba, ningún módulo toca los datos del usuario sin que quede anotado
+import "./entorno-windows.ts"; // segundo: en Windows deja TRAMA_LOCAL=1 y los .cmd en el PATH antes de que pa.ts, lider-arma.ts… lean el entorno
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from "electron";
 import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -22,11 +23,13 @@ import type { Cliente } from "./ventana-cliente.js";
 import { acomodar, crearGuardadoVolver, guardarVolver, leerVolver, lugarDeVentana, type Ventana, type Volver } from "./volver.js";
 import { silencio } from "./log.js";
 import { enMarcha, marcar, type Corrida } from "./reinicio-marcas.js";
+import { esWindows } from "./plataforma.ts";
 
 // Wayland nativo SIEMPRE. Un cliente XWayland colgado puede congelar Hyprland
 // entero (pasó con webkit + GDK_BACKEND=x11); uno Wayland nativo colgado sólo
 // se cuelga a sí mismo.
-app.commandLine.appendSwitch("ozone-platform", "wayland");
+// (Windows no tiene Wayland ni ozone: ahí no se pasa.)
+if (!esWindows(process.platform)) app.commandLine.appendSwitch("ozone-platform", "wayland");
 
 // Sin GPU por default: con esta UI da los mismos fps (200 en HDMI-A-2) con menos
 // CPU, menos RAM y arranque más rápido (medido en B0b y otra vez en B1, ver
@@ -415,7 +418,8 @@ async function arrancar() {
   // ¿Hay un motor? (bench y captura, nunca: sus fixtures son de esta ventana.)
   const sock = socketDe(carpetaLocal());
   if (deReinicio?.via === "motor") await esperarMotorNuevo(deReinicio.marcas[0]?.pid ?? 0, sock);
-  const conMotor = !(guion || captura || png) && (await motorVivo(path.join(ESTADO, "dueno"), sock));
+  // En Windows no hay trama-motor ni socket unix: siempre todo en uno.
+  const conMotor = !(guion || captura || png || esWindows(process.platform)) && (await motorVivo(path.join(ESTADO, "dueno"), sock));
   marcar("ventana", conMotor ? "motor-visto" : "sin-motor");
   if (conMotor) {
     // El motor tiene el núcleo, la cola, los líderes, el remoto y el cartel del build nuevo: acá sólo la ventana.

@@ -12,7 +12,9 @@
     "postinstall": "node node_modules/electron/install.js",
     "test": "node --test tests/",
     "prueba": "node scripts/prueba-todas.mjs",
-    "visual": "node scripts/visual.mjs"
+    "visual": "node scripts/visual.mjs",
+    "build:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "probar:win": "node scripts/probar-windows.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.540.0",
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
     "tailwindcss": "^4",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"

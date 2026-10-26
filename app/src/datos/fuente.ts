@@ -261,8 +261,8 @@ export const cuentasValidas = (x: unknown): EstadoCuentas | null => {
 };
 
 /** Lo que falta del setup de esta máquina (electron/setup.ts) y el enlace para conseguirlo. */
-export type FaltaSetup = { id: "handy" | "agy" | "ollama" | "login"; url: string };
-const IDS_SETUP = new Set<string>(["handy", "agy", "ollama", "login"]);
+export type FaltaSetup = { id: "handy" | "agy" | "ollama" | "login" | "claude" | "git"; url: string };
+const IDS_SETUP = new Set<string>(["handy", "agy", "ollama", "login", "claude", "git"]);
 /** Sólo ids conocidos y enlaces http(s): lo que llega de afuera no se pinta tal cual. */
 const faltasValidas = (x: unknown): FaltaSetup[] => {
   const l = (x as { faltas?: unknown } | null)?.faltas;
