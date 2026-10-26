@@ -83,13 +83,13 @@ export const slugDe = (rutaProyecto: string): string => {
 
 export type Running = {
   pid?: number | string; pa_pid?: number | string; inicio?: number | string; proyecto: string; id: string; ruta?: string;
-  ruta_trabajo?: string; rama?: string; modelo?: string; leer?: number | string; jefe?: string; jefe_id?: string;
+  ruta_trabajo?: string; rama?: string; modelo?: string; cuenta?: string; leer?: number | string; jefe?: string; jefe_id?: string;
   puesto?: string | number; salida?: string; sid?: string; transcript?: string; tarea?: string;
 };
 export const textoRunning = (r: Running) =>
   armarClaveValor([
     ["pid", r.pid], ["pa_pid", r.pa_pid], ["inicio", r.inicio], ["proyecto", r.proyecto], ["id", r.id], ["ruta", r.ruta],
-    ["ruta_trabajo", r.ruta_trabajo], ["rama", r.rama], ["modelo", r.modelo], ["leer", r.leer], ["jefe", r.jefe],
+    ["ruta_trabajo", r.ruta_trabajo], ["rama", r.rama], ["modelo", r.modelo], ["cuenta", r.cuenta], ["leer", r.leer], ["jefe", r.jefe],
     ["jefe_id", r.jefe_id], ["puesto", r.puesto], ["salida", r.salida], ["sid", r.sid], ["transcript", r.transcript], ["tarea", r.tarea],
   ]);
 export const escribirRunning = (ruta: string, r: Running) => escribirAtomico(ruta, textoRunning(r));
@@ -113,13 +113,13 @@ export async function escribirCorrida(ruta: string, c: Corrida): Promise<boolean
 
 export type Hilo = {
   tarea?: string; modelo?: string; effort?: string; inicio?: number | string; proyecto: string; ruta_trabajo?: string; rama?: string;
-  origen?: string; leer?: number | string; puesto?: string | number; lanzo?: string; jefe?: string; jefe_id?: string; tipo?: string;
+  origen?: string; leer?: number | string; puesto?: string | number; lanzo?: string; jefe?: string; jefe_id?: string; tipo?: string; cuenta?: string;
 };
 export const textoHilo = (h: Hilo) =>
   armarClaveValor([
     ["tarea", h.tarea], ["modelo", h.modelo], ["effort", h.effort], ["inicio", h.inicio], ["proyecto", h.proyecto],
     ["ruta_trabajo", h.ruta_trabajo], ["rama", h.rama], ["origen", h.origen], ["leer", h.leer], ["puesto", h.puesto],
-    ["lanzo", h.lanzo], ["jefe", h.jefe], ["jefe_id", h.jefe_id], ["tipo", h.tipo],
+    ["lanzo", h.lanzo], ["jefe", h.jefe], ["jefe_id", h.jefe_id], ["tipo", h.tipo], ["cuenta", h.cuenta],
   ]);
 export async function escribirHilo(ruta: string, h: Hilo): Promise<boolean> {
   if ((await leerTexto(ruta)) !== null) return false;

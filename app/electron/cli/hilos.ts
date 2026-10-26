@@ -177,7 +177,7 @@ const isoUtcAEpoch = (ts: unknown): number | null => {
 // --- el JSON ---
 
 export type HiloJson = {
-  id: string; proyecto: string; tarea: string | null; modelo: string | null; effort: string | null; origen: string; sigue_de: string | null;
+  id: string; proyecto: string; tarea: string | null; modelo: string | null; effort: string | null; cuenta: string | null; origen: string; sigue_de: string | null;
   jefe: string | null; jefe_id: string | null; estado: string; en_cola: boolean; murio_en: number | null; murio_en_exacta: boolean | null;
   inicio: number | null; duracion_s: number | null; puesto: string | null; rama: string | null; commits: number | null; decision: string | null;
   decision_nada: boolean | null; sigue: string | null; resultado: string | null; archivado: string | null; leer: boolean;
@@ -443,6 +443,7 @@ export function calcularHilos(ctx: CtxPa, op: OpcionesHilos = {}): SalidaHilos {
       tarea: nonempty(hh.tarea) ?? nonempty(h.tareaRun) ?? tareaT,
       modelo,
       effort: nonempty(hh.effort),
+      cuenta: nonempty(hh.cuenta),
       origen: lanzo,
       sigue_de: nonempty(hh.origen) ?? nonempty(c.origen),
       jefe: nonempty(hh.jefe) ?? nonempty(c.jefe),

@@ -25,6 +25,7 @@ import { armarContrato, nombreDueno } from "./lanzar-contrato.ts";
 import { leerModelos, resolverPolitica, TIPOS_VALIDOS } from "./lanzar-politica.ts";
 import { hooksDeWorker } from "./hook-comando.ts";
 import { shellDeHooks } from "./hook-comando.ts";
+import { entornoConCuenta, resolverCuenta, type EntornoCuenta } from "./pa-cuenta.ts";
 import { resolver } from "./proyecto-ruta.ts";
 
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -113,10 +114,14 @@ export async function lanzar(ctx: CtxPa, o: OpcionesProyecto): Promise<number> {
   }
   const dec = resolverPolitica({
     modelo: o.modelo, esfuerzo: o.esfuerzo, esfuerzoFlag: o.esfuerzoFlag, tipo: o.tipo, leer: o.leer, seguir: o.seguir, okDueno: o.okDueno, plan,
-    modelos: mj && !("error" in mj) ? mj : null, effortSettings, dueno,
+    modelos: mj && !("error" in mj) ? mj : null, effortSettings, dueno, hijoAsync: !!env.PA_ASYNC,
   });
   if ("error" in dec) return ctx.err(dec.error + "\n"), 2;
   const { modelo, esfuerzo } = dec;
+  // la cuenta de la suscripción (`--cuenta`; sin ella, la de siempre). Un `--seguir` retomaría la del hilo: todavía no hay `--seguir`.
+  const rc = resolverCuenta(ctx, { modelo, flag: o.cuenta });
+  if (!rc.ok) return ctx.err(rc.error + "\n"), 2;
+  const { cuenta, entorno: cuentaEntorno } = rc;
 
   // --- el proyecto ---
   const r = resolver([o.proyecto], env, ctx.plataforma, ctx.home);
@@ -156,20 +161,23 @@ export async function lanzar(ctx: CtxPa, o: OpcionesProyecto): Promise<number> {
     await rm(path.join(ctx.estado, "limite.hasta"), { force: true });
   }
 
-  const base: Base = { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin };
+  if (cuenta && cuenta !== "claude" && cuenta !== "google") ctx.err(`pa: cuenta ${cuenta}.\n`);
+  const base: Base = { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin, cuenta, cuentaEntorno };
   return o.async ? lanzarAsync(base) : correr(base);
 }
 
 type Base = {
   ctx: CtxPa; o: OpcionesProyecto; plan: "pro" | "max"; dueno: string; modelo: string; esfuerzo: string; ruta: string; slug: string;
   dir: string; sfile: string; claudeBin: string;
+  /** La cuenta con la que corre ("claude" = la de siempre) y las variables de entorno que le tocan al worker. */
+  cuenta: string; cuentaEntorno: EntornoCuenta;
 };
 
 const SCRIPT_PA = () => fileURLToPath(new URL(import.meta.url.endsWith(".ts") ? "./pa.ts" : "./pa.js", import.meta.url));
 
 /** `--async`: relanza `pa` desacoplado (log aparte) y vuelve cuando el hijo tiene puesto o está en cola; imprime el id. */
 async function lanzarAsync(b: Base): Promise<number> {
-  const { ctx, o, dir, slug, modelo, esfuerzo } = b;
+  const { ctx, o, dir, slug, modelo, esfuerzo, cuenta } = b;
   const ts = nuevoId(ctx);
   const log = rutaDe(dir, ts, "log");
   // las marcas van ANTES del fork: `--esperar --id` las lee aunque llegue antes de que el hijo escriba nada
@@ -188,6 +196,7 @@ async function lanzarAsync(b: Base): Promise<number> {
   if (o.aca) a.push("--aca");
   if (o.tipo) a.push("--tipo", o.tipo);
   if (o.okDueno) a.push("--ok-dueno");
+  if (cuenta) a.push("--cuenta", cuenta);
   a.push("--", o.tarea);
 
   const enElectron = !!process.versions.electron;
@@ -293,7 +302,7 @@ async function prepararWorktree(b: Base, ts: string, puesto: string): Promise<{ 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 async function correr(b: Base): Promise<number> {
-  const { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin } = b;
+  const { ctx, o, plan, dueno, modelo, esfuerzo, ruta, slug, dir, sfile, claudeBin, cuenta, cuentaEntorno } = b;
   const env = ctx.env;
   const ts = env.PA_TS || nuevoId(ctx);
   const sid = randomUUID();
@@ -385,12 +394,12 @@ async function correr(b: Base): Promise<number> {
     inicio = ctx.ahora();
     await escribirHilo(rutaDe(dir, ts, "hilo"), {
       tarea: tareaJefe, modelo, effort: esfuerzo || "settings", inicio, proyecto: slug, ruta_trabajo: rutaTrabajo, rama, origen: "", leer: o.leer ? 1 : 0, puesto, lanzo,
-      jefe: jefe.nombre, jefe_id: jefe.id, tipo: o.tipo,
+      jefe: jefe.nombre, jefe_id: jefe.id, tipo: o.tipo, cuenta,
     });
     const transcript = path.join(ctx.proyectos, rutaTrabajo.replace(/[^A-Za-z0-9]/g, "-"), `${sid}.jsonl`);
     const registro = () =>
       escribirRunning(run, {
-        pid: hijoPid ?? "", pa_pid: process.pid, inicio, proyecto: slug, id: ts, ruta, ruta_trabajo: rutaTrabajo, rama, modelo, leer: o.leer ? 1 : 0,
+        pid: hijoPid ?? "", pa_pid: process.pid, inicio, proyecto: slug, id: ts, ruta, ruta_trabajo: rutaTrabajo, rama, modelo, cuenta, leer: o.leer ? 1 : 0,
         jefe: jefe.nombre, jefe_id: jefe.id, puesto, salida: out, sid, transcript, tarea,
       });
     await registro();
@@ -402,10 +411,11 @@ async function correr(b: Base): Promise<number> {
     const fe = openSync(err, "w");
     const hijo = spawn(claudeBin, args, {
       cwd: rutaTrabajo, windowsHide: true, detached: !esWindows(ctx.plataforma), stdio: ["ignore", fo, fe],
-      env: {
+      // la cuenta (sacar ANTHROPIC_API_KEY, poner CLAUDE_CONFIG_DIR…) va SÓLO en el proceso del worker
+      env: entornoConCuenta({
         ...process.env, ...env, PA_WORKER: "1", GIT_EDITOR: "true", GIT_SEQUENCE_EDITOR: "true",
         ...(o.maxTurns ? { PA_MAX_TURNS: o.maxTurns } : {}), PA_RECORTE: plan === "pro" ? (env.PA_RECORTE ?? "150") : "0",
-      },
+      }, cuentaEntorno),
     });
     closeSync(fo);
     closeSync(fe);
