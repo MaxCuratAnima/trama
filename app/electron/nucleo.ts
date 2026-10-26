@@ -210,7 +210,7 @@ export function alCambiarLider(fn: () => void) {
 }
 
 /** El panel de consumo: sólo trabaja mientras está a la vista (consumo.ts). */
-const consumo = crearConsumo({ proyectos: TRANSCRIPTS, paState: PA_STATE, alCambiar: (c) => enviar("consumo:cambio", c) });
+const consumo = crearConsumo({ proyectos: TRANSCRIPTS, planas: [path.join(ESTADO, "gemini")], paState: PA_STATE, alCambiar: (c) => enviar("consumo:cambio", c) });
 /** Los pasos del worker abierto (ventana y celular): sólo trabaja mientras alguien lo mira (pasos-worker.ts). */
 // Las bajadas de modelos de Ollama (Ajustes > Modelos): el progreso va a la ventana como `modelos:bajando`.
 const bajadas = crearBajadas((b) => enviar("modelos:bajando", b));

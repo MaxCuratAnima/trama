@@ -67,9 +67,16 @@ export async function sidDeWorker(paState: string, id: string): Promise<string |
   return null;
 }
 
-/** El transcript de una sesión, buscado en `projects/*` (donde lo guarda Claude Code por carpeta de trabajo). */
-export async function transcriptDe(proyectos: string, sid: string): Promise<string | null> {
+/**
+ * El transcript de una sesión, buscado en `projects/*` (donde lo guarda Claude Code por carpeta de trabajo) y,
+ * en `planas`, en carpetas con `<sid>.jsonl` sueltos (los líderes de Gemini: `$HILOS_STATE/gemini`, que escribe agy-puente).
+ */
+export async function transcriptDe(proyectos: string, sid: string, planas: string[] = []): Promise<string | null> {
   if (!SID.test(sid)) return null;
+  for (const d of planas) {
+    const f = path.join(d, `${sid}.jsonl`);
+    if (await access(f).then(() => true, () => false)) return f;
+  }
   for (const d of await readdir(proyectos).catch(() => [] as string[])) {
     const f = path.join(proyectos, d, `${sid}.jsonl`);
     if (await access(f).then(() => true, () => false)) return f;
@@ -77,7 +84,7 @@ export async function transcriptDe(proyectos: string, sid: string): Promise<stri
   return null;
 }
 
-export function crearConsumo(o: { proyectos: string; paState: string; alCambiar: (c: Consumo) => void; ahora?: () => number }) {
+export function crearConsumo(o: { proyectos: string; planas?: string[]; paState: string; alCambiar: (c: Consumo) => void; ahora?: () => number }) {
   const ahora = o.ahora ?? Date.now;
   let desde = medianoche(ahora());
   let pedido: Pedido | null = null;
@@ -149,7 +156,7 @@ export function crearConsumo(o: { proyectos: string; paState: string; alCambiar:
   /** El transcript de una sesión que no se tocó hoy (un líder quieto desde ayer): se busca en `projects/`. */
   async function buscar(sid: string): Promise<void> {
     if (porSid.has(sid)) return;
-    const f = await transcriptDe(o.proyectos, sid);
+    const f = await transcriptDe(o.proyectos, sid, o.planas);
     if (f) agregar(f);
   }
 
