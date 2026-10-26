@@ -13,7 +13,7 @@ import { estadoDe, iconoDe, muyLargo, PASOS, textoPaso, type Actividad as Act, t
 import { Escena } from "./Escenas";
 import { Tierno } from "./Tierno";
 
-/** Una clave de `actividad.ts` (viaja como texto) ya traducida. */
+/** Una clave de `actividad-datos.ts` (viaja como texto) ya traducida. */
 const tx = (clave: string, vars?: Record<string, string | number>) => (t as (k: Clave, v?: Record<string, string | number>) => string)(clave as Clave, vars);
 
 const ICONO: Record<Icono, LucideIcon> = {

@@ -2,7 +2,7 @@
 // línea. Dibujados a mano (nada de menú nativo), en un portal con posición
 // fija: flechas, Inicio/Fin, Enter o Espacio; Esc vuelve un nivel o cierra; un
 // clic afuera, Tab, irse de la ventana o que la fila se corra (scroll) también
-// cierran. Qué ofrece cada fila lo decide `menu.ts`.
+// cierran. Qué ofrece cada fila lo decide `menu-datos.ts`.
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";

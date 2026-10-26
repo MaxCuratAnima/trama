@@ -84,7 +84,7 @@ test("lo que pasa de 200 caracteres se pliega; el nombre corto de un comando no 
 
 test("ninguna pieza de la vista de worker corta con «…» (el texto va entero o se pliega)", () => {
   const dir = new URL("../src/hilo/", import.meta.url);
-  for (const f of ["worker.css", "entero.css"]) assert.ok(!/text-overflow:\s*ellipsis/.test(readFileSync(new URL(f, dir), "utf8")), f);
+  for (const f of ["worker-estilos.css", "entero-estilos.css"]) assert.ok(!/text-overflow:\s*ellipsis/.test(readFileSync(new URL(f, dir), "utf8")), f);
 });
 
 test("el chip de tests: el último corredor que terminó, verde o rojo, con la cuenta si se la lee", () => {
