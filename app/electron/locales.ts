@@ -235,7 +235,11 @@ let probando = false;
 
 const gb = (miB: number) => (miB / 1024).toFixed(1);
 
+// systemd es de Linux: en Windows no hay unit que mirar, ni journal, ni a quién parar.
+const sinSystemd = process.platform === "win32";
+
 async function estadoUnit(l: LocalDef, d: Deps): Promise<EstadoUnit | null> {
+  if (sinSystemd) return null;
   try {
     return estadoDeShow(await d.ejecutar("systemctl", ["--user", "show", l.unit, "-p", "ActiveState", "-p", "SubState", "-p", "NRestarts"], { timeout: 5000 }));
   } catch {
@@ -245,9 +249,9 @@ async function estadoUnit(l: LocalDef, d: Deps): Promise<EstadoUnit | null> {
 
 /** Lo que dejó la unit en el journal desde `desde` (ms); "" si no se puede leer. */
 const journal = (l: LocalDef, d: Deps, desde: number) =>
-  d.ejecutar("journalctl", ["--user", "-u", l.unit, "-o", "cat", "--no-pager", "-n", "80", "--since", `@${Math.floor(desde / 1000)}`], { timeout: 5000 }).catch(() => "");
+  sinSystemd ? Promise.resolve("") : d.ejecutar("journalctl", ["--user", "-u", l.unit, "-o", "cat", "--no-pager", "-n", "80", "--since", `@${Math.floor(desde / 1000)}`], { timeout: 5000 }).catch(() => "");
 
-const parar = (l: LocalDef, d: Deps) => d.ejecutar("systemctl", ["--user", "stop", l.unit], { timeout: 60_000 }).catch(() => "");
+const parar = (l: LocalDef, d: Deps) => (sinSystemd ? Promise.resolve("") : d.ejecutar("systemctl", ["--user", "stop", l.unit], { timeout: 60_000 }).catch(() => ""));
 
 /** Sin conmutador: arranca la unit y espera a que llama-server conteste `/health` sirviendo a este modelo. Rechaza si no llega a tiempo. */
 async function arrancarUnit(l: LocalDef, d: Deps): Promise<string> {

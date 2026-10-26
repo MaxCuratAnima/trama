@@ -28,6 +28,7 @@ import { avisoDestrabo, REINTENTOS_MAX, Vigilante, type Bucle, type Senal } from
 import { cerrarDestrabo, registrarDestrabo } from "./destrabar-registro.ts";
 import { destrabarModelo, modeloAgy } from "./modelos-config.ts";
 import { ESTADO } from "./estado.ts";
+import { grupoPropio, inicioDeProcesoSync, matarArbol } from "./procesos.ts";
 import { SESIONES } from "./sesiones.ts";
 
 /** El `agy` de verdad: bajo la unidad de systemd el PATH no trae `~/.local/bin` y el binario pelado no se encuentra. */
@@ -85,13 +86,8 @@ const fallo = (id: string, error: string) => salir({ type: "control_response", r
 
 const archivoSesion = path.join(SESIONES, `${process.pid}.json`);
 const arranque = Date.now();
-let procStart: string | null = null;
-try {
-  const t = readFileSync("/proc/self/stat", "utf8");
-  procStart = t.slice(t.lastIndexOf(")") + 2).split(" ")[19] ?? null;
-} catch {
-  /* sin /proc: la sesión se anota sin procStart */
-}
+// Sin poder leerlo (`null`), la sesión se anota sin procStart.
+const procStart: string | null = inicioDeProcesoSync(process.pid);
 
 function anotarSesion(status: "busy" | "idle") {
   try {
@@ -217,7 +213,7 @@ function correrAgy(prompt: string, conversacion: string | null, tr: Traductor): 
     const args = ["-p", prompt, "--model", modeloAgy(modelo), "--output-format", "stream-json", "--dangerously-skip-permissions", "--print-timeout", TIMEOUT_TURNO];
     if (conversacion) args.push("--conversation", conversacion);
     // Su propio grupo: al interrumpir caen también los comandos que lanzó.
-    const p = spawn(AGY, args, { cwd, env: ENTORNO, stdio: ["ignore", "pipe", "pipe"], detached: true });
+    const p = spawn(AGY, args, { cwd, env: ENTORNO, stdio: ["ignore", "pipe", "pipe"], ...grupoPropio() });
     hijo = p;
     const v: Vuelta = { pasos: 0, sinConversacion: false, conversacion: !!conversacion, bucle: null, exito: null };
     let resto = "";
@@ -372,18 +368,8 @@ function cerrarTurno() {
 function cortarGrupo() {
   if (!hijo?.pid) return;
   const pid = hijo.pid;
-  try {
-    process.kill(-pid, "SIGTERM");
-  } catch {
-    /* ya salió */
-  }
-  setTimeout(() => {
-    try {
-      process.kill(-pid, "SIGKILL");
-    } catch {
-      /* ya salió */
-    }
-  }, 3000).unref();
+  matarArbol(pid, false);
+  setTimeout(() => matarArbol(pid, true), 3000).unref();
 }
 
 function interrumpir() {

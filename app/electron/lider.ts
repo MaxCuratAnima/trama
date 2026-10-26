@@ -60,6 +60,7 @@ import { convDe } from "./conv-cache.ts";
 import { guardada, igual, juntar, lecturaDe, oficialDe, type Lectura } from "./uso.ts";
 import { errorT } from "./errores.ts";
 import { ESTADO, escribirAtomico } from "./pa.js";
+import { grupoPropio, matarArbol } from "./procesos.js";
 import { esElProceso, sesionesVivas, type Sesion } from "./sesiones.js";
 import { irA, ubicar } from "./terminal.js";
 import { log, silencio } from "./log.js";
@@ -388,15 +389,9 @@ const servirLocal = (modelo: string) => (localDe(modelo) ? locales.asegurar(mode
  */
 export function barrerGrupo(pid: number | undefined, kill: (pid: number, senal: NodeJS.Signals) => void = process.kill, esperaMs = 3000) {
   if (!pid || pid <= 1) return;
-  const mandar = (senal: NodeJS.Signals) => {
-    try {
-      kill(-pid, senal);
-    } catch {
-      /* grupo vacío (ESRCH): nada que barrer */
-    }
-  };
-  mandar("SIGTERM");
-  setTimeout(() => mandar("SIGKILL"), esperaMs).unref();
+  // Grupo vacío (ESRCH): nada que barrer; `matarArbol` no lanza.
+  matarArbol(pid, false, { kill });
+  setTimeout(() => matarArbol(pid, true, { kill }), esperaMs).unref();
 }
 
 /** Lo que un líder de otra clase necesita para arrancar: adónde habla uno de Ollama, o el prefacio de uno de Gemini. */
@@ -432,7 +427,7 @@ function lanzar(g: Guardado, resume: boolean, local?: Local, extra: Extra = {}):
   const clase = claseDeModelo(g.modelo);
   const base = opcionesLider(process.env, HOME, g.cwd, local && { modelo: g.modelo, effort: g.effort, local }, extra.ollama) as { cwd: string; env: NodeJS.ProcessEnv };
   // Su propio grupo (setsid): lo que el líder deja corriendo desde sus herramientas (un `qs`, un watcher) se barre al salir.
-  const opciones = { ...base, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"], detached: true };
+  const opciones = { ...base, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"], ...grupoPropio() };
   const bin = clase === "gemini" ? "agy" : path.basename(CLAUDE);
   const p =
     clase === "gemini"

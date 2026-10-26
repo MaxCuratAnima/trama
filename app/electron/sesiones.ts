@@ -5,6 +5,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { estadoDeProceso } from "./procesos.js";
 
 export const SESIONES =
   process.env.HILOS_SESIONES ?? path.join(process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"), "sessions");
@@ -27,20 +28,12 @@ export type Sesion = {
   actividad: number;
   /** Cuándo arrancó este proceso (epoch; 0 si no lo dice). Con `--resume` es el del proceso nuevo, no el de la conversación. */
   inicio: number;
-  /** El arranque que anotó Claude Code (campo 22 de `/proc/<pid>/stat`): distingue un pid reusado. */
+  /** El arranque que anotó Claude Code (`inicioDeProceso`): distingue un pid reusado. */
   procStart: string | null;
 };
 
-/** Del proceso (`/proc/<pid>/stat`): su estado (campo 3) y su arranque (campo 22); `null` si no se puede leer. */
-async function deProc(pid: number): Promise<{ estado: string; arranque: string | null } | null> {
-  try {
-    const t = await readFile(`/proc/${pid}/stat`, "utf8");
-    const c = t.slice(t.lastIndexOf(")") + 2).split(" ");
-    return { estado: c[0] ?? "", arranque: c[19] ?? null };
-  } catch {
-    return null;
-  }
-}
+/** Del proceso (procesos.ts): su estado y su arranque; `null` si no se puede leer. */
+const deProc = estadoDeProceso;
 /** Ya murió y falta que el padre lo recoja: existe el pid, pero no hay nadie adentro. */
 const zombi = (estado: string) => estado === "Z" || estado === "X";
 

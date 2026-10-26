@@ -19,6 +19,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { capacidades } from "./capacidades.ts";
+import { esWindows } from "./procesos.ts";
 
 const KITTEN = process.env.HILOS_KITTEN ?? "kitten";
 const HYPRCTL = process.env.HILOS_HYPRCTL ?? "hyprctl";
@@ -102,6 +103,8 @@ const kitten = (socket: string, args: string[]) => correr(KITTEN, ["@", "--to", 
 /** Dónde está la ventana del proceso `pid`, o `null` si no se la puede ubicar. */
 export async function ubicar(pid: number): Promise<Lugar | null> {
   if (!Number.isInteger(pid) || pid <= 1) return null;
+  // kitty y Hyprland (y `/proc`) son de Linux: en Windows no hay ventana a la que ir.
+  if (esWindows()) return null;
   // Sin kitty ni Hyprland en esta máquina no hay ventana a la que ir: ni se mira (la vista no ofrece el botón).
   const cap = capacidades();
   if (!cap.kitten && !cap.hyprctl) return null;

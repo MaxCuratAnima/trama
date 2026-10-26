@@ -9,6 +9,7 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { inicioDeProcesoSync } from "./procesos.js";
 import { crearCanal, negar, type OpcionesCanal } from "./remoto.js";
 
 /**
@@ -47,15 +48,8 @@ export function hayMotor(sock: string, ms = 1000): Promise<boolean> {
   });
 }
 
-/** El arranque de un proceso (`/proc/<pid>/stat`, campo 22): con el pid, dice que es éste y no otro que reusó el número. */
-export function arranqueDe(pid: number): string | null {
-  try {
-    const t = readFileSync(`/proc/${pid}/stat`, "utf8");
-    return t.slice(t.lastIndexOf(")") + 2).split(" ")[19] ?? null;
-  } catch {
-    return null;
-  }
-}
+/** El arranque de un proceso (procesos.ts): con el pid, dice que es éste y no otro que reusó el número. */
+export const arranqueDe = (pid: number): string | null => inicioDeProcesoSync(pid);
 
 /**
  * ¿Hay un motor de verdad? `dueno` (`$HILOS_STATE/dueno`, lo escribe motor.ts) nombra un proceso vivo (el
