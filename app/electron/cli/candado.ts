@@ -24,8 +24,12 @@ export type OpcionesCandado = {
 export type Candado = { ruta: string; soltar: () => Promise<void> };
 
 export class ErrorCandado extends Error {
-  constructor(public ruta: string, public dueno: number | null) {
+  ruta: string;
+  dueno: number | null;
+  constructor(ruta: string, dueno: number | null) {
     super(`candado ocupado: ${ruta}${dueno ? ` (pid ${dueno})` : ""}`);
+    this.ruta = ruta;
+    this.dueno = dueno;
   }
 }
 
