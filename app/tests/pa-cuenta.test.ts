@@ -274,3 +274,41 @@ test("modelos.json: excluir, permitir_max, sin_cupo y reserva mal puestos tiran 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("medicion.tsv: encabezado viejo se actualiza, y --rinde lee por nombre con la cuenta como modelo@cuenta", async () => {
+  const { MEDICION_HEADER, MEDICION_HEADER_VIEJO, actualizarEncabezado } = await import("../electron/cli/medicion.ts");
+  const a = armar();
+  try {
+    const hoy = new Date(Date.now() - 3600_000).toISOString().slice(0, 19) + "+00:00";
+    const viejo = `${hoy}\tid1\tp\tsonnet\tlow\t0\t0\t0\t10\t5\t100\t0.50\t`;
+    const nueva = (id: string, modelo: string, cuenta: string, comp: string, integ: string, retr: string) =>
+      [hoy, id, "p", modelo, "high", "0", "0", "0", "20", "5", "100", "1.25", "", "pro", comp, "", "", "", "", "", "", "debug", integ, retr, cuenta].join("\t");
+    const f = path.join(a.ctx.estado, "medicion.tsv");
+    writeFileSync(f, [MEDICION_HEADER_VIEJO, viejo].join("\n") + "\n");
+    assert.equal(actualizarEncabezado(f), true);
+    assert.equal(readFileSync(f, "utf8").split("\n")[0], MEDICION_HEADER);
+    assert.equal(actualizarEncabezado(f), false);
+    writeFileSync(f, readFileSync(f, "utf8") + [nueva("id2", "sonnet", "trabajo", "0", "1", "0"), nueva("id3", "sonnet", "claude", "2", "1", "1"), nueva("id4", "opus", "", "0", "0", ""), ""].join("\n"));
+    assert.equal(await main(["--rinde", "--json"], a.ctx), 0);
+    const j = JSON.parse(a.salida.out) as { celdas: { tipo: string; modelo: string; cuenta: string | null; n: number; pct_ok: number | null; pct_compacto: number | null }[] };
+    assert.deepEqual(j.celdas.map((c) => [c.tipo, c.modelo, c.cuenta, c.n]), [["debug", "opus", null, 1], ["debug", "sonnet", null, 1], ["debug", "sonnet", "trabajo", 1], ["?", "sonnet", null, 1]]);
+    assert.equal(j.celdas[2].pct_ok, 100);
+    assert.equal(j.celdas[1].pct_compacto, 100);
+    a.salida.out = "";
+    assert.equal(await main(["--rinde"], a.ctx), 0);
+    assert.match(a.salida.out, /debug\s+sonnet@trabajo\s+high/);
+    assert.equal(await main(["--rinde", "--dias", "x"], a.ctx), 2);
+    if (spawnSync("bash", ["-c", "command -v jq >/dev/null && command -v awk >/dev/null"]).status === 0) {
+      const b = spawnSync("bash", [path.resolve(import.meta.dirname, "../../motor/bin/pa"), "--rinde", "--json"], {
+        encoding: "utf8", timeout: 60000, env: { ...process.env, PA_STATE: a.ctx.estado, PA_PROJ: a.ctx.proyectos, TZ: "UTC", HOME: a.raiz, PA_WORKER: "", CLAUDE_LOCAL: "", ANTHROPIC_BASE_URL: "" },
+      });
+      if (b.status === 0) {
+        a.salida.out = "";
+        await main(["--rinde", "--json"], a.ctx);
+        assert.deepEqual(JSON.parse(a.salida.out).celdas, JSON.parse(b.stdout).celdas);
+      }
+    }
+  } finally {
+    a.limpiar();
+  }
+});

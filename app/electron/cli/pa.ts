@@ -11,6 +11,7 @@ import { cmdParar, type DepsParar } from "./parar.ts";
 import { esperar, esperarTodos } from "./pa-esperar.ts";
 import { cmdArchivar, cmdDescartar, gestionDeProyecto } from "./pa-integrar.ts";
 import { lanzar } from "./pa-lanzar.ts";
+import { cmdRinde } from "./medicion.ts";
 import path from "node:path";
 
 const AYUDA = [
@@ -79,6 +80,7 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
     case "--parar": return cmdParar(ctx, r.args, deps);
     case "--descartar": return cmdDescartar(ctx, r.args);
     case "--archivar": return cmdArchivar(ctx, r.args);
+    case "--rinde": return cmdRinde(ctx, r.args);
     case "--esperar": return esperar(ctx, r.args);
     case "--esperar-todos": return esperarTodos(ctx, r.args);
     default: throw new Error("no implementado todavia");
