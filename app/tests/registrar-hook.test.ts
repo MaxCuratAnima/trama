@@ -6,14 +6,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const REGISTRAR = path.join(import.meta.dirname, "..", "scripts", "registrar-hook.mjs");
-const HOOK = path.join(import.meta.dirname, "..", "scripts", "hook-compactando.sh");
+const WIN = process.platform === "win32";
+const BIN_WIN = path.resolve(import.meta.dirname, "..", "..", "motor", "bin-win");
+const entreComillas = (f: string) => `"${path.join(BIN_WIN, f).replace(/\\/g, "/")}"`;
+/** El comando que el script registra en esta plataforma. */
+const HOOK = WIN ? entreComillas("hook-compactando.cmd") : path.join(import.meta.dirname, "..", "scripts", "hook-compactando.sh");
 
 const temporal = () => mkdtempSync(path.join(tmpdir(), "trama-registrar-hook-"));
 const registrar = (ruta: string) => execFileSync(process.execPath, [REGISTRAR, ruta], { encoding: "utf8" });
 const leer = (ruta: string) => JSON.parse(readFileSync(ruta, "utf8"));
 /** Cuántas veces aparece el hook de compactando en un evento (cualquier grupo). */
 const cuantos = (ajustes: any, evento: string) =>
-  (ajustes.hooks?.[evento] ?? []).flatMap((g: any) => g.hooks ?? []).filter((h: any) => /hook-compactando\.sh/.test(h.command)).length;
+  (ajustes.hooks?.[evento] ?? []).flatMap((g: any) => g.hooks ?? []).filter((h: any) => /hook-compactando\.(sh|cmd)/.test(h.command)).length;
 
 test("registrar-hook: dos corridas dejan el hook una sola vez y los otros hooks intactos", () => {
   const dir = temporal();
@@ -52,7 +56,7 @@ test("registrar-hook: crea el settings si no existe, con los dos eventos", () =>
   const ajustes = leer(settings);
   assert.equal(cuantos(ajustes, "PreCompact"), 1);
   assert.equal(cuantos(ajustes, "PostCompact"), 1);
-  assert.equal(statSync(settings).mode & 0o777, 0o600, "un settings nuevo no sale legible por todos");
+  if (!WIN) assert.equal(statSync(settings).mode & 0o777, 0o600, "un settings nuevo no sale legible por todos");
   rmSync(dir, { recursive: true });
 });
 
@@ -92,7 +96,7 @@ test("registrar-hook: JSON roto no se toca y sale con error", () => {
   rmSync(dir, { recursive: true });
 });
 
-test("registrar-hook: un settings con modo 0640 conserva el modo y un enlace se sigue, no se reemplaza", () => {
+test("registrar-hook: un settings con modo 0640 conserva el modo y un enlace se sigue, no se reemplaza", { skip: WIN }, () => {
   const dir = temporal();
   const real = path.join(dir, "dotfiles-settings.json");
   const enlace = path.join(dir, "settings.json");
@@ -103,5 +107,34 @@ test("registrar-hook: un settings con modo 0640 conserva el modo y un enlace se 
   assert.equal(lstatSync(enlace).isSymbolicLink(), true, "el enlace sigue siendo enlace");
   assert.equal(statSync(real).mode & 0o777, 0o640);
   assert.equal(cuantos(leer(real), "PreCompact"), 1);
+  rmSync(dir, { recursive: true });
+});
+
+test("registrar-hook: statusLine se pone si no hay, queda igual en la segunda corrida y el shim es el de hook-statusline", { skip: !WIN }, () => {
+  const dir = temporal();
+  const settings = path.join(dir, "settings.json");
+  writeFileSync(settings, JSON.stringify({ model: "opus" }));
+  assert.match(registrar(settings), /statusLine/);
+  const ajustes = leer(settings);
+  assert.deepEqual(ajustes.statusLine, { type: "command", command: entreComillas("hook-statusline.cmd") });
+  const bytes = readFileSync(settings, "utf8");
+  assert.match(registrar(settings), /ya registrado/);
+  assert.equal(readFileSync(settings, "utf8"), bytes);
+  rmSync(dir, { recursive: true });
+});
+
+test("registrar-hook: un statusLine ajeno no se pisa (y se avisa); uno nuestro con otra ruta se actualiza", { skip: !WIN }, () => {
+  const dir = temporal();
+  const settings = path.join(dir, "settings.json");
+  const ajeno = { type: "command", command: "C:\\Python314\\pythonw.exe -S C:\\x\\linea.py" };
+  writeFileSync(settings, JSON.stringify({ statusLine: ajeno }));
+  const salida = registrar(settings);
+  assert.match(salida, /statusLine: ya hay uno propio/);
+  assert.deepEqual(leer(settings).statusLine, ajeno);
+  assert.equal(cuantos(leer(settings), "PreCompact"), 1, "el hook de compactando se registra igual");
+
+  writeFileSync(settings, JSON.stringify({ statusLine: { type: "command", command: '"D:/viejo/motor/bin-win/hook-statusline.cmd" otro' } }));
+  registrar(settings);
+  assert.equal(leer(settings).statusLine.command, entreComillas("hook-statusline.cmd"));
   rmSync(dir, { recursive: true });
 });
