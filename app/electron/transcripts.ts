@@ -240,6 +240,15 @@ export class Sesion {
     for (const l of this.subagentes.values()) sumar(r, l.lectura.reciente);
     return r;
   }
+
+  /** Lo de `reciente`, partido: la conversación principal y lo que gastaron sus subagentes (que trabajan como workers). */
+  recientePartido(): { propio: Record<string, Suma>; subagentes: Record<string, Suma> } {
+    const propio: Record<string, Suma> = {};
+    const subagentes: Record<string, Suma> = {};
+    sumar(propio, this.principal.lectura.reciente);
+    for (const l of this.subagentes.values()) sumar(subagentes, l.lectura.reciente);
+    return { propio, subagentes };
+  }
 }
 
 /** Los transcripts de primer nivel de `projects/` que se tocaron de `desde` en adelante. */

@@ -239,7 +239,16 @@ export function crearConsumo(o: { proyectos: string; planas?: string[]; paState:
   function armar(): Consumo {
     const deWorker = new Set(sidDe.values());
     const c: Consumo = { n: ++orden, desde, lideres: {}, workers: {}, filas: {} };
-    for (const s of sesiones.values()) sumar(deWorker.has(s.sid) ? c.workers : c.lideres, s.reciente());
+    // Los subagentes de un líder (Agent de Claude Code) trabajan como workers: van a esa columna.
+    for (const s of sesiones.values()) {
+      if (deWorker.has(s.sid)) {
+        sumar(c.workers, s.reciente());
+        continue;
+      }
+      const { propio, subagentes } = s.recientePartido();
+      sumar(c.lideres, propio);
+      sumar(c.workers, subagentes);
+    }
     const fila = (sid: string | undefined): FilaConsumo | null => {
       const s = sid ? porSid.get(sid) : undefined;
       if (!s) return null;
