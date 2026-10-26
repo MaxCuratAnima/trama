@@ -327,14 +327,59 @@ test("--parar: una corrida en cola, una que no corre y un id que no existe", asy
   }
 });
 
-test("pa-lanzar y pa-esperar son esqueletos: tiran 'no implementado todavia'", async () => {
+test("pa-esperar sigue siendo esqueleto: tira 'no implementado todavia'", async () => {
   const { ctx, limpiar } = armar();
   try {
     await assert.rejects(esperar(ctx, []), /no implementado todavia/);
-    const r = parsearArgs(["demo", "tarea"]);
+  } finally {
+    limpiar();
+  }
+});
+
+test("pa-lanzar: worktree y rama propios, claude falso, .hilo/.ultimo/.corrida y salida", { skip: process.platform === "win32" }, async () => {
+  const { raiz, ctx, salida, limpiar } = armar();
+  try {
+    const repo = path.join(raiz, "demo");
+    const g = (...a: string[]) => spawnSync("git", ["-C", repo, ...a], { encoding: "utf8" });
+    mkdirSync(repo, { recursive: true });
+    g("init", "-q", "-b", "main");
+    g("config", "user.email", "t@t");
+    g("config", "user.name", "t");
+    writeFileSync(path.join(repo, "a.txt"), "hola\n");
+    g("add", "a.txt");
+    g("commit", "-qm", "base");
+    const falso = path.join(raiz, "claude-falso.mjs");
+    writeFileSync(
+      falso,
+      `#!${process.execPath}
+import { writeFileSync } from "node:fs";
+writeFileSync("hecho.txt", "x");
+console.log(JSON.stringify({ result: "RESULTADO: listo.\\nARCHIVOS: hecho.txt\\nDECISION: nada\\nSIGUE: nada", session_id: "sid-falso", num_turns: 2, duration_ms: 1500, total_cost_usd: 0.01 }));
+`,
+      { mode: 0o755 },
+    );
+    ctx.env = { ...ctx.env, TRAMA_CLAUDE: falso, PA_JEFE: "jefe-test", PA_JEFE_ID: "jid", PA_CLAUDE_SETTINGS: path.join(raiz, "no-hay.json") };
+    mkdirSync(path.join(raiz, ".config", "proyectos"), { recursive: true });
+    writeFileSync(path.join(raiz, ".config", "proyectos", "registry.json"), JSON.stringify({ projects: [{ name: "demo", path: repo }] }));
+    const r = parsearArgs(["demo", "haceme algo"]);
     assert.equal(r.clase, "proyecto");
-    if (r.clase === "proyecto") await assert.rejects(lanzar(ctx, r.opciones), /no implementado todavia/);
-    await assert.rejects(main(["demo", "tarea"], ctx), /no implementado todavia/);
+    if (r.clase !== "proyecto") return;
+    const rc = await lanzar(ctx, r.opciones);
+    assert.equal(rc, 0, salida.err);
+    assert.match(salida.out, /RESULTADO: listo\./);
+    const ultimo = readFileSync(path.join(ctx.estado, "demo.ultimo"), "utf8");
+    assert.match(ultimo, /rc=0/);
+    assert.match(ultimo, /sid=/);
+    const hilos = spawnSync("bash", ["-c", `ls ${ctx.estado}/demo/*.hilo`], { encoding: "utf8" }).stdout.trim().split("\n");
+    assert.equal(hilos.length, 1);
+    const hilo = readFileSync(hilos[0], "utf8");
+    assert.match(hilo, /decision_nada=1/);
+    assert.match(hilo, /rama=pa\/demo\//);
+    const rama = /rama=(\S+)/.exec(hilo)![1];
+    assert.ok(g("branch", "--list", rama).stdout.includes(rama));
+    const ruta = /ruta_trabajo=(.+)/.exec(hilo)![1].trim();
+    assert.ok(existsSync(path.join(ruta, "hecho.txt")), "el claude corrió dentro del worktree");
+    assert.ok(!existsSync(path.join(ctx.estado, "demo", "demo.running")), "soltó el .running");
   } finally {
     limpiar();
   }
