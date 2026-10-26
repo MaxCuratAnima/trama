@@ -12,8 +12,8 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
 - Borrado lo de Linux/WSL: `windows/`, `app/systemd/`, los `.sh` de instalación y sus tests.
 
 ## Pendiente
-- Código systemd todavía vivo: `electron/locales.ts`, `ollama-entorno.ts`, `main.ts` (`TRAMA_UNIDAD`, `--escondida`), `cierre.ts` (salida 3).
-- La interfaz de la carcasa WSL (`app/src/carcasa.ts`, `AjustesCarcasa.tsx`, partes de `AjustesCuentas.tsx`): ver si la nativa usa `window.carcasa`, y si no, sacarla.
+- Código systemd todavía vivo: `electron/locales.ts` (cambio de modelos locales por units de usuario; en Windows `sinSystemd` lo apaga), `ollama-entorno.ts` (detecta distro y systemd de Linux), `main.ts`/`motor.ts`/`cierre.ts` (`TRAMA_UNIDAD`, salida 3; lo simulan `scripts/prueba-motor|salir|relanzar.mjs`) y los textos `main.localUnitFija`/`ctxl.unitFija` que mandan a `systemd/locales/` (ya borrado). Sacarlo pide rediseñar el cambio de modelos locales para Windows.
+- Quedó el puente `window.carcasa` (`app/src/carcasa.ts`): el preload nativo no lo expone, así que la categoría Cuentas de Ajustes (`AjustesCuentas.tsx`) no se muestra en Windows y el botón Conectar de Bienvenida/Cupos no aparece. Hay que decidir: mostrar Cuentas con el motor (`fuente.cuentas`) o borrarla; los textos `ajustes.cuentasIntro` y `ajustes.ctaNoInstalada` todavía dicen «Ubuntu».  (El panel Actualizaciones/restos de la carcasa ya se sacó.)
 - Hooks sin versión de Windows: `motor/hooks/docker-guard.py`, `agy-pa`, `destructive-guard`, `latido`, `statusline-espejo` (`.sh`). Falta el `.cmd` de `trama-motor`. Después, borrar `motor/bin/*`.
 - El `pa` de TS no tiene reparto, cupo de Gemini ni `cuenta_elegir` por cupo.
 - `Trama.exe` queda con el ícono de Electron (`signAndEditExecutable: false`). El instalador sí lleva el de Trama.
