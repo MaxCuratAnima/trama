@@ -1624,6 +1624,7 @@ export const es: { [K in keyof typeof en]: string } = {
   "ajustes.olInstalaRocm": "Pegalo en una terminal. Es el paquete de Arch con soporte para tu tarjeta AMD.",
   "ajustes.olInstalaPacman": "Pegalo en una terminal. Es el paquete de Arch, para correr con la CPU.",
   "ajustes.olInstalaScript": "Pegalo en una terminal. Es el instalador oficial de ollama.com y detecta tu GPU solo.",
+  "ajustes.olInstalaWinget": "Pegalo en una terminal. Es el instalador oficial de Ollama para Windows (winget).",
   "ajustes.olArrancaSystemd": "Lo deja prendido como servicio, también en los próximos arranques.",
   "ajustes.olArrancaServe": "Dejá esa terminal abierta mientras lo uses.",
   "ajustes.olLuegoMirar": "Cuando termine, tocá «Volver a mirar». Trama no instala ni arranca nada por vos.",

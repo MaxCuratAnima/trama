@@ -84,7 +84,7 @@ export function GuiaOllama({ estado, entorno, alMirar }: { estado: Estado; entor
             <span className="ol-paso-n">1</span>
             <div className="ol-paso-c">
               <div className="ol-paso-t">{t("ajustes.olPasoInstalar")}</div>
-              <p className="ol-nota">{t(entorno.instalar.via === "pacman" ? (gpu?.fabricante === "nvidia" ? "ajustes.olInstalaCuda" : gpu?.fabricante === "amd" ? "ajustes.olInstalaRocm" : "ajustes.olInstalaPacman") : "ajustes.olInstalaScript")}</p>
+              <p className="ol-nota">{t(entorno.instalar.via === "winget" ? "ajustes.olInstalaWinget" : entorno.instalar.via === "pacman" ? (gpu?.fabricante === "nvidia" ? "ajustes.olInstalaCuda" : gpu?.fabricante === "amd" ? "ajustes.olInstalaRocm" : "ajustes.olInstalaPacman") : "ajustes.olInstalaScript")}</p>
               <Comando texto={entorno.instalar.comando} etiqueta={t("ajustes.olPasoInstalar")} />
             </div>
           </div>

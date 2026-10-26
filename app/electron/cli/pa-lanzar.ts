@@ -12,6 +12,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
+import { modeloAgy } from "../modelos-config.ts";
 import { comandoEjecutable, esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
 import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
@@ -394,8 +395,8 @@ async function correr(b: Base): Promise<number> {
     const esGemini = modelo.toLowerCase().startsWith("gemini") || modelo.toLowerCase().startsWith("agy:");
     const args: string[] = [];
     if (esGemini) {
-      const modeloAgy = modelo.replace(/^agy:/i, "");
-      args.push("-p", `${contrato}\n\n${tarea}`, "--model", modeloAgy, "--dangerously-skip-permissions", "--output-format", "json");
+      const mAgy = modeloAgy(modelo);
+      args.push("-p", `${contrato}\n\n${tarea}`, "--model", mAgy, "--dangerously-skip-permissions", "--output-format", "json");
     } else {
       args.push(
         "-p", tarea, "--model", modelo, ...(esfuerzo ? ["--effort", esfuerzo] : []), "--output-format", "json", "--append-system-prompt", contrato,

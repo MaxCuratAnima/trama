@@ -424,10 +424,13 @@ async function consultarCuposNativo(manual: boolean): Promise<CuposLeidos | null
     }
   }
 
-  // 2. Google / Gemini desde agy /quota.
+  // 2. Google / Gemini desde agy /quota. En el agy de Windows `-p /quota` no es un comando: corre un turno del modelo
+  // (2 a 18 mil tokens por lectura) y no trae grupos. Por eso sólo a pedido ("Actualizar límites"), nunca solo.
   const previaG = lentos.get("google");
-  if (!toca && previaG) {
+  if (!manual && previaG) {
     suscripciones.push(previaG);
+  } else if (!manual) {
+    suscripciones.push({ id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
   } else {
     const g = await googleDeAgy(tsS);
     if (g) {
