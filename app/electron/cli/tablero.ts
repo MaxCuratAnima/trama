@@ -8,7 +8,7 @@
 // Ejecutable con node (sin compilar): node electron/cli/tablero.ts <comando> …
 import { execFile } from "node:child_process";
 import {
-  closeSync, fsyncSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync, writeSync,
+  closeSync, fsyncSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
