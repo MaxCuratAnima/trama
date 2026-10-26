@@ -262,7 +262,7 @@ export async function esperarTodos(ctx: CtxPa, args: string[]): Promise<number> 
   const yo = jefeId(ctx);
   const fin = timeout > 0 ? ctx.ahora() + timeout : 0;
   const cola: { slug: string; id: string }[] = [];
-  for (const slug of listarDirs(ctx.estado)) {
+  for (const slug of listarDirs(ctx.estado).sort()) {
     if (slug === "lock" || slug === "worktrees") continue;
     const d = path.join(ctx.estado, slug);
     for (const n of listar(d).sort()) {
