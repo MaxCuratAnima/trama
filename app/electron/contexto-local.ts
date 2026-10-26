@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { entornoLider } from "./lider-arma.ts";
+import { shellDe } from "./procesos.ts";
 import { deDueno, dueno } from "./dueno.ts";
 
 /** Los encabezados que no le tocan a un local: él no delega (no hay `pa`) ni elige workers. */
@@ -63,11 +64,13 @@ export function carpetasDe(home: string, cwd: string): string[] {
 
 const MAX_HOOK_BYTES = 200_000;
 
-/** Corre un comando de hook como Claude Code (por `sh -c`, el JSON del evento por stdin); nunca falla ni pasa de `timeout`. */
+/** Corre un comando de hook como Claude Code (por `sh -c` o `cmd /c` en Windows, el JSON del evento por stdin); nunca falla ni pasa de `timeout`. */
 function correrHook(comando: string, cwd: string, home: string, env: Record<string, string | undefined>, timeoutMs: number): Promise<string> {
   return new Promise((ok) => {
     const entrada = JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd });
-    const p = execFile("/bin/sh", ["-c", comando], { cwd, env: { ...env, HOME: home, CLAUDE_PROJECT_DIR: cwd }, timeout: timeoutMs, maxBuffer: MAX_HOOK_BYTES }, (err, stdout) => {
+    const sh = shellDe(comando);
+    const p = execFile(sh.bin, sh.args, { ...sh.opciones, cwd, env: { ...env, HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: cwd }, timeout: timeoutMs, maxBuffer: MAX_HOOK_BYTES, windowsHide: true }, (err, stdout) => {
+      if (err) console.error(`[contexto-local] el hook SessionStart falló (${comando.slice(0, 120)}): ${err.message}`);
       ok(err ? "" : String(stdout));
     });
     p.stdin?.on("error", () => {});

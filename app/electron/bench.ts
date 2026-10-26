@@ -17,8 +17,8 @@ const destino = () => process.env.HILOS_BENCH || null;
 
 /** Epoch (ms) del exec de este proceso: `starttime` de /proc/self/stat + `btime`. Resolución 10 ms. */
 function inicioProceso(): number {
-  // Sin /proc (Windows): el arranque se saca de cuánto lleva vivo.
-  if (process.platform === "win32") return Date.now() - process.uptime() * 1000;
+  // Sin /proc (Windows, macOS): el arranque se saca de cuánto lleva vivo.
+  if (process.platform !== "linux") return Date.now() - process.uptime() * 1000;
   const btime = Number(/^btime (\d+)$/m.exec(readFileSync("/proc/stat", "utf8"))![1]);
   const stat = readFileSync("/proc/self/stat", "utf8");
   const campos = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
@@ -75,7 +75,7 @@ function memoria(pid: number): { pss_kb: number | null; rss_kb: number | null } 
 
 /** Este proceso y todos sus descendientes (GPU, zygote, renderers, utility). */
 function familia(): Proc[] {
-  if (process.platform === "win32") return [];
+  if (process.platform !== "linux") return [];
   const todos = readdirSync("/proc")
     .filter((n) => /^\d+$/.test(n))
     .map((n) => leerStat(Number(n)))

@@ -1324,7 +1324,7 @@ export const es: { [K in keyof typeof en]: string } = {
   "modelo.ollama": "Un modelo local servido por Ollama · sin workers ni límites de Claude",
   "lider.ollamaSinWorkers": "Este modelo local contesta solo: no puede delegar en workers (pa)",
   "ajustes.mdlTitulo": "Modelos y proveedores",
-  "ajustes.mdlIntro": "Qué modelo usan el líder y cada tipo de worker: Claude, Gemini o uno local por Ollama. Se guarda en ~/.config/trama/modelos.json, el mismo archivo que lee pa. Un -m escrito en la línea de comandos siempre gana.",
+  "ajustes.mdlIntro": "Qué modelo usan el líder y cada tipo de worker: Claude, Gemini o uno local por Ollama. Se guarda en ~/.config/trama/modelos.json (en Windows, %APPDATA%\Trama\modelos.json), el mismo archivo que lee pa. Un -m escrito en la línea de comandos siempre gana.",
   "ajustes.mdlSinArchivo": "Todavía no hay archivo: esto muestra lo que corre hoy. No se escribe nada hasta que cambies algo y guardes.",
   "ajustes.mdlLider": "Líder",
   "ajustes.mdlLiderQue": "El modelo con que arranca un líder nuevo.",
