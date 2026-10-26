@@ -1778,6 +1778,9 @@ def decision_de:
        | if $m == null then "" else ([$m | splits("DECISI(O|Ó)N[*]*:[*]*")] | last) end
      end)
   | sub("[*#> \t-]*SIGUE[*]*:.*$"; "") | sub("^[ \t]+"; "") | sub("[ \t]+$"; "") | .[0:400];
+# `trim` es de jq 1.7.1; la 1.7 (la de Ubuntu/WSL) no lo trae y todo `--hilos` fallaba. Definirlo acá
+# vale para las dos: en la 1.7.1+ pisa al builtin con lo mismo.
+def trim: sub("^\\s+"; "") | sub("\\s+$"; "");
 def decision_es_nada: gsub("[*]"; "") | trim | sub("[.]$"; "") | ascii_downcase == "nada";
 '
 
