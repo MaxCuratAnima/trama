@@ -14,7 +14,7 @@ import { anotarFin, escribirAtomico, evento, hiloPoner, leerCampo, leerTexto, pr
 import { runningDeId } from "./parar.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import { resolver } from "./proyecto-ruta.ts";
-import { esWindows, mismaRuta, restoDeRuta } from "../plataforma.ts";
+import { caminos, esWindows, mismaRuta, restoDeRuta } from "../plataforma.ts";
 
 // --- git ---
 
@@ -124,8 +124,8 @@ const lockGit = (ctx: CtxPa, p: Proy) => path.join(ctx.estado, "lock", `${p.slug
 const puestosMax = (ctx: CtxPa) => enteroODefecto(ctx.env.PA_PUESTOS ?? "", 3) || 3;
 
 /** El puesto de un worktree por su ruta: `worktrees/<slug>` → 1, `worktrees/<slug>@k` → k, otra → `aca` (tree principal / ajeno). */
-function puestoDeRuta(ctx: CtxPa, p: Proy, wt: string): string {
-  const resto = restoDeRuta(ctx.plataforma, wt, path.join(ctx.estado, "worktrees"));
+export function puestoDeRuta(ctx: CtxPa, p: Proy, wt: string): string {
+  const resto = restoDeRuta(ctx.plataforma, wt, caminos(ctx.plataforma).join(ctx.estado, "worktrees"));
   if (resto === null || /[\\/]/.test(resto)) return "aca";
   const slug = p.slug.toLowerCase(); // el slug va en minúscula; git/Windows pueden devolver la carpeta con otra capitalización
   const r = esWindows(ctx.plataforma) ? resto.toLowerCase() : resto;
