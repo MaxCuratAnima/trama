@@ -11,12 +11,12 @@ import os from "node:os";
 import path from "node:path";
 import { hayAgy, hayClaude } from "./capacidades.ts";
 import { leerDestrabos, type CuentaDestrabos } from "./destrabar-registro.ts";
+import { rutaModelos as rutaModelosDe } from "./plataforma.ts";
 import { errorT, textoT } from "./errores.ts";
 import { destrabarActivo, leerConfig, unir, urlOllama, validarConfig, TIPOS, type ConfigModelos, type Eleccion, type Tipo } from "./modelos-tipos.ts";
 
 /** Dónde está el archivo (se mira cada vez: los tests lo cambian por el entorno). */
-export const rutaModelos = () =>
-  process.env.TRAMA_MODELOS ?? process.env.HILOS_MODELOS ?? path.join(process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config"), "trama", "modelos.json");
+export const rutaModelos = () => rutaModelosDe(process.platform, process.env, os.homedir());
 export const RUTA_MODELOS = rutaModelos();
 
 /** Lo que `reparto` elegiría hoy para un tipo de worker (`workers.<tipo>.reparto` de `pa --modelos --json`); sólo para mostrar. */

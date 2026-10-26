@@ -10,6 +10,7 @@ import { open, readFile, rename, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { entornoPa, resolverPa } from "./binario.js";
+import { dirEstadoPa } from "./plataforma.ts";
 import { completarCola } from "./cola-pa.js";
 import { conLosResultados } from "./hilo-resultados.ts";
 import { errorT } from "./errores.ts";
@@ -23,7 +24,7 @@ import { verMuertes, type Muertes } from "./vigia.js";
 export const PA = resolverPa(process.env, os.homedir());
 /** `pa` necesita `claude` y `proyecto-ruta` (en ~/.local/bin, que el menú de apps no pone en el PATH). */
 export const ENV = entornoPa(process.env, os.homedir()) as NodeJS.ProcessEnv;
-export const PA_STATE = process.env.PA_STATE ?? path.join(os.homedir(), ".local", "state", "pa");
+export const PA_STATE = dirEstadoPa(process.platform, process.env, os.homedir());
 export { ESTADO };
 const GUARDADOS = path.join(ESTADO, "hilos.json");
 const MUERTES = path.join(ESTADO, "muertes.json");

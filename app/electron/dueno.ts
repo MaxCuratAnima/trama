@@ -3,9 +3,9 @@
 // primera en mayúscula → "el usuario". Se lee cada vez (un archivo chico): editar el perfil vale sin reiniciar.
 import fs from "node:fs";
 import os from "node:os";
-import path from "node:path";
+import { rutaPerfil } from "./plataforma.ts";
 
-export const PERFIL_JSON = () => process.env.TRAMA_PERFIL ?? path.join(os.homedir(), ".config", "trama", "perfil.json");
+export const PERFIL_JSON = () => rutaPerfil(process.platform, process.env, os.homedir());
 
 const limpio = (x: unknown): string => (typeof x === "string" ? x.replace(/[\r\n`]+/g, " ").trim().slice(0, 40) : "");
 

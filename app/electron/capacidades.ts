@@ -1,9 +1,9 @@
 // Detectar en vez de configurar: qué herramientas de esta máquina existen (Tailscale, Hyprland, kitty), para no
 // ofrecer lo que no hay (el acceso por la tailnet, "Ir a la ventana"). Sin `electron` ni imports locales salvo
 // binario.ts: lo prueba tests/modo-local.test.ts.
-import { accessSync, constants } from "node:fs";
 import os from "node:os";
 import { resolverAgy, resolverBinario } from "./binario.ts";
+import { esEjecutable } from "./plataforma.ts";
 
 type Env = Record<string, string | undefined>;
 
@@ -16,14 +16,7 @@ export type Capacidades = {
   kitten: boolean;
 };
 
-const ejecutable = (f: string) => {
-  try {
-    accessSync(f, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const ejecutable = (f: string) => esEjecutable(f);
 
 /**
  * Qué herramientas hay en esta máquina: la variable de entorno que la nombra (`HILOS_TAILSCALE`…), el PATH o

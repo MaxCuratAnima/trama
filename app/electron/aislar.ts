@@ -10,6 +10,7 @@
 import childProcess from "node:child_process";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
+import { separador } from "./plataforma.ts";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +26,7 @@ export const anotadas = () => violaciones.slice();
 
 /** `permitidas`: lo que vale bajo el home (el checkout y su node_modules, lo que la prueba declare). */
 export function crearAislamiento(opts: { home: string[]; permitidas: string[]; temporales: string[]; camino?: () => string; anotar: (linea: string) => void }) {
-  const dentro = (p: string, raiz: string) => p === raiz || p.startsWith(raiz.endsWith("/") ? raiz : `${raiz}/`);
+  const dentro = (p: string, raiz: string) => p === raiz || p.startsWith(raiz.endsWith(path.sep) ? raiz : `${raiz}${path.sep}`);
   return {
     /** ¿`p` es un dato del usuario? Bajo el home de verdad y fuera de lo permitido. */
     ajeno(p: string): boolean {
@@ -35,7 +36,7 @@ export function crearAislamiento(opts: { home: string[]; permitidas: string[]; t
     },
     /** ¿`bin` (un comando) sale del checkout o de /tmp? Un nombre suelto se resuelve por el PATH: cuenta sólo si alguna de sus carpetas es del home. */
     binarioAjeno(bin: string): boolean {
-      if (!path.isAbsolute(bin)) return !bin.includes("/") ? (opts.camino?.() ?? "").split(":").some((d) => !!d && this.ajeno(d)) || !opts.camino : this.ajeno(bin);
+      if (!path.isAbsolute(bin)) return !bin.includes("/") && !bin.includes(path.sep) ? (opts.camino?.() ?? "").split(separador()).some((d) => !!d && this.ajeno(d)) || !opts.camino : this.ajeno(bin);
       return !opts.permitidas.some((x) => dentro(bin, x)) && !opts.temporales.some((x) => dentro(bin, x)) && this.ajeno(bin);
     },
     anotar: opts.anotar,
@@ -74,14 +75,20 @@ export function armarAislamiento(raiz: string) {
   } catch {}
   for (const h of [...homes]) homes.add(real(h));
   const permitidas = new Set<string>([raiz, real(raiz), real(path.join(raiz, "node_modules")), path.dirname(process.execPath), real(path.dirname(process.execPath))]);
-  for (const p of (e.HILOS_AISLAR_PERMITE ?? "").split(":").filter(Boolean)) permitidas.add(path.resolve(p));
+  for (const p of (e.HILOS_AISLAR_PERMITE ?? "").split(separador()).filter(Boolean)) permitidas.add(path.resolve(p));
   // Lo ambiental, de entrada: sin directorios del home en el PATH (ahí viven el `pa`, el `tablero` y el `claude` del usuario: el
   // resolvedor de binarios los buscaría) y, si `HOME` es el de verdad, uno vacío y temporal (`os.homedir()` y los XDG).
-  const bajoHome = (p: string) => [...homes].some((h) => p === h || p.startsWith(`${h}/`));
-  if (e.PATH) e.PATH = e.PATH.split(":").filter((d) => d && !bajoHome(path.resolve(d))).join(":");
+  const bajoHome = (p: string) => [...homes].some((h) => p === h || p.startsWith(`${h}${path.sep}`));
+  if (e.PATH) e.PATH = e.PATH.split(separador()).filter((d) => d && !bajoHome(path.resolve(d))).join(separador());
   if (e.HOME && bajoHome(path.resolve(e.HOME)) && !permitidas.has(path.resolve(e.HOME))) {
     const casa = fs.mkdtempSync(path.join(os.tmpdir(), "hilos-casa-"));
     e.HOME = casa;
+    // Windows: `os.homedir()` sale de USERPROFILE y las apps de APPDATA/LOCALAPPDATA.
+    if (process.platform === "win32") {
+      e.USERPROFILE = casa;
+      e.APPDATA = path.join(casa, "AppData", "Roaming");
+      e.LOCALAPPDATA = path.join(casa, "AppData", "Local");
+    }
     for (const [k, sub] of [["XDG_CONFIG_HOME", ".config"], ["XDG_DATA_HOME", ".local/share"], ["XDG_CACHE_HOME", ".cache"], ["XDG_STATE_HOME", ".local/state"]] as const)
       if (!e[k] || bajoHome(path.resolve(e[k]))) e[k] = path.join(casa, sub);
     process.on("exit", () => fs.rmSync(casa, { recursive: true, force: true }));

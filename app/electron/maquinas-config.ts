@@ -61,11 +61,11 @@ export function parsearMaquinas(j: unknown): ConfigMaquinas | { error: string } 
       malas.push(`${id}: url inválida`);
       continue;
     }
-    // Una ruta absoluta o bajo `~/`, sin argumentos: el comando se corre solo, nunca con algo que venga de afuera.
+    // Una ruta absoluta (`/…` o `C:\…`) o bajo `~/`, sin argumentos: el comando se corre solo, nunca con algo que venga de afuera.
     let cmd: string | undefined;
     if (prender === true) cmd = PRENDER_DEFECTO;
     else if (prender !== undefined && prender !== false) {
-      if (typeof prender === "string" && /^(~\/|\/)[^\0\n]{1,300}$/.test(prender)) cmd = prender;
+      if (typeof prender === "string" && /^(~[\\/]|\/|[A-Za-z]:[\\/])[^\0\n]{1,300}$/.test(prender)) cmd = prender;
       else {
         malas.push(`${id}: prender no es una ruta`);
         continue;

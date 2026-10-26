@@ -4,10 +4,11 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { rutaRegistry } from "./plataforma.ts";
 
-const rutaRegistry = () => process.env.PROYECTOS_REGISTRY ?? path.join(os.homedir(), ".config", "proyectos", "registry.json");
+const REGISTRY = () => rutaRegistry(process.platform, process.env, os.homedir());
 
-const expandir = (p: string) => (p === "~" ? os.homedir() : p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p);
+const expandir = (p: string) => (p === "~" ? os.homedir() : p.startsWith("~/") || p.startsWith("~\\") ? path.join(os.homedir(), p.slice(2)) : p);
 
 /** Igual que `slug_de` en `pa`: así se llama el proyecto en `pa --hilos`. */
 export const slug = (ruta: string) => path.basename(ruta).replace(/[^A-Za-z0-9._-]/g, "-").toLowerCase();
@@ -56,7 +57,7 @@ export async function registro(): Promise<Proyecto[]> {
     aliases?: unknown;
   }[] = [];
   try {
-    regs = JSON.parse(await readFile(rutaRegistry(), "utf8")).projects ?? [];
+    regs = JSON.parse(await readFile(REGISTRY(), "utf8")).projects ?? [];
   } catch {}
   const casa = await real(os.homedir());
   const porRuta = new Map<string, Proyecto>();
@@ -133,7 +134,7 @@ export async function destinos(): Promise<string[]> {
 export async function slugsPorNombre(): Promise<Record<string, string>> {
   let regs: { name?: unknown; path?: unknown; alias?: unknown; aliases?: unknown }[] = [];
   try {
-    regs = JSON.parse(await readFile(rutaRegistry(), "utf8")).projects ?? [];
+    regs = JSON.parse(await readFile(REGISTRY(), "utf8")).projects ?? [];
   } catch {}
   const casa = await real(os.homedir());
   const sale: Record<string, string> = {};

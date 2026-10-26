@@ -10,6 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { entornoPa, resolverBinario } from "./binario.ts";
 import { errorT } from "./errores.ts";
+import { caminos, dirTablero, type Plataforma } from "./plataforma.ts";
 
 type Env = Record<string, string | undefined>;
 
@@ -18,10 +19,9 @@ export const TABLERO = resolverBinario("tablero", "HILOS_TABLERO", process.env, 
 const ENV = entornoPa(process.env, os.homedir()) as NodeJS.ProcessEnv;
 
 /** Dónde deja el CLI la vista: la misma regla que él (`TABLERO_VISTA`, `$TABLERO_DIR/vista.json`, el estado). */
-export function rutaVista(env: Env, home: string): string {
+export function rutaVista(env: Env, home: string, plataforma: Plataforma = process.platform): string {
   if (env.TABLERO_VISTA) return env.TABLERO_VISTA;
-  if (env.TABLERO_DIR) return path.join(env.TABLERO_DIR, "vista.json");
-  return path.join(home, ".local", "state", "tablero", "vista.json");
+  return caminos(plataforma).join(dirTablero(plataforma, env, home), "vista.json");
 }
 
 export const VISTA = rutaVista(process.env, os.homedir());
