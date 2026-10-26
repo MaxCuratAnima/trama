@@ -8,7 +8,7 @@ import path from "node:path";
 import { parsearArgs } from "../electron/cli/args.ts";
 import { contextoReal, type CtxPa } from "../electron/cli/contexto.ts";
 import { textoRunning } from "../electron/cli/estado-archivos.ts";
-import { resolverPolitica } from "../electron/cli/lanzar-politica.ts";
+import { leerModelos, resolverPolitica } from "../electron/cli/lanzar-politica.ts";
 import { main, tareaDeArchivo } from "../electron/cli/pa.ts";
 import { AYUDA } from "../electron/cli/pa-ayuda.ts";
 import { cmdModelos, filasDeModelos } from "../electron/cli/pa-modelos.ts";
@@ -60,7 +60,7 @@ test("modelo sin -m: sale de modelos.json workers.<tipo>, si no workers.default,
     const a = armar({ TRAMA_MODELOS: f });
     const base = { modelo: "", esfuerzo: "", esfuerzoFlag: false, leer: false, seguir: false, okDueno: false, plan: "pro" as const, effortSettings: "", dueno: "" };
     // el módulo lee el archivo por leerModelos; acá se lo damos ya leído igual que lo hace lanzar
-    return import("../electron/cli/lanzar-politica.ts").then(({ leerModelos }) => {
+    {
       const m = leerModelos(f);
       assert.ok(m && !("error" in m), JSON.stringify(m));
       const d = (tipo: string) => resolverPolitica({ ...base, tipo, modelos: m });
@@ -72,7 +72,7 @@ test("modelo sin -m: sale de modelos.json workers.<tipo>, si no workers.default,
       const sinTipo = resolverPolitica({ ...base, tipo: "", modelos: null });
       assert.deepEqual(sinTipo, { modelo: "claude-sonnet-5-5", esfuerzo: "high", deModelosJson: false });
       a.limpiar();
-    });
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
