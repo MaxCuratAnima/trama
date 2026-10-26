@@ -49,7 +49,7 @@ function salida(cmd: string[], plataforma: Plataforma, env: Env, espera = 10000)
 }
 
 /** Como `shutil.which`, más `~/.local/bin` (un PATH pelado —systemd, wsl.exe— no lo trae). */
-function enPath(nombre: string, { plataforma, env, home }: Entorno): string | null {
+export function enPath(nombre: string, { plataforma, env, home }: Entorno): string | null {
   if (/[\\/]/.test(nombre)) return esEjecutable(nombre, plataforma) ? nombre : null;
   const dirs = [...carpetasPath(plataforma, env), dirBinLocal(plataforma, home)];
   return buscarEjecutable(plataforma, env, nombre, dirs, (f) => esEjecutable(f, plataforma));

@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
 import { esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
-import { claude as _claudeNoUsada, enPath } from "./trama-estado.ts";
+import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import type { CtxPa } from "./contexto.ts";
 import { tomarCandado, type Candado } from "./candado.ts";
@@ -26,8 +26,6 @@ import { leerModelos, resolverPolitica, TIPOS_VALIDOS } from "./lanzar-politica.
 import { hooksDeWorker } from "./hook-comando.ts";
 import { shellDeHooks } from "./hook-comando.ts";
 import { resolver } from "./proyecto-ruta.ts";
-
-void _claudeNoUsada;
 
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const dos = (n: number) => String(n).padStart(2, "0");
