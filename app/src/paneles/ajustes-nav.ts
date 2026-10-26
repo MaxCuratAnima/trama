@@ -191,7 +191,7 @@ export function deVariante(v: string | null | undefined): CatId | null {
   return null;
 }
 
-// --- Qué categorías existen en esta máquina (Celular sólo si el acceso es editable; Cuentas y Actualizaciones, sólo en el .exe) ---
+// --- Qué categorías existen en esta máquina: sólo Celular depende de algo (que el acceso sea editable). Cuentas siempre está: sin el comando `cuentas` la sección lo dice. ---
 let presentes: Partial<Record<CatId, boolean>> = {};
 export const presentesDe = () => presentes;
 /** Una sección dice si existe en esta máquina (llega tarde: se pregunta al main). */

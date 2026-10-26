@@ -10,15 +10,17 @@ export const MARCA: Record<ProveedorCuenta, string> = { claude: "Claude", google
 
 /** `logueado`: `null` = no se preguntó (o el CLI no lo sabe). `defecto`: la de siempre, cuyo id es el del proveedor. */
 export type PerfilCuenta = { id: string; proveedor: ProveedorCuenta; nombre: string; defecto: boolean; logueado: boolean | null };
-export type ListaCuentas = { version: 1; cuentas: PerfilCuenta[] };
+/** `error`: el comando `cuentas` está pero no se pudo leer la lista (texto del main, a traducir con `textoMain`); entonces `cuentas` va vacía. */
+export type ListaCuentas = { version: 1; cuentas: PerfilCuenta[]; error?: string };
 export type ResultadoCuenta = { ok: true; id?: string } | { ok: false; error: string };
 
 const esProveedor = (x: unknown): x is ProveedorCuenta => typeof x === "string" && (PROVEEDORES as readonly string[]).includes(x);
 
-/** Sólo la forma esperada; cualquier otra cosa es «no hay varias cuentas» (`null`), y la app se ve como siempre. */
+/** Sólo la forma esperada; cualquier otra cosa es «no hay varias cuentas» (`null`), y la app se ve como siempre. Una lista con `error` y sin cuentas pasa: es el motivo por el que no hay lista. */
 export function listaValida(x: unknown): ListaCuentas | null {
-  const o = x as { version?: unknown; cuentas?: unknown } | null;
+  const o = x as { version?: unknown; cuentas?: unknown; error?: unknown } | null;
   if (!o || o.version !== 1 || !Array.isArray(o.cuentas)) return null;
+  if (typeof o.error === "string" && o.error && o.cuentas.length === 0) return { version: 1, cuentas: [], error: o.error };
   const cuentas: PerfilCuenta[] = [];
   for (const c of o.cuentas) {
     const p = (c ?? {}) as Record<string, unknown>;

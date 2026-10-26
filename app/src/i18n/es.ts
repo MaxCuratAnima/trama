@@ -1724,4 +1724,8 @@ export const es: { [K in keyof typeof en]: string } = {
   "inyectar.tip": "Se lo paso en el próximo paso, sin esperar a que termine",
   "main.inyectarGemini": "Gemini no lee mensajes a mitad de un turno: queda en la cola y sale cuando termine",
   "main.inyectarSinProceso": "El líder ya no está respondiendo: el mensaje sale por la cola",
+  // --- cuentas ---
+  "main.cuentasContrato": "El comando cuentas devolvió algo que Trama no entiende (otra versión del contrato)",
+  "ajustes.ctaListaFallo": "No se pudo leer la lista de cuentas: {motivo}",
+  "ajustes.ctaSinComando": "Para sumar otra cuenta del mismo proveedor hace falta el comando cuentas, y no está instalado en esta PC.",
 };

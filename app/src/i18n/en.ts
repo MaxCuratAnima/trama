@@ -1736,4 +1736,8 @@ export const en = {
   "inyectar.tip": "Pass it along at the next step, without waiting for it to finish",
   "main.inyectarGemini": "Gemini can't read messages mid-turn: it stays queued and goes out when it finishes",
   "main.inyectarSinProceso": "The leader is no longer responding: the message goes out through the queue",
+  // --- cuentas ---
+  "main.cuentasContrato": "The accounts command returned something Trama doesn't understand (a different contract version)",
+  "ajustes.ctaListaFallo": "Couldn't read the account list: {motivo}",
+  "ajustes.ctaSinComando": "Adding another account for the same provider needs the accounts command, and it isn't installed on this PC.",
 } as const;
