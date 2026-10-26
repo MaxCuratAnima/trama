@@ -1,4 +1,4 @@
-// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar`, `--plan`, `--descartar` y `--archivar`, y `pa <proyecto> --integrar|--descartar <id>`; el resto
+// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar`, `--plan`, `--modelos`, `--descartar` y `--archivar`, y `pa <proyecto> --integrar|--descartar <id>`; el resto
 // (lanzar un worker, `--esperar`) lo traen pa-lanzar.ts y pa-esperar.ts. Salidas y códigos iguales a `motor/bin/pa`.
 import { pathToFileURL } from "node:url";
 import { parsearArgs } from "./args.ts";
@@ -12,12 +12,9 @@ import { esperar, esperarTodos } from "./pa-esperar.ts";
 import { cmdArchivar, cmdDescartar, gestionDeProyecto } from "./pa-integrar.ts";
 import { lanzar } from "./pa-lanzar.ts";
 import { cmdRinde } from "./medicion.ts";
+import { AYUDA } from "./pa-ayuda.ts";
+import { cmdModelos } from "./pa-modelos.ts";
 import path from "node:path";
-
-const AYUDA = [
-  'uso: pa <proyecto> "<tarea>"  |  pa --estado  |  pa --esperar <proyecto>',
-  "     pa --hilos [--json] [--todo]  |  pa --hilo <id> [--json] [-n N] [--antes N]  |  pa --parar <id>  |  pa --plan [pro|max]",
-].join("\n");
 
 const modeloLocal = (env: CtxPa["env"]) =>
   env.CLAUDE_LOCAL === "1" || /^([a-zA-Z]+:\/\/)?(localhost|127\.[0-9.]+|\[::1\]|::1)([:/]|$)/.test(env.ANTHROPIC_BASE_URL ?? "");
@@ -31,7 +28,7 @@ async function cmdPlan(ctx: CtxPa, arg: string | undefined): Promise<number> {
   await escribirAtomico(ruta, nuevo + "\n");
   ctx.out(
     `pa: plan ${nuevo} guardado en ${ruta}` +
-      (nuevo === "pro" ? " (modo ahorro: opus effort medium, tope 100 turnos)." : " (opus con el effort de settings, tope 150).") + "\n",
+      (nuevo === "pro" ? " (modo ahorro: tope 100 turnos, sin subagentes; opus, si se pide con -m, con effort medium)." : " (tope 150 turnos; opus con el effort de settings).") + "\n",
   );
   const pa = ctx.env.PA_PLAN;
   if (pa && pa.toLowerCase() !== nuevo) ctx.err(`pa: ojo, PA_PLAN=${pa} en este entorno le gana al archivo.\n`);
@@ -67,7 +64,7 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
   const { plan } = await planDe(ctx.estado, env);
   const r = parsearArgs(argv, { plan, env, nombreDueno: env.TRAMA_DUENO, usuario: env.USER });
   if (r.clase === "error") return ctx.err(r.mensaje + "\n"), r.codigo;
-  if (r.clase === "ayuda") return ctx.out(AYUDA + "\n"), 0;
+  if (r.clase === "ayuda") return ctx.out(AYUDA), 0;
   if (r.clase === "proyecto") {
     const g = await gestionDeProyecto(ctx, r.opciones);
     return g ?? lanzar(ctx, r.opciones);
@@ -80,6 +77,7 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
     case "--parar": return cmdParar(ctx, r.args, deps);
     case "--descartar": return cmdDescartar(ctx, r.args);
     case "--archivar": return cmdArchivar(ctx, r.args);
+    case "--modelos": return cmdModelos(ctx, r.args);
     case "--rinde": return cmdRinde(ctx, r.args);
     case "--esperar": return esperar(ctx, r.args);
     case "--esperar-todos": return esperarTodos(ctx, r.args);

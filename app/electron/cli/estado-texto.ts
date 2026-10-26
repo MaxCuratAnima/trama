@@ -121,7 +121,7 @@ export async function cmdEstado(ctx: CtxPa): Promise<number> {
   const { plan } = await planDe(e, ctx.env);
   lineas.push(
     "",
-    plan === "pro" ? "plan pro (modo ahorro): opus con effort medium por default, tope 100 turnos, sin subagentes, resultado por --esperar." : "plan max.",
+    plan === "pro" ? "plan pro (modo ahorro): tope 100 turnos, sin subagentes, resultado por --esperar; sin -m, el modelo sale de pa --modelos." : "plan max.",
   );
   ctx.out(lineas.join("\n") + "\n");
   return 0;
