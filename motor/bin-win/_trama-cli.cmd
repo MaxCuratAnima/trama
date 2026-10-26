@@ -1,7 +1,7 @@
 @echo off
 rem Ayudante de los shims de motor\bin-win: corre app\dist-electron\cli\%TRAMA_CLI%.js con los argumentos recibidos.
 rem Todas las rutas son relativas a este archivo. Corre con node si esta en el PATH; si no, con el exe de Electron
-rem y ELECTRON_RUN_AS_NODE=1 (TRAMA_ELECTRON fija cuál). No definas variables fuera del setlocal del shim que lo llama.
+rem y ELECTRON_RUN_AS_NODE=1 (TRAMA_ELECTRON fija cual). No definas variables fuera del setlocal del shim que lo llama.
 set "TRAMA_JS=%~dp0..\..\app\dist-electron\cli\%TRAMA_CLI%.js"
 if not exist "%TRAMA_JS%" set "TRAMA_JS=%~dp0..\app\dist-electron\cli\%TRAMA_CLI%.js"
 if not exist "%TRAMA_JS%" set "TRAMA_JS=%~dp0..\dist-electron\cli\%TRAMA_CLI%.js"
