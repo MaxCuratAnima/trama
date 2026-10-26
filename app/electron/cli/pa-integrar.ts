@@ -14,6 +14,7 @@ import { anotarFin, escribirAtomico, evento, hiloPoner, leerCampo, leerTexto, pr
 import { runningDeId } from "./parar.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import { resolver } from "./proyecto-ruta.ts";
+import { esWindows, mismaRuta, restoDeRuta } from "../plataforma.ts";
 
 // --- git ---
 
@@ -67,7 +68,7 @@ const DIRS_BUILD = new Set(["target", "target-wt", "node_modules", ".venv", "dis
  * repo (cache enlazada a mano) ni, dentro de un worktree de pa, los dirs de build sueltos.
  */
 export function suciosDe(ruta: string, estado: string): string[] {
-  const enPa = path.resolve(ruta).startsWith(path.resolve(estado, "worktrees") + path.sep);
+  const enPa = (restoDeRuta(process.platform, ruta, path.join(estado, "worktrees")) ?? "") !== "";
   const real = (() => {
     try {
       return realpathSync(ruta);
@@ -124,10 +125,12 @@ const puestosMax = (ctx: CtxPa) => enteroODefecto(ctx.env.PA_PUESTOS ?? "", 3) |
 
 /** El puesto de un worktree por su ruta: `worktrees/<slug>` → 1, `worktrees/<slug>@k` → k, otra → `aca` (tree principal / ajeno). */
 function puestoDeRuta(ctx: CtxPa, p: Proy, wt: string): string {
-  const base = path.join(ctx.estado, "worktrees", p.slug);
-  if (path.resolve(wt) === path.resolve(base)) return "1";
-  const pre = path.resolve(base) + "@";
-  return path.resolve(wt).startsWith(pre) ? path.resolve(wt).slice(pre.length) : "aca";
+  const resto = restoDeRuta(ctx.plataforma, wt, path.join(ctx.estado, "worktrees"));
+  if (resto === null || /[\\/]/.test(resto)) return "aca";
+  const slug = p.slug.toLowerCase(); // el slug va en minúscula; git/Windows pueden devolver la carpeta con otra capitalización
+  const r = esWindows(ctx.plataforma) ? resto.toLowerCase() : resto;
+  if (r === slug) return "1";
+  return r.startsWith(slug + "@") ? resto.slice(slug.length + 1) : "aca";
 }
 
 async function puestoDeCorrida(ctx: CtxPa, p: Proy, corrida: string): Promise<string> {
@@ -417,7 +420,7 @@ export async function integrarCorrida(ctx: CtxPa, p: Proy, t: string): Promise<n
       return ctx.err(`pa: el merge ff-only de ${r} en ${ramaPpal} falló (¿HEAD se movió mientras tanto?). Nada se tocó.\n`), 1;
     }
     git(wt, ["checkout", "-q", "--detach"]);
-    if (wr && wr !== wt) git(wr, ["checkout", "-q", "--detach"]);
+    if (wr && !mismaRuta(ctx.plataforma, wr, wt)) git(wr, ["checkout", "-q", "--detach"]);
     await soltarTodo();
     const headNuevo = gitSal(p.ruta, ["rev-parse", "HEAD"]);
     await anotarIntegrada(ctx, t, p.slug, r, ramaPpal, headPpal, headNuevo, n, "integrada");
