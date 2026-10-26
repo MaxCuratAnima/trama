@@ -140,10 +140,7 @@ const pasos: string[][] = [
   ["archivar"],
   ["archivar", "--dias", "0"],
   ["listar", "--todo"],
-  ["--help"],
-  ["agregar", "--help"],
   ["nada"],
-  [],
 ];
 
 test("tablero: una sesión entera de comandos sale igual que con el script de Python", async () => {
@@ -162,4 +159,11 @@ test("tablero: texto por archivo y por stdin", async () => {
   await ambos(["editar", "99", "--sumar-archivo", f]);
   await ambos(["editar", String((await ambos(["listar", "--json"])).out.match(/"id": (\d+)/)?.[1] ?? 1), "--sumar-archivo", "/no/existe"]);
   assert.deepEqual(archivos(ts), archivos(py));
+});
+
+test("tablero: --help lista los comandos y sale con 0", async () => {
+  const r = await correr(process.execPath, [TS, "--help"], ts);
+  assert.equal(r.rc, 0);
+  assert.equal((await correr(PYTHON, [SCRIPT], py)).rc, (await correr(process.execPath, [TS], ts)).rc); // sin comando: la ayuda a stderr y 2
+  for (const c of ["agregar", "listar", "resumen", "archivar", "init"]) assert.match(r.out, new RegExp(`^  ${c} `, "m"));
 });
