@@ -1,10 +1,9 @@
 // Ajustes > Cuentas: si Claude Code y Gemini (agy) están conectados, con quién, o por qué no se pudo saber; y los botones
 // para conectar, reconectar y comprobar. El estado lo da el motor preguntándole a cada CLI (`fuente.cuentas`, electron/cuentas.ts),
-// no un archivo. Sólo existe en el .exe de Windows (`src/carcasa.ts`): ahí "Conectar" abre una consola de Ubuntu para iniciar
-// sesión (Trama nunca ve la contraseña). Se vuelve a mirar al volver a la ventana (cuando se cierra la consola) o con Comprobar;
+// no un archivo. "Conectar" abre una terminal de esta PC con el login de la cuenta de siempre (`fuente.loginCuenta`; Trama nunca ve la
+// contraseña). Se vuelve a mirar al volver a la ventana (cuando se cierra la consola) o con Comprobar;
 // sin reloj. Si Gemini quedó disponible después de abrir la app, la tabla de modelos se pone al día (el selector de líder nuevo).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { carcasa, type Cuenta, type Proveedor } from "../carcasa";
 import { fuente, type CuentaEstado, type EstadoCuentas } from "../datos/fuente";
 import { pedirModelos } from "../datos/modelos-config";
 import { aplicarModelos } from "../hilo/opciones";
@@ -16,19 +15,19 @@ import { marcar } from "./ajustes-nav";
 import { mensaje } from "../puente";
 import type { FilaDato } from "./AjustesEditar";
 
-const FILAS: { id: Proveedor; clave: "claude" | "agy"; nombre: ClaveSola; que: ClaveSola }[] = [
-  { id: "claude", clave: "claude", nombre: "ajustes.ctaClaude", que: "ajustes.ctaClaudeQue" },
-  { id: "gemini", clave: "agy", nombre: "ajustes.ctaGemini", que: "ajustes.ctaGeminiQue" },
+type Proveedor = "claude" | "gemini";
+
+// `cuenta`: el id de la cuenta de siempre en el CLI `cuentas` (el del proveedor).
+const FILAS: { id: Proveedor; cuenta: "claude" | "google"; clave: "claude" | "agy"; nombre: ClaveSola; que: ClaveSola }[] = [
+  { id: "claude", cuenta: "claude", clave: "claude", nombre: "ajustes.ctaClaude", que: "ajustes.ctaClaudeQue" },
+  { id: "gemini", cuenta: "google", clave: "agy", nombre: "ajustes.ctaGemini", que: "ajustes.ctaGeminiQue" },
 ];
 
 const estado = (c: CuentaEstado): ClaveSola =>
   c.logueado ? "ajustes.ctaConectada" : c.error ? "ajustes.ctaError" : c.instalado ? "ajustes.ctaSinConectar" : "ajustes.ctaNoInstalada";
 
-const deCarcasa = (c: Cuenta): CuentaEstado => ({ instalado: c.instalado, logueado: c.logueado, cuenta: c.cuenta ?? null, error: c.error ?? null });
-
 export function AjustesCuentas({ Dato }: { Dato: FilaDato }) {
   useIdioma();
-  const puente = carcasa();
   const [c, setC] = useState<EstadoCuentas | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mirando, setMirando] = useState(false);
@@ -38,16 +37,10 @@ export function AjustesCuentas({ Dato }: { Dato: FilaDato }) {
   useEffect(() => () => void (vivo.current = false), []);
 
   const leer = useCallback(async () => {
-    if (!puente) return;
     setMirando(true);
     try {
-      let r = await fuente.cuentas();
-      if (!r) {
-        // El motor no contestó: lo que sabe la carcasa (trama-estado) es mejor que nada.
-        const x = await puente.cuentas();
-        if ("error" in x) throw new Error(x.error);
-        r = { claude: deCarcasa(x.claude), agy: deCarcasa(x.agy) };
-      }
+      const r = await fuente.cuentas();
+      if (!r) throw new Error(t("main.cuentasFallo", { rc: "?" }));
       if (!vivo.current) return;
       setC(r);
       setError(null);
@@ -58,7 +51,7 @@ export function AjustesCuentas({ Dato }: { Dato: FilaDato }) {
     } finally {
       if (vivo.current) setMirando(false);
     }
-  }, [puente]);
+  }, []);
 
   useEffect(() => {
     void leer();
@@ -82,16 +75,14 @@ export function AjustesCuentas({ Dato }: { Dato: FilaDato }) {
     return () => marcar("cuentas", null);
   }, [c]);
 
-  if (!puente) return null;
-
-  const conectar = async (p: Proveedor) => {
-    setEsperando(p);
-    const r = await puente.conectar(p).catch((e) => ({ error: mensaje(e) }));
+  // Vuelve cuando la persona termina (o cierra) la terminal: entonces se mira de nuevo.
+  const conectar = async (f: (typeof FILAS)[number]) => {
+    setEsperando(f.id);
+    const r = await fuente.loginCuenta(f.cuenta).catch((e) => ({ ok: false as const, error: mensaje(e) }));
     if (!vivo.current) return;
-    if (r?.error) {
-      setEsperando(null);
-      setError(r.error);
-    }
+    setEsperando(null);
+    if (r.ok) void leer();
+    else setError(r.error);
   };
 
   return (
@@ -106,7 +97,7 @@ export function AjustesCuentas({ Dato }: { Dato: FilaDato }) {
                   <span className="pn-estado" data-escucha={cuenta.logueado ? "" : undefined} data-error={cuenta.error ? "" : undefined}>
                     {cuenta.logueado && cuenta.cuenta ? t("ajustes.ctaConectadaComo", { cuenta: cuenta.cuenta }) : t(estado(cuenta))}
                   </span>
-                  <button type="button" className="btn2" disabled={!cuenta.instalado} onClick={() => void conectar(f.id)}>
+                  <button type="button" className="btn2" disabled={!cuenta.instalado} onClick={() => void conectar(f)}>
                     {t(cuenta.logueado ? "ajustes.ctaReconectar" : f.id === "claude" ? "ajustes.ctaConectarClaude" : "ajustes.ctaConectarGemini")}
                   </button>
                 </div>

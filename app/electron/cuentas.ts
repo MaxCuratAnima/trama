@@ -103,7 +103,7 @@ export const correrReal: Deps["correr"] = (bin, args, env, timeout) =>
 
 export const cuentasDeEstaMaquina = () => estadoCuentas({ env: process.env, home: os.homedir(), correr: correrReal });
 
-/** Lo que llega del main, validado en el renderer o en la carcasa: sólo estas formas. */
+/** Lo que llega del main, validado en el renderer: sólo estas formas. */
 export const cuentaValida = (x: unknown): Cuenta => {
   const o = (x ?? {}) as Partial<Cuenta>;
   return {

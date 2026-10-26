@@ -13,7 +13,6 @@ import { enOtros } from "../i18n/Fijo";
 import { useIdioma } from "../i18n/react";
 import { Reloj } from "../barra/piezas";
 import { pintorVuelve } from "../tiempo";
-import { carcasa } from "../carcasa";
 import { cuentasDe, AgregarCuenta, CuentaFila, useCuentas } from "./CuentasVarias";
 import type { PerfilCuenta, ProveedorCuenta } from "../datos/cuentas";
 import type { FilaDato } from "./AjustesEditar";
@@ -93,18 +92,18 @@ function Cabecera({ id, nombre, estado }: { id: Proveedor; nombre: string; estad
   );
 }
 
-/** "Conectar": en el .exe abre la consola de login; en todos lados explica cómo se hace, sin prometer nada que no pasa solo. */
+/** "Conectar": abre una terminal con el login de la cuenta de siempre y explica cómo se hace, sin prometer nada que no pasa solo. */
 function Conectar({ id, c, como, alMirar }: { id: Proveedor; c: CuentaEstado | undefined; como: string; alMirar: () => void }) {
   const [abierto, setAbierto] = useState(false);
   if (c?.logueado) return null;
-  const puente = carcasa();
   return (
     <div className="cu-conectar">
       <Boton
         aria-expanded={abierto}
         onClick={() => {
           setAbierto((a) => !a);
-          if (puente && id !== "chatgpt" && c?.instalado) void puente.conectar(id === "claude" ? "claude" : "gemini");
+          // Vuelve cuando la persona termina (o cierra) la terminal: ahí se mira de nuevo.
+          if (c?.instalado) void fuente.loginCuenta(id).then(alMirar, alMirar);
         }}
       >
         {t("cu.conectar")}

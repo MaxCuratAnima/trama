@@ -3,7 +3,6 @@
 // conservan su borrador. Qué hay en cada una y cómo se busca: ajustes-nav.ts.
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { Cpu, Gauge, HardDrive, Search, Smartphone, SlidersHorizontal, UserRound, X, type LucideIcon } from "lucide-react";
-import { carcasa } from "../carcasa";
 import { Selector, type Opcion } from "../hilo/Selector";
 import { t, type Clave, type ClaveSola } from "../i18n";
 import { useIdioma } from "../i18n/react";
@@ -36,9 +35,8 @@ const TEXTOS: Record<CatId, { nombre: ClaveSola; que: ClaveSola; icono: LucideIc
 
 const CatCtx = createContext<CatId>("general");
 
-/** Existe en esta máquina: Cuentas sólo donde está el puente de la carcasa; Celular, cuando el acceso es editable (lo dice su sección). */
+/** Existe en esta máquina: Celular, cuando el acceso es editable (lo dice su sección); el resto, siempre. */
 export function hay(c: CatId, presentes = presentesDe()): boolean {
-  if (c === "cuentas") return carcasa() !== null;
   if (c === "celular") return presentes.celular === true;
   return true;
 }

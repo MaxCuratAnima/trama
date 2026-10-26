@@ -8,7 +8,6 @@ import { fuente, type FaltaSetup } from "../datos/fuente";
 import { useFoco } from "../foco";
 import { t } from "../i18n";
 import { useIdioma } from "../i18n/react";
-import { carcasa } from "../carcasa";
 import { MODO } from "../modo";
 import { abrirAjustes, type CatId } from "../paneles/ajustes-nav";
 
@@ -24,7 +23,7 @@ const K = {
 
 /** Dónde de Ajustes se arregla cada una (sin categoría: se consigue afuera y nada se configura acá). */
 const categoriaDe = (id: FaltaSetup["id"]): CatId | null =>
-  id === "ollama" ? "locales" : id === "agy" ? (carcasa() ? "cuentas" : "modelos") : id === "login" ? (carcasa() ? "cuentas" : null) : null;
+  id === "ollama" ? "locales" : id === "agy" || id === "login" ? "cuentas" : null;
 
 export const AvisoSetup = memo(function AvisoSetup() {
   useIdioma();

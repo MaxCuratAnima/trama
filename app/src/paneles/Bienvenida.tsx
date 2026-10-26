@@ -5,7 +5,6 @@
 // Es un modal: atrapa el foco, Esc lo cierra (`useFoco`). Los componentes son los de `src/ui`; la lógica pura, `bienvenida-pasos.ts`.
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { carcasa } from "../carcasa";
 import { fuente, type CuentaEstado, type EstadoCuentas } from "../datos/fuente";
 import { fuentePaneles, type Ajustes, type ConfigModelos, type EstadoModelos, type EstadoRemoto, type Sondeo } from "../datos/paneles";
 import { useFoco } from "../foco";
@@ -300,7 +299,6 @@ const OLLAMA = "http://localhost:11434";
 function PasoProveedores({ ctx }: { ctx: Ctx }) {
   useIdioma();
   const { cuentas } = ctx.d;
-  const puente = carcasa();
   const [local, setLocal] = useState<Sondeo | null>(null);
   const { refrescarCuentas } = ctx;
   const { lista, mirar: mirarCuentas } = useCuentas();
@@ -316,10 +314,9 @@ function PasoProveedores({ ctx }: { ctx: Ctx }) {
   }, [refrescarCuentas]);
 
   const filas = [
-    { id: "claude" as const, nombre: "bv.provClaude" as const, e: estadoCuenta(cuentas?.claude), conectar: "claude" as const },
-    { id: "google" as const, nombre: "bv.provGoogle" as const, e: estadoCuenta(cuentas?.agy), conectar: "gemini" as const },
+    { id: "claude" as const, nombre: "bv.provClaude" as const, e: estadoCuenta(cuentas?.claude), cuenta: "claude" as const },
+    { id: "google" as const, nombre: "bv.provGoogle" as const, e: estadoCuenta(cuentas?.agy), cuenta: "google" as const },
   ];
-  const sinConectar = filas.some((f) => f.e.conectable);
   const vivoLocal = local?.ok === true;
 
   return (
@@ -327,8 +324,9 @@ function PasoProveedores({ ctx }: { ctx: Ctx }) {
       <Tarjeta>
         {filas.map((f) => (
           <FilaAjuste key={f.id} icono={<LogoCaja id={f.id} />} titulo={t(f.nombre)} detalle={f.e.cuenta ? t("bv.provConectadoComo", { cuenta: f.e.cuenta }) : undefined}>
-            {f.e.conectable && puente ? (
-              <Boton onClick={() => void puente.conectar(f.conectar)}>{t("bv.provConectar")}</Boton>
+            {f.e.conectable ? (
+              // El login se hace en una terminal de esta PC; al volver a la ventana (efecto de arriba) se mira de nuevo.
+              <Boton onClick={() => void fuente.loginCuenta(f.cuenta).then(refrescarCuentas, refrescarCuentas)}>{t("bv.provConectar")}</Boton>
             ) : (
               <Chip tono={f.e.tono}>{t(f.e.chip)}</Chip>
             )}
@@ -365,7 +363,6 @@ function PasoProveedores({ ctx }: { ctx: Ctx }) {
           </div>
         </Tarjeta>
       ) : null}
-      {sinConectar && !puente ? <p className="bv-nota">{t("bv.provAyuda")}</p> : null}
       <Pie nav={ctx.nav} guarda={false} alPrimario={ctx.nav.sig} />
     </Hoja>
   );
