@@ -11,9 +11,16 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
 - Instalador NSIS: `app/electron-builder.yml`, `npm run build:win` → `app/dist-installer/Trama-Setup-0.1.2.exe`. Sin asar (los `.cmd` corren `dist-electron/cli/*.js`).
 - Borrado lo de Linux/WSL: `windows/`, `app/systemd/`, los `.sh` de instalación y sus tests.
 
+## Hecho el 26/10 (sesión desde la nativa)
+- Cuentas en Ajustes, Bienvenida y Cupos por el motor (`fuente.cuentas`/`loginCuenta`); se borró `window.carcasa`.
+- `pa` de TS: `--estado` con varios vivos, rutas sin distinguir mayúsculas (`mismaRuta`), `--modelos`, `--ayuda` completa, `--archivo-tarea` (cmd.exe corta `%*` en el primer salto de línea) y el modelo sin `-m` sale de modelos.json (Sonnet), no Opus.
+- Versión 0.1.2 e ícono de Trama en `Trama.exe` (`signAndEditExecutable: true`, sin certificado).
+- Borrada la versión vieja: `Programs	rama-windows` (a mano, sin su desinstalador: comparte `%APPDATA%\Trama`) y en WSL `trama-motor.service`, `~/.local/share/trama`, `~/.config/trama`. Backups en `C:	rama-winackup-antes-de-borrar-vieja` y `C:	rama-winersion-vieja-wsl\sesiones-y-estado.tgz`. Logins de Gemini y antigravity copiados de WSL a Windows.
+
 ## Pendiente
+- `pa --seguir` y `pa --actualizar` no están en el `pa` de TS.
+- Los tests con `registerHooks` fallan en Windows (esquema `c:` en rutas absolutas): 62 archivos.
 - Código systemd todavía vivo: `electron/locales.ts` (cambio de modelos locales por units de usuario; en Windows `sinSystemd` lo apaga), `ollama-entorno.ts` (detecta distro y systemd de Linux), `main.ts`/`motor.ts`/`cierre.ts` (`TRAMA_UNIDAD`, salida 3; lo simulan `scripts/prueba-motor|salir|relanzar.mjs`) y los textos `main.localUnitFija`/`ctxl.unitFija` que mandan a `systemd/locales/` (ya borrado). Sacarlo pide rediseñar el cambio de modelos locales para Windows.
-- Quedó el puente `window.carcasa` (`app/src/carcasa.ts`): el preload nativo no lo expone, así que la categoría Cuentas de Ajustes (`AjustesCuentas.tsx`) no se muestra en Windows y el botón Conectar de Bienvenida/Cupos no aparece. Hay que decidir: mostrar Cuentas con el motor (`fuente.cuentas`) o borrarla; los textos `ajustes.cuentasIntro` y `ajustes.ctaNoInstalada` todavía dicen «Ubuntu».  (El panel Actualizaciones/restos de la carcasa ya se sacó.)
 - Hooks portados a TS (`app/electron/cli/`, shims en `motor/bin-win`): latido, guardia, comando, `hook-statusline` (ex statusline-espejo), `hook-compactando` y `trama-motor` (run/start/stop/restart/status/logs, pid y log en `PA_STATE`). Sin portar: `agy-pa.sh` (el `pa` de TS no lanza Gemini todavía), `docker-guard.py` (hook-guardia lo llama si hay python). `scripts/registrar-hook.mjs` en Windows registra el shim `hook-compactando.cmd` (PreCompact/PostCompact) y `statusLine` con `hook-statusline.cmd`, sin pisar un statusLine ajeno. `docker-guard.py` (824 líneas) no se porta: nadie setea `TRAMA_GUARD_DIR`, así que hook-guardia no lo corre. Falta decidir borrar `motor/bin/*` y los `.sh` portados.
 - El `pa` de TS no tiene reparto, cupo de Gemini ni `cuenta_elegir` por cupo.
 - Las ramas `windows-nativo`, `windows-limpio` y `pa/trama/20261025-234454-92288` (WSL, obsoleta) se borran solo con OK de Gonza.
