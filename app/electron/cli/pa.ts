@@ -1,4 +1,4 @@
-// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar`, `--plan`, `--integrar`, `--descartar` y `--archivar`; el resto
+// `pa` en TypeScript: el despacho. Hoy resuelve `--estado`, `--hilos`, `--hilo`, `--parar`, `--plan`, `--descartar` y `--archivar`, y `pa <proyecto> --integrar|--descartar <id>`; el resto
 // (lanzar un worker, `--esperar`) lo traen pa-lanzar.ts y pa-esperar.ts. Salidas y códigos iguales a `motor/bin/pa`.
 import { pathToFileURL } from "node:url";
 import { parsearArgs } from "./args.ts";
@@ -9,7 +9,7 @@ import { cmdHilo } from "./hilo-mensajes.ts";
 import { calcularHilos, hilosEnJson, hilosEnTsv } from "./hilos.ts";
 import { cmdParar, type DepsParar } from "./parar.ts";
 import { esperar, esperarTodos } from "./pa-esperar.ts";
-import { cmdArchivar, cmdDescartar, cmdIntegrar, gestionDeProyecto } from "./pa-integrar.ts";
+import { cmdArchivar, cmdDescartar, gestionDeProyecto } from "./pa-integrar.ts";
 import { lanzar } from "./pa-lanzar.ts";
 import path from "node:path";
 
@@ -77,7 +77,6 @@ export async function main(argv: string[], ctx: CtxPa = contextoReal(), deps?: D
     case "--hilos": return cmdHilos(ctx, r.args);
     case "--hilo": return cmdHilo(ctx, r.args);
     case "--parar": return cmdParar(ctx, r.args, deps);
-    case "--integrar": return cmdIntegrar(ctx, r.args);
     case "--descartar": return cmdDescartar(ctx, r.args);
     case "--archivar": return cmdArchivar(ctx, r.args);
     case "--esperar": return esperar(ctx, r.args);
