@@ -1,4 +1,6 @@
 # Trama
 
 - Rutas, PATH y búsqueda de ejecutables por plataforma salen de `app/electron/plataforma.ts` (funciones puras con `(plataforma, env, home)`; Windows se prueba desde Linux). No armes `~/.config/...` ni `split(":")` a mano.
-- Tests: `node --test tests/` no anda en este Node (lo toma como archivo); usá `node --test tests/*.test.ts` o archivos sueltos. Fallan también en la base: dictado (timeout), nucleo, remoto-armar, remoto-recarga; `maquina-cliente` falla si corre en paralelo con otra suite (puertos).
+- Los módulos de `app/electron/` que carga el puente de agy sin compilar (`agy-puente.ts` y lo que importa: `sesiones.ts`, `procesos.ts`) importan con `.ts`; los demás usan `.js`. Un `.js` ahí rompe todos los tests de líder Gemini/agy.
+- Procesos (arranque de un pid, matar un árbol, shell de un comando) van por `electron/procesos.ts`, no con `/proc`, `kill(-pid)` ni `bash -c` sueltos: en Windows son PowerShell, `taskkill /T` y `cmd /d /s /c`.
+- Tests: `node --test tests/` no anda en Node 24 (lo toma como archivo); usá `node --test "tests/*.test.ts"` o archivos sueltos. Fallan también en la base: `dictado` (timeout), `nucleo`, `remoto-armar`, `remoto-recarga` (red/Tailscale); `maquina-cliente` falla si corre en paralelo con otra suite (puertos).
