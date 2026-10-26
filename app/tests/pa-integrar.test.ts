@@ -9,6 +9,7 @@ import path from "node:path";
 import { contextoReal, type CtxPa } from "../electron/cli/contexto.ts";
 import { textoCorrida, textoHilo, textoRunning } from "../electron/cli/estado-archivos.ts";
 import { main } from "../electron/cli/pa.ts";
+import { puestoDeRuta } from "../electron/cli/pa-integrar.ts";
 
 const SLUG = "demo";
 const ID = "20261026-010101-111";
@@ -49,9 +50,10 @@ function armar(opciones: { ramaToca?: string } = {}) {
   escribir(path.join(dir, `${ID}.hilo`), textoHilo({ tarea: "t", modelo: "m", effort: "high", inicio: 1, proyecto: SLUG, ruta_trabajo: wt, rama: RAMA, origen: "", leer: 0, puesto: 1, lanzo: "j", jefe: "j", jefe_id: "j1", tipo: "codigo-acotado" } as never));
   escribir(path.join(raiz, ".config", "proyectos", "registry.json"), JSON.stringify({ projects: [{ name: SLUG, path: repo }] }));
   const salida: Salida = { out: "", err: "" };
-  const real = contextoReal({ HOME: raiz, PA_STATE: estado } as never, "linux");
+  const registry = path.join(raiz, ".config", "proyectos", "registry.json");
+  const real = contextoReal({ HOME: raiz, PA_STATE: estado, PROYECTOS_REGISTRY: registry } as never, "linux");
   const ctx: CtxPa = {
-    ...real, estado, home: raiz, env: { HOME: raiz, PA_STATE: estado }, offsetSeg: () => 0,
+    ...real, plataforma: process.platform, estado, home: raiz, env: { HOME: raiz, PA_STATE: estado, PROYECTOS_REGISTRY: registry }, offsetSeg: () => 0,
     rutaDeSlug: (s) => (s === SLUG ? repo : null), out: (s) => void (salida.out += s), err: (s) => void (salida.err += s),
   };
   return { raiz, repo, wt, dir, estado, ctx, salida, base, limpiar: () => rmSync(raiz, { recursive: true, force: true }) };
@@ -62,7 +64,7 @@ test("--integrar: la rama entra por ff al tree principal, se borra y queda en in
   try {
     assert.equal(await main([SLUG, "--integrar", ID], a.ctx), 0, a.salida.err);
     assert.match(a.salida.out, /integrada pa\/demo\/.* en main de 'demo' \(1 commit\(s\)\)/);
-    assert.equal(readFileSync(path.join(a.repo, "nuevo.txt"), "utf8"), "del worker\n");
+    assert.equal(readFileSync(path.join(a.repo, "nuevo.txt"), "utf8").replace(/\r\n/g, "\n"), "del worker\n");
     assert.equal(git(a.repo, "branch", "--list", RAMA), "");
     assert.equal(existsSync(path.join(a.dir, `${ID}.corrida`)), false);
     const fila = readFileSync(path.join(a.estado, "integradas.tsv"), "utf8").split("\n")[1].split("\t");
@@ -123,7 +125,7 @@ test("--integrar: la corrida que dejó trabajo sin commitear en su worktree da 8
   try {
     git(a.wt, "checkout", "-q", RAMA);
     escribir(path.join(a.wt, "sin-commit.txt"), "x\n");
-    assert.equal(await main([SLUG, "--integrar", ID], a.ctx), 86);
+    assert.equal(await main([SLUG, "--integrar", ID], a.ctx), 86, a.salida.err);
     assert.match(a.salida.err, /SIN COMMITEAR/);
     assert.equal(existsSync(path.join(a.repo, "nuevo.txt")), false);
   } finally {
@@ -172,6 +174,32 @@ test("--archivar: marca el .hilo con archivado= y no toca la rama", async () => 
     assert.match(readFileSync(path.join(a.dir, `${ID}.hilo`), "utf8"), /^archivado=\d{4}-\d\d-\d\dT/m);
     assert.notEqual(git(a.repo, "branch", "--list", RAMA), "");
     assert.equal(await main(["--archivar"], a.ctx), 2);
+  } finally {
+    a.limpiar();
+  }
+});
+
+test("puestoDeRuta: en Windows no distingue mayúsculas ni / de \\ (git informa C:/Users/..., pa arma C:\\Users\\...)", () => {
+  const ctx = { plataforma: "win32", estado: "C:\\Users\\Max\\AppData\\Local\\Trama\\state\\pa" } as unknown as CtxPa;
+  const p = { slug: "trama", ruta: "C:\\trama", nombre: "trama", dir: "" };
+  assert.equal(puestoDeRuta(ctx, p, "c:/users/max/appdata/local/trama/state/pa/worktrees/trama"), "1");
+  assert.equal(puestoDeRuta(ctx, p, "C:/Users/Max/AppData/Local/Trama/state/pa/worktrees/Trama@2"), "2");
+  assert.equal(puestoDeRuta(ctx, p, "C:\\USERS\\MAX\\APPDATA\\LOCAL\\TRAMA\\STATE\\PA\\WORKTREES\\trama@3\\"), "3");
+  assert.equal(puestoDeRuta(ctx, p, "C:/trama"), "aca");
+  assert.equal(puestoDeRuta(ctx, p, "C:/Users/Max/AppData/Local/Trama/state/pa/worktrees/otro"), "aca");
+  // en Linux sí distingue
+  assert.equal(puestoDeRuta({ plataforma: "linux", estado: "/e" } as unknown as CtxPa, p, "/E/worktrees/trama"), "aca");
+  assert.equal(puestoDeRuta({ plataforma: "linux", estado: "/e" } as unknown as CtxPa, p, "/e/worktrees/trama@2"), "2");
+});
+
+test("--integrar: el estado de pa con otras mayúsculas y / en vez de \\ que lo que informa git igual integra", { skip: process.platform !== "win32" && "sólo en Windows" }, async () => {
+  const a = armar();
+  try {
+    const ctx = { ...a.ctx, plataforma: "win32" as const, estado: a.estado.replace(/\\/g, "/").toUpperCase() } as CtxPa;
+    // el slug va en minúscula en la carpeta del worktree; el resto de la ruta cambia de capitalización
+    ctx.estado = ctx.estado.slice(0, 2) + a.estado.replace(/\\/g, "/").slice(2).toUpperCase();
+    assert.equal(await main([SLUG, "--integrar", ID], ctx), 0, a.salida.err);
+    assert.equal(readFileSync(path.join(a.repo, "nuevo.txt"), "utf8").replace(/\r\n/g, "\n"), "del worker\n");
   } finally {
     a.limpiar();
   }
