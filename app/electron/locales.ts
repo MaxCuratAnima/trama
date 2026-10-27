@@ -37,7 +37,8 @@ import {
   type Estimacion,
 } from "./locales-calc.ts";
 import { escribirAtomico } from "./pa.ts";
-import { dirConfigTrama } from "./plataforma.ts";, localDe, localesDeclarados, type LocalDef } from "./locales-config.ts";
+import { dirConfigTrama } from "./plataforma.ts";
+import { leerConfigLocales, localDe, localesDeclarados, type LocalDef } from "./locales-config.ts";
 
 export { localDe, type LocalDef } from "./locales-config.ts";
 const defsDe = (d: Deps): readonly LocalDef[] => localesDeclarados(d.env, d.home);
