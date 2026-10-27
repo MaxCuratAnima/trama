@@ -5,6 +5,8 @@ import { execFile, execFileSync, spawn, spawnSync, type ChildProcess, type ExecF
 
 export type Deps = {
   plataforma: NodeJS.Platform;
+  /** Sin uso: `lider.ts` todavía lo pasa; se saca junto con ese llamador. */
+  kill?: (pid: number, senal: NodeJS.Signals) => unknown;
   /** Lanza si el pid no existe (`process.kill(pid, 0)`; EPERM es que existe y no es nuestro: no cuenta como falta). */
   existe: (pid: number) => void;
   /** Corre un programa y devuelve su salida; rechaza si falla o pasa el tiempo. */
