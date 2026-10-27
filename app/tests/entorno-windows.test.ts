@@ -1,8 +1,7 @@
-// node --test tests/entorno-windows.test.ts — el entorno de la app instalada en Windows (electron/entorno-windows.ts), probado desde Linux.
+// node --test tests/entorno-windows.test.ts — el entorno de la app instalada en Windows (electron/entorno-windows.ts).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { dirBinWindows, entornoWindows } from "../electron/entorno-windows.ts";
-import { entornoConDir } from "../electron/plataforma.ts";
 
 const RES = "C:\\Users\\Ana\\AppData\\Local\\Programs\\Trama\\resources";
 const EXE = "C:\\Users\\Ana\\AppData\\Local\\Programs\\Trama\\Trama.exe";
@@ -29,9 +28,6 @@ test("windows: TRAMA_LOCAL=1, bin adelante en Path (sin duplicar) y TRAMA_ELECTR
   assert.equal(fijo.Path, bin);
 });
 
-test("sin carpeta de .cmd sólo cambia el modo; en Linux el entorno queda igual", () => {
+test("sin carpeta de .cmd sólo cambia el modo", () => {
   assert.equal(entornoWindows("win32", { Path: "C:\\Windows" }, null, EXE).Path, "C:\\Windows");
-  const linux = { PATH: "/usr/bin" };
-  assert.equal(entornoWindows("linux", linux, "/x/bin", "/x/trama"), linux);
-  assert.deepEqual(entornoConDir("linux", linux, "/x/bin"), { PATH: "/x/bin:/usr/bin" });
 });

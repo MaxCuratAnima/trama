@@ -2,12 +2,12 @@
 // (electron/dictado.ts) con un `handy` falso (`ejecutar`): nunca el de verdad.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { codificarWav, agregarDictado, reloj, soporte, TOPE_S } from "../src/hilo/dictado.ts";
-import { DICTADO_MAX_S, WAV_MAX, entornoGrafico, modelosDictado, motorHandy, textoDe, transcribir, wavDe, type Ejecutar } from "../electron/dictado.ts";
+import { DICTADO_MAX_S, WAV_MAX,modelosDictado, motorHandy, textoDe, transcribir, wavDe, type Ejecutar } from "../electron/dictado.ts";
 import { MODELO_LARGE_V3, MODELO_TURBO, esModeloDictado, modelosDeHandy, opcionesDictado } from "../electron/dictado-modelos.ts";
 
 const tmp = mkdtempSync(path.join(os.tmpdir(), "hilos-dictado-"));
@@ -113,26 +113,6 @@ test("transcribir: de a una, en el orden en que llegan", async () => {
   assert.deepEqual(await Promise.all([a, b]), ["a", "b"]);
   assert.deepEqual(orden, ["a-fin", "b"]);
   sinSobras();
-});
-
-test("entornoGrafico: completa la pantalla que le falta al motor de systemd (Handy abre GTK aunque sea headless)", () => {
-  const run = path.join(tmp, "run");
-  const x11 = path.join(tmp, "x11");
-  mkdirSync(run, { recursive: true });
-  mkdirSync(x11, { recursive: true });
-  writeFileSync(path.join(run, "wayland-1"), "");
-  writeFileSync(path.join(run, "wayland-1.lock"), "");
-  writeFileSync(path.join(x11, "X1"), "");
-  writeFileSync(path.join(x11, "X1_"), "");
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11, "linux").WAYLAND_DISPLAY, "wayland-1");
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: run }, 1000, x11, "linux").DISPLAY, undefined);
-  assert.equal(entornoGrafico({ XDG_RUNTIME_DIR: path.join(tmp, "nada") }, 1000, x11, "linux").DISPLAY, ":1");
-  // lo que ya trae el entorno no se pisa
-  const dado = entornoGrafico({ XDG_RUNTIME_DIR: run, WAYLAND_DISPLAY: "wayland-9" }, 1000, x11, "linux");
-  assert.equal(dado.WAYLAND_DISPLAY, "wayland-9");
-  assert.equal(entornoGrafico({}, 4242, x11, "linux").XDG_RUNTIME_DIR, "/run/user/4242");
-  // En Windows no hay Wayland ni X11: el entorno queda tal cual.
-  assert.deepEqual(entornoGrafico({ A: "1" }, 1000, x11, "win32"), { A: "1" });
 });
 
 // --- El modelo (dictado-modelos.ts): lo que se elige en Ajustes y lo que va con `--model` ---

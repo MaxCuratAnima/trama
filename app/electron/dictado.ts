@@ -1,16 +1,15 @@
 // Dictar: el audio que grabó la caja de un líder (WAV 16 kHz mono, convertido en el cliente: src/hilo/dictado.ts)
-// llega por el RPC de siempre, se deja un momento en `$XDG_RUNTIME_DIR/trama/` y `handy --transcribe-file`
-// devuelve el texto (en WSL también el `handy.exe` de Windows o, sin Handy, el reconocedor de Windows: dictado-windows.ts). El modelo
+// llega por el RPC de siempre, se deja un momento en una carpeta temporal de Trama y `handy --transcribe-file`
+// devuelve el texto (o, sin Handy, el reconocedor de Windows: dictado-windows.ts). El modelo
 // va con `--model`: el que se eligió en Ajustes o, sin elegir, Whisper Large v3 Turbo si Handy lo tiene bajado; si no, sin
 // `--model` (el que el usuario tiene elegido en Handy). Ver dictado-modelos.ts. El texto vuelve a la caja, no se manda.
 // Una transcripción a la vez (un Handy cargando un modelo ya es bastante) y el archivo se borra pase lo que pase.
 // Sin `electron`: lo prueba tests/dictado.test.ts con un `handy` falso (`ejecutar`), nunca el de verdad.
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readdirSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { motoresDictado, traductor, type Motor } from "./dictado-windows.ts";
+import { motoresDictado, type Motor } from "./dictado-windows.ts";
 import { modelosDeHandy, opcionesDictado, type ModelosDictado } from "./dictado-modelos.ts";
 import { errorT } from "./errores.ts";
 
@@ -26,38 +25,9 @@ export const WAV_MAX = 44 + WAV_HZ * 2 * (DICTADO_MAX_S + 1);
 /** Cómo se corre un programa: lo que se reemplaza en las pruebas. Devuelve su stdout; si falla, rechaza como `execFile`. */
 export type Ejecutar = (bin: string, args: string[], o: { timeout: number }) => Promise<string>;
 
-/**
- * Handy es una app Tauri: aun headless levanta GTK y sin pantalla entra en pánico ("Failed to initialize gtk backend").
- * El motor corre bajo systemd sin sesión gráfica, así que su entorno no trae `WAYLAND_DISPLAY` ni `DISPLAY`: se
- * completan con lo que hay en `$XDG_RUNTIME_DIR` (socket `wayland-N`) o en `/tmp/.X11-unix` (X sólo si no hay Wayland).
- */
-export function entornoGrafico(env: NodeJS.ProcessEnv = process.env, uid: number = process.getuid?.() ?? 1000, x11 = "/tmp/.X11-unix", plataforma: NodeJS.Platform = process.platform): NodeJS.ProcessEnv {
-  // Windows no tiene Wayland ni X11: el entorno queda como está.
-  if (plataforma === "win32") return { ...env };
-  const salida = { ...env };
-  const lista = (d: string) => {
-    try {
-      return readdirSync(d).sort();
-    } catch {
-      return [];
-    }
-  };
-  const run = salida.XDG_RUNTIME_DIR || `/run/user/${uid}`;
-  if (!salida.XDG_RUNTIME_DIR) salida.XDG_RUNTIME_DIR = run;
-  if (!salida.WAYLAND_DISPLAY && !salida.DISPLAY) {
-    const wl = lista(run).find((f) => /^wayland-\d+$/.test(f));
-    if (wl) salida.WAYLAND_DISPLAY = wl;
-    else {
-      const x = lista(x11).find((f) => /^X\d+$/.test(f));
-      if (x) salida.DISPLAY = `:${x.slice(1)}`;
-    }
-  }
-  return salida;
-}
-
 const ejecutarDeVerdad: Ejecutar = (bin, args, o) =>
   new Promise((ok, mal) => {
-    execFile(bin, args, { timeout: o.timeout, killSignal: "SIGKILL", maxBuffer: 4 * 1024 * 1024, env: entornoGrafico() }, (e, stdout, stderr) => {
+    execFile(bin, args, { timeout: o.timeout, killSignal: "SIGKILL", maxBuffer: 4 * 1024 * 1024 }, (e, stdout, stderr) => {
       if (!e) return ok(String(stdout));
       // Lo que dijo Handy sirve para el mensaje: pegado al error, sin las 20 líneas de log.
       (e as Error & { stderr?: string }).stderr = String(stderr).trim().split("\n").slice(-3).join(" ").slice(0, 300);
@@ -65,7 +35,7 @@ const ejecutarDeVerdad: Ejecutar = (bin, args, o) =>
     });
   });
 
-/** Un `handy` de Linux (`HILOS_HANDY`, el del PATH o `~/.local/bin/handy`; lo resuelve `motoresDictado`). */
+/** Un `handy` (`HILOS_HANDY` o el del PATH; lo resuelve `motoresDictado`). */
 export const motorHandy = (bin: string): Motor => ({ nombre: "handy", bin, args: async (a) => ["--transcribe-file", a] });
 
 /** El WAV de un pedido, validado: bytes, PCM de 16 bits, 1 canal, 16 kHz y no más de 5 min. */
@@ -103,7 +73,7 @@ export function textoDe(stdout: string): string {
 }
 
 export type OpcionesDictado = {
-  /** Dónde se deja el WAV un momento (`$XDG_RUNTIME_DIR/trama/`). */
+  /** Dónde se deja el WAV un momento (carpeta temporal de Trama). */
   dir: string;
   /** Un `handy` en concreto (las pruebas); sin él se elige entre los motores de la máquina (`motoresDictado`). */
   bin?: string;
@@ -183,13 +153,12 @@ async function correr(datos: Uint8Array, o: OpcionesDictado): Promise<string> {
   const archivo = path.join(o.dir, `dictado-${randomUUID()}.wav`);
   await writeFile(archivo, datos, { mode: 0o600 });
   const timeout = o.timeoutMs ?? DICTADO_TIMEOUT_MS;
-  const aWindows = traductor(ejecutar, "-w");
   try {
     // En orden: si uno falla o no dice nada se prueba el siguiente; si ninguno anda, se cuenta el primer fallo.
     let primero: Error | null = null;
     for (const m of motores) {
       try {
-        const args = [...(await m.args(archivo, aWindows)), ...(await extraHandy(m, o, ejecutar))];
+        const args = [...(await m.args(archivo)), ...(await extraHandy(m, o, ejecutar))];
         const texto = textoDe(await ejecutar(m.bin, args, { timeout }));
         if (!texto) throw errorT("main.dictadoVacio");
         return texto;

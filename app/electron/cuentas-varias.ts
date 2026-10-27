@@ -1,8 +1,8 @@
 // Varias cuentas por proveedor (Ajustes > Plan y cupos, la bienvenida): la lista, alta, renombre, baja y login de cada cuenta
 // los hace el CLI `cuentas` del orquestador (contrato: docs/cuentas-varias-por-proveedor.md de ese proyecto), el único dueño de
-// `cuentas.json` (`%APPDATA%\Trama\cuentas.json` en Windows, `~/.config/trama/cuentas.json` en Linux). Trama no lo escribe: sólo le
+// `cuentas.json` (`%APPDATA%\Trama\cuentas.json`). Trama no lo escribe: sólo le
 // habla al CLI (execFile, sin shell) y valida lo que vuelve (la lectura de cupos de cada cuenta, electron/cupos.ts, sí lo lee).
-// Sin `cuentas` instalado (`HILOS_CUENTAS`, PATH o `~/.local/bin`) la lista es `null` y la app es la de una cuenta por proveedor.
+// Sin `cuentas` instalado (`HILOS_CUENTAS` o PATH) la lista es `null` y la app es la de una cuenta por proveedor.
 // Si está pero falla (se cuelga, sale con error, devuelve algo que no es el contrato), la lista trae `error` (texto ya codificado)
 // y la vista dice por qué en vez de quedarse callada.
 // El login es interactivo y lo hace la persona: se lanza `cuentas login <id>` en una terminal (`terminal`, inyectada: la de

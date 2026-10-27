@@ -2,7 +2,7 @@
 // regenera en cada escritura, y de `tablero listar` / `tablero proyectos` para lo que la vista no
 // trae (lo hecho, los proyectos, los pospuestos). Todo lo que escribe lo escribe el CLI (execFile, sin shell): la
 // app nunca toca `items.jsonl`. Node puro, como pa.ts, para probarlo con un tablero temporal:
-//   TABLERO_DIR=$(mktemp -d) node --test tests/tablero.test.ts
+//   $env:TABLERO_DIR = <carpeta temporal>; node --test tests/tablero.test.ts
 import { execFileCmd } from "./procesos.ts";
 import { mirarCarpeta, type Mirada } from "./mirar.ts";
 import { readFile } from "node:fs/promises";
@@ -14,7 +14,7 @@ import { caminos, dirTablero, type Plataforma } from "./plataforma.ts";
 
 type Env = Record<string, string | undefined>;
 
-/** `HILOS_TABLERO`, el `tablero` del PATH o `~/.local/bin/tablero`. */
+/** `HILOS_TABLERO` o el `tablero` del PATH. */
 export const TABLERO = resolverBinario("tablero", "HILOS_TABLERO", process.env, os.homedir());
 const ENV = entornoPa(process.env, os.homedir()) as NodeJS.ProcessEnv;
 

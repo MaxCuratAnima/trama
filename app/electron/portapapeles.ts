@@ -1,7 +1,6 @@
-// El texto del portapapeles para la caja del líder cuando el pegado del navegador no lo trae: Chromium en
-// Wayland sólo reconoce `text/plain` (y `;charset=utf-8`), y una app de origen que ofrece otro nombre
-// (`UTF8_STRING`, `TEXT`, `STRING`) o un offer que se quedó viejo dejan el `paste` con `clipboardData`
-// vacío: Ctrl+V no hace nada hasta que cliphist lo vuelve a publicar con `wl-copy`. Sin Electron, para
+// El texto del portapapeles para la caja del líder cuando el pegado del navegador no lo trae: Chromium
+// sólo reconoce `text/plain` (y `;charset=utf-8`), y una app de origen que ofrece otro nombre o un offer
+// que se quedó viejo dejan el `paste` con `clipboardData` vacío: Ctrl+V no hace nada. Sin Electron, para
 // probarlo con `node --test` (tests/portapapeles.test.ts); ventana-canales.ts le pasa el `clipboard` de verdad.
 
 /** Lo que se usa del `clipboard` de Electron (desde la 44 es asíncrono: `read()` da los items con sus tipos MIME). */

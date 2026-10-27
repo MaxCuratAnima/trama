@@ -5,8 +5,8 @@
 // - agy: `agy models`. Sin sesión no trae nada ("Auth mode is unspecified, skipping fetchAvailableModels"); con sesión,
 //   un renglón por modelo. Es una consulta al servicio, no un turno: no gasta cupo. Sin red tampoco trae nada, y eso se dice
 //   como error (no como "sin conectar") cuando el CLI sale con código ≠ 0 o no contesta a tiempo.
-// Cada vez que se pregunta se mira de nuevo (sin caché); el binario se busca en el PATH, en `~/.local/bin` y donde lo dejan
-// sus instaladores (`resolverAgy`): bajo systemd o WSL el PATH viene pelado. Sin `electron`: lo prueba tests/cuentas.test.ts.
+// Cada vez que se pregunta se mira de nuevo (sin caché); el binario se busca en el PATH y donde lo dejan
+// sus instaladores (`resolverAgy`). Sin `electron`: lo prueba tests/cuentas.test.ts.
 import { execFileCmd } from "./procesos.ts";
 import os from "node:os";
 import { pathConLocal, resolverAgy, resolverBinario } from "./binario.ts";

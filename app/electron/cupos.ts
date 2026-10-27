@@ -6,7 +6,7 @@ import { execFileCmd, spawnCmd } from "./procesos.js";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { entornoPa, resolverAgy, resolverBinario } from "./binario.js";
+import { entornoPa, resolverBinario } from "./binario.js";
 import { esteConfigTrama } from "./plataforma.js";
 import { argvUso, lineaInicio, lineaUso } from "./lider-arma.ts";
 import { oficialDe, type Lectura } from "./uso.ts";
@@ -192,7 +192,7 @@ function cuposIniciales(): CuposLeidos | null {
 }
 
 const TTL_CUPOS_MS = 60_000;
-/** agy /quota y el get_usage de cada cuenta extra: cada 5 min, salvo refresco manual (cada uno arranca un proceso). */
+/** El get_usage de cada cuenta extra: cada 5 min, salvo refresco manual (cada uno arranca un proceso). */
 const TTL_LENTO_MS = 5 * 60_000;
 /** Lo que espera el get_usage de una cuenta extra; si no contesta, esa cuenta queda sin lectura. */
 const ESPERA_USO_MS = 25_000;
@@ -281,7 +281,7 @@ function usoDeCuenta(dir: string): Promise<Lectura | null> {
       } catch {
         /* ya cerrado */
       }
-      if (p.exitCode === null && p.signalCode === null) p.kill("SIGTERM");
+      if (p.exitCode === null && p.signalCode === null) p.kill();
       listo(l);
     };
     try {
@@ -341,62 +341,6 @@ function filaDeCuenta(c: CuentaLeida, l: Lectura | null, tsS: number): Suscripci
   };
 }
 
-/** Google / Gemini desde agy /quota. null: no se pudo leer (agy falla o no trae grupos). */
-async function googleDeAgy(tsS: number): Promise<SuscripcionCupo | null> {
-  // En el agy de Windows `-p /quota` no es un comando: corre un turno del modelo (hasta 18 mil tokens) que nunca trae los grupos.
-  // No se llama: gastaría cupo para no decir nada, y la pantalla explica que Gemini no lo informa.
-  if (process.platform === "win32") return null;
-  try {
-    const binAgy = resolverAgy(process.env, homedir());
-    const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;
-    const { stdout } = await execFileP(binAgy, ["-p", "/quota", "--output-format", "json"], { env, timeout: 12000, maxBuffer: 512 * 1024 });
-    const raw = JSON.parse(stdout) as { command?: { data?: { groups?: Array<{ name?: string; buckets?: Array<{ id?: string; window?: string; remaining_fraction?: number; reset_time?: string }> }> } } };
-    const groups = raw?.command?.data?.groups;
-    if (!Array.isArray(groups) || groups.length === 0) return null;
-    const gruposCupo: GrupoCupo[] = [];
-    let geminiVentanas: VentanaCupo[] = [];
-
-    for (const g of groups) {
-      const gName = g?.name || "";
-      const buckets = Array.isArray(g?.buckets) ? g.buckets : [];
-      const ventanas: VentanaCupo[] = [];
-
-      for (const b of buckets) {
-        const rem = typeof b.remaining_fraction === "number" ? b.remaining_fraction : 1;
-        const pct = Math.max(0, Math.min(100, Math.round((1 - rem) * 100)));
-        const vuelve = b.reset_time ? Math.round(Date.parse(b.reset_time) / 1000) : null;
-        const id = (b.window === "weekly" || String(b.id).includes("weekly")) ? "7d" : "5h";
-        ventanas.push({ id, pct, vuelve: Number.isFinite(vuelve) ? vuelve : null });
-      }
-
-      if (ventanas.length > 0) {
-        gruposCupo.push({
-          id: gName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-          nombre: gName,
-          ventanas,
-        });
-        if (gName.toLowerCase().includes("gemini") || geminiVentanas.length === 0) {
-          geminiVentanas = ventanas;
-        }
-      }
-    }
-    if (gruposCupo.length === 0) return null;
-    avisados.delete("agy");
-    return {
-      id: "google",
-      nombre: "Gemini",
-      proveedor: "google",
-      cuenta: "google",
-      ts: tsS,
-      ventanas: geminiVentanas,
-      grupos: gruposCupo,
-    };
-  } catch (e) {
-    avisarUna("agy", "agy /quota no se pudo leer: " + (e as Error).message);
-    return null;
-  }
-}
-
 async function consultarCuposNativo(manual: boolean): Promise<CuposLeidos | null> {
   const ahora = Date.now();
   const tsS = Math.round(ahora / 1000);
@@ -427,22 +371,9 @@ async function consultarCuposNativo(manual: boolean): Promise<CuposLeidos | null
     }
   }
 
-  // 2. Google / Gemini desde agy /quota. En el agy de Windows `-p /quota` no es un comando: corre un turno del modelo
-  // (2 a 18 mil tokens por lectura) y no trae grupos. Por eso sólo a pedido ("Actualizar límites"), nunca solo.
-  const previaG = lentos.get("google");
-  if (!manual && previaG) {
-    suscripciones.push(previaG);
-  } else if (!manual) {
-    suscripciones.push({ id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
-  } else {
-    const g = await googleDeAgy(tsS);
-    if (g) {
-      lentos.set("google", g);
-      suscripciones.push(g);
-    } else {
-      suscripciones.push(previaG ?? { id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
-    }
-  }
+  // 2. Google / Gemini: en el agy de Windows `-p /quota` no es un comando (corre un turno del modelo de 2 a 18 mil
+  // tokens y no trae grupos), así que no se lee; la pantalla explica que Gemini no lo informa.
+  suscripciones.push(lentos.get("google") ?? { id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
 
   if (suscripciones.length === 0) return null;
   return {

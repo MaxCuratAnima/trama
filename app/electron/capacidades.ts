@@ -1,5 +1,5 @@
-// Detectar en vez de configurar: qué herramientas de esta máquina existen (Tailscale, Hyprland, kitty), para no
-// ofrecer lo que no hay (el acceso por la tailnet, "Ir a la ventana"). Sin `electron` ni imports locales salvo
+// Detectar en vez de configurar: qué herramientas de esta máquina existen (Tailscale), para no
+// ofrecer lo que no hay (el acceso por la tailnet). Sin `electron` ni imports locales salvo
 // binario.ts: lo prueba tests/modo-local.test.ts.
 import os from "node:os";
 import { resolverAgy, resolverBinario } from "./binario.ts";
@@ -10,17 +10,16 @@ type Env = Record<string, string | undefined>;
 export type Capacidades = {
   /** Hay `tailscale`: tiene sentido el acceso desde el celular por la tailnet. */
   tailscale: boolean;
-  /** Hay `hyprctl`: se puede ubicar la ventana de un líder de terminal en Hyprland. */
+  /** Se puede ubicar la ventana de un líder de terminal (volver.ts lo mira). */
   hyprctl: boolean;
-  /** Hay `kitten` (kitty): lo mismo, en kitty. */
+  /** Lo mismo, por otra vía. */
   kitten: boolean;
 };
 
 const ejecutable = (f: string) => esEjecutable(f);
 
 /**
- * Qué herramientas hay en esta máquina: la variable de entorno que la nombra (`HILOS_TAILSCALE`…), el PATH o
- * `~/.local/bin`. Se mira cada vez que se pregunta (unos `access`): instalar una después la activa sin reiniciar.
+ * Qué herramientas hay en esta máquina: la variable de entorno que la nombra (`HILOS_TAILSCALE`…) o el PATH. Se mira cada vez que se pregunta (unos `access`): instalar una después la activa sin reiniciar.
  */
 export function capacidades(env: Env = process.env, home = os.homedir(), existe: (f: string) => boolean = ejecutable): Capacidades {
   const hay = (nombre: string, variable: string) => !!env[variable] || resolverBinario(nombre, variable, env, home, existe) !== nombre;
