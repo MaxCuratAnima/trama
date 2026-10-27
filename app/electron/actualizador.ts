@@ -4,9 +4,8 @@
 // primera vez (al abrir) y después cada 6 h; a la fuente de la última no se le vuelve a preguntar
 // si contestó hace menos de 6 h (el archivo `cfg.archivo` en el estado de la app). Si algo falla
 // (sin red), silencio: queda lo último que se supo. Actualizar es un botón: `<bin> <args>` (execFile, sin
-// shell) o una terminal (`enTerminal`, kitty) que se espera hasta que el comando termina, para lo que pide contraseña
-// (paru). Los usos: electron/actualizacion.ts (claude) y electron/actualizacion-agy.ts (agy, en terminal).
-//   HILOS_TERMINAL  la terminal de Actualizar en terminal (en la prueba, un falso). Por default, kitty.
+// shell). `enTerminal` abre una consola que se espera hasta que el comando termina, para lo que pide
+// contraseña o un login. Los usos: electron/actualizacion.ts (claude) y electron/actualizacion-agy.ts (agy).
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -25,7 +24,7 @@ export function entorno(): NodeJS.ProcessEnv {
   const c = caminos(process.platform);
   const extra = [c.join(home, ".local", "bin"), c.join(home, ".npm-global", "bin")];
   const resto = carpetasPath(process.platform, process.env).filter((d) => !extra.includes(d));
-  const clave = process.platform === "win32" ? (Object.keys(process.env).find((k) => k.toLowerCase() === "path") ?? "Path") : "PATH";
+  const clave = Object.keys(process.env).find((k) => k.toLowerCase() === "path") ?? "Path";
   return { ...process.env, [clave]: [...extra, ...resto].join(separadorPath(process.platform)) };
 }
 
@@ -42,16 +41,16 @@ export type Actualizado = { ok: true; version: string } | { ok: false; error: st
 type Corrida = { err: string | null; dijo: string | null };
 
 /**
- * Abre `<terminal> sh -c <envoltorio> sh <marca> <argv>` y espera a que el comando termine (marca con su rc): con
- * rc distinto de 0 la ventana queda esperando Enter, así se ve el error. Sin terminal (ENOENT) no corre nada y lo dice. Texto como clave de `main.*` (electron/errores.ts).
+ * Abre una consola nueva (`start /wait`) que corre un .cmd con `argv` y espera a que el comando termine (marca con su rc): con
+ * rc distinto de 0 la ventana queda esperando una tecla, así se ve el error. Sin consola (ENOENT) no corre nada y lo dice. Texto como clave de `main.*` (electron/errores.ts).
  */
 export function enTerminal(argv: string[], env: NodeJS.ProcessEnv): Promise<Corrida> {
-  const term = process.env.HILOS_TERMINAL ?? "kitty";
-  // Se espera el FIN DEL COMANDO, no el de la ventana: el envoltorio anota su rc en una marca. Con rc 0 la
-  // ventana se cierra sola; con rc distinto de 0 espera Enter (y igual se resuelve ya). Sin marca al salir: la cerraron a mano.
+  const term = process.env.ComSpec || "cmd.exe";
+  // Se espera el FIN DEL COMANDO, no el de la ventana: el guion anota su rc en una marca. Con rc 0 la
+  // ventana se cierra sola; con rc distinto de 0 espera una tecla (y igual se resuelve ya). Sin marca al salir: la cerraron a mano.
   const dir = mkdtempSync(path.join(os.tmpdir(), "trama-act-"));
   const marca = path.join(dir, "rc");
-  const envoltorio = 'm=$1; shift; "$@"; rc=$?; echo $rc > "$m.tmp" && mv "$m.tmp" "$m"; [ $rc -eq 0 ] || { printf "\\n[rc=%s] Enter para cerrar " $rc; read _; }';
+  const guion = path.join(dir, "correr.cmd");
   return new Promise((listo) => {
     let fin = false;
     let reloj: NodeJS.Timeout | undefined;
@@ -77,13 +76,8 @@ export function enTerminal(argv: string[], env: NodeJS.ProcessEnv): Promise<Corr
       cerrar({ err: falla, dijo: falla });
       return true;
     };
-    // Windows nativo sin HILOS_TERMINAL: una consola nueva (`start /wait`) que corre un .cmd en vez del envoltorio de sh.
-    const nativa = process.platform === "win32" && !process.env.HILOS_TERMINAL;
-    const guion = path.join(dir, "correr.cmd");
-    if (nativa) writeFileSync(guion, guionTerminalWindows(argv, marca));
-    const p = nativa
-      ? spawn(process.env.ComSpec || "cmd.exe", ["/d", "/c", "start", "", "/wait", guion], { env, stdio: "ignore" })
-      : spawn(term, ["sh", "-c", envoltorio, "sh", marca, ...argv], { env, stdio: "ignore" });
+    writeFileSync(guion, guionTerminalWindows(argv, marca));
+    const p = spawn(term, ["/d", "/c", "start", "", "/wait", guion], { env, stdio: "ignore" });
     p.on("error", () => cerrar({ err: textoT("main.terminalNo", { t: term }), dijo: null }));
     p.on("exit", () => {
       if (!mirar()) cerrar({ err: null, dijo: textoT("main.terminalCerro") });
@@ -103,7 +97,7 @@ export type Config = {
   ultima: () => Promise<string | null>;
   /**
    * Cómo se actualiza: `{ args }` corre `<bin> <args>` (execFile, sin shell, hasta 5 min); `{ terminal }` abre esa
-   * orden en una terminal y espera a que la cierren (agy: `paru -S antigravity-cli`, que pide la contraseña).
+   * orden en una consola y espera a que la cierren.
    */
   actualizar: { args: string[] } | { terminal: string[] };
   /** El entorno de Actualizar. */
