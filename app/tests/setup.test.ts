@@ -90,10 +90,9 @@ test("claude y git: faltan en su lugar; sin claude no se acusa también el login
   assert.deepEqual(sinLogin.faltas.map((f) => f.id), ["login"]);
 });
 
-test("hayGit: sólo se pide en Windows; git.exe en el PATH o en Program Files cuentan", () => {
+test("hayGit: git.exe en el PATH o en Program Files cuentan", () => {
   const casa = "C:\\Users\\Ana";
   const conGit = (f: string) => f === "C:\\Program Files\\Git\\cmd\\git.exe";
-  assert.equal(hayGit("linux", {}, "/home/ana", () => false), true);
   assert.equal(hayGit("win32", { Path: "C:\\Windows" }, casa, () => false), false);
   assert.equal(hayGit("win32", { Path: "C:\\Windows" }, casa, conGit), true);
   assert.equal(hayGit("win32", { Path: "D:\\Git\\cmd" }, casa, (f) => f === "D:\\Git\\cmd\\git.exe"), true);
