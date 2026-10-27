@@ -25,12 +25,12 @@ export const AJUSTES: Ajustes = {
 };
 
 /**
- * La config de modelos de los fixtures (`~/.config/trama/modelos.json`; vive mientras la página). Sin variante no hay archivo
+ * La config de modelos de los fixtures (`%APPDATA%\Trama\modelos.json`; vive mientras la página). Sin variante no hay archivo
  * (se ve lo de hoy y no se crea nada hasta guardar); `mdl` trae uno armado como lo dejaría alguien que usa Gemini y un Ollama.
  */
 export const MODELOS_FIJOS = (con: boolean, auto = false): EstadoModelos => ({
   version: 1,
-  ruta: "~/.config/trama/modelos.json",
+  ruta: "%APPDATA%\\Trama\\modelos.json",
   existe: con,
   error: null,
   // Con el reparto automático `pa --modelos --json` dice qué elegiría hoy por tipo (`null`: no pudo elegir).

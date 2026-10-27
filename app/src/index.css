@@ -271,7 +271,7 @@ body,
   visibility: hidden;
 }
 .grupo {
-  --g-nombre: 6.25rem;
+  --g-nombre: 7rem;
   position: relative;
   display: grid;
   grid-template-columns: var(--g-nombre) minmax(0, 1fr) minmax(0, 1fr);
@@ -280,7 +280,7 @@ body,
 }
 @container (max-width: 17rem) {
   .grupo {
-    --g-nombre: 4.5rem;
+    --g-nombre: 5.75rem;
   }
   .g-hasta,
   .g-sub {
@@ -2162,7 +2162,20 @@ kbd {
   border-radius: var(--radio-2);
   color: var(--texto-3);
 }
-:is(.encolado-x, .encolado-re):hover {
+.encolado-ya {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--esp-1);
+  height: 1.125rem;
+  padding: 0 var(--esp-1-5);
+  border-radius: var(--radio-2);
+  color: var(--texto-3);
+}
+.encolado-t > .encolado-ya > span {
+  flex: none;
+}
+:is(.encolado-x, .encolado-re, .encolado-ya):hover {
   background: var(--sup-4);
   color: var(--texto-2);
 }
@@ -5670,6 +5683,11 @@ summary.sis-div-t:hover,
     position: absolute;
     inset: -0.8125rem;
   }
+  .encolado-ya::after {
+    content: "";
+    position: absolute;
+    inset: -0.8125rem 0;
+  }
   .encolado-re::after {
     content: "";
     position: absolute;
@@ -5680,6 +5698,7 @@ summary.sis-div-t:hover,
   }
   .encolado-x,
   .encolado-re,
+  .encolado-ya,
   .trabajo summary,
   .meta .ctx {
     position: relative;

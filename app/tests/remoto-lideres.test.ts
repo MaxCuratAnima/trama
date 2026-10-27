@@ -13,7 +13,7 @@ const nucleo = fuente("nucleo.ts");
 const solo = nucleo.match(/const SOLO_VENTANA: ReadonlySet<string> = new Set\(\[([^\]]*)\]/)?.[1] ?? "";
 const preload = fuente("preload.cts");
 
-for (const canal of ["lider:traer", "lider:retomar", "lider:encolar", "lider:colaYa", "lider:colaQuitar", "lider:colas", "lider:mandar", "lider:cerrar"]) {
+for (const canal of ["lider:traer", "lider:retomar", "lider:encolar", "lider:colaYa", "lider:colaQuitar", "lider:colas", "lider:mandar", "lider:inyectar", "lider:cerrar"]) {
   test(`${canal}: lo atiende el main y el celular puede pedirlo`, () => {
     assert.ok(nucleo.includes(`manejar("${canal}"`), "tiene manejador");
     assert.ok(preload.includes(`ipcRenderer.invoke("${canal}"`), "el preload lo expone (corre también en el navegador)");

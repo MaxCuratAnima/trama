@@ -2,8 +2,9 @@
 // Un worktree propio por puesto (`<estado>/worktrees/<slug>[@k]`) y una rama `pa/<slug>/<id>` desde el HEAD del tree principal,
 // `claude -p` con el contrato y los hooks del worker (latido + guardia), y los mismos archivos de estado que el bash
 // (`.corrida .hilo .sid .json .pid .puesto .jefe .log .running .ultimo .listo`). Sin bash ni `setsid`: los procesos van por `procesos.ts`.
-// Todavía no: --seguir, --actualizar, --integrar/--descartar/--matar/--ramas, reparto, tope global y RAM, Gemini/agy/ollama, medicion.tsv,
+// Todavía no: --seguir, --actualizar, --integrar/--descartar/--matar/--ramas, reparto, tope global y RAM, ollama, medicion.tsv,
 // tablero, el auto-cierre por falta de turnos, el reintento por 529 y symlinks de caches (node_modules, target) al worktree.
+// Gemini/agy sí: un modelo `gemini*` o `agy:*` se lanza con `agy -p` (`TRAMA_AGY`) en vez de `claude` (rama `esGemini`).
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
@@ -11,6 +12,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
+import { modeloAgy } from "../modelos-config.ts";
 import { comandoEjecutable, esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
 import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
@@ -393,8 +395,8 @@ async function correr(b: Base): Promise<number> {
     const esGemini = modelo.toLowerCase().startsWith("gemini") || modelo.toLowerCase().startsWith("agy:");
     const args: string[] = [];
     if (esGemini) {
-      const modeloAgy = modelo.replace(/^agy:/i, "");
-      args.push("-p", `${contrato}\n\n${tarea}`, "--model", modeloAgy, "--dangerously-skip-permissions", "--output-format", "json");
+      const mAgy = modeloAgy(modelo);
+      args.push("-p", `${contrato}\n\n${tarea}`, "--model", mAgy, "--dangerously-skip-permissions", "--output-format", "json");
     } else {
       args.push(
         "-p", tarea, "--model", modelo, ...(esfuerzo ? ["--effort", esfuerzo] : []), "--output-format", "json", "--append-system-prompt", contrato,

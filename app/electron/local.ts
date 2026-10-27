@@ -12,13 +12,20 @@ import path from "node:path";
 import { inicioDeProcesoSync } from "./procesos.js";
 import { crearCanal, negar, type OpcionesCanal } from "./remoto.js";
 
+/** Algo estable de este usuario para el nombre de la carpeta: el uid; en Windows `uid` es -1 y se usa el nombre. */
+function idUsuario(): string {
+  const u = os.userInfo();
+  if (process.platform !== "win32" && u.uid >= 0) return String(u.uid);
+  return u.username.replace(/[^A-Za-z0-9._-]/g, "_") || "usuario";
+}
+
 /**
  * La carpeta del socket: la de `XDG_RUNTIME_DIR` (de este usuario, se borra al apagar); sin ella, una en el tmp.
  * `HILOS_LOCAL` la cambia (las pruebas: el motor y la ventana de prueba no ven al motor del usuario).
  */
 export function carpetaLocal(env: NodeJS.ProcessEnv = process.env): string {
   if (env.HILOS_LOCAL) return env.HILOS_LOCAL;
-  const base = env.XDG_RUNTIME_DIR || path.join(os.tmpdir(), `trama-${os.userInfo().uid}`);
+  const base = env.XDG_RUNTIME_DIR || path.join(os.tmpdir(), `trama-${idUsuario()}`);
   return path.join(base, "trama");
 }
 export const socketDe = (carpeta: string) => path.join(carpeta, "motor.sock");

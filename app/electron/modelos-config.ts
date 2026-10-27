@@ -200,21 +200,35 @@ export function partirGemini(id: string, effort?: string | null): { modelo: stri
   return { modelo: id, effort: effort && (EFFORTS_GEMINI as readonly string[]).includes(effort) ? effort : def };
 }
 
-/** Lo que se le pasa a `agy --model`: el modelo con su esfuerzo (`gemini-3.8-flash-low`). */
-export const idAgy = (modelo: string, effort: string) =>
-  /-(low|medium|high)$/.test(modelo) ? modelo : `${modelo}-${(EFFORTS_GEMINI as readonly string[]).includes(effort) ? effort : EFFORT_GEMINI_DEFECTO}`;
+/** Lo que se le pasa a `agy --model`: el modelo con su esfuerzo (`gemini-3.8-flash-low`), o los modelos especiales de agy (Claude, GPT-OSS). */
+export const idAgy = (modelo: string, effort: string | null = null) => {
+  const sin = modelo.startsWith("agy:") ? modelo.slice("agy:".length) : modelo;
+  if (sin.startsWith("claude-sonnet")) return "claude-sonnet-4-6";
+  if (sin.startsWith("claude-opus")) return "claude-opus-4-6-thinking";
+  if (sin.startsWith("gpt-oss")) return "gpt-oss-120b-medium";
+  return /-(low|medium|high)$/.test(sin)
+    ? sin
+    : `${sin}-${(EFFORTS_GEMINI as readonly string[]).includes(effort ?? "") ? effort : EFFORT_GEMINI_DEFECTO}`;
+};
 
 const TABLA_AGY: Record<string, string> = {
   "gpt-oss-120b-low": "gpt-oss-120b-medium",
   "gpt-oss-120b-medium": "gpt-oss-120b-medium",
   "gpt-oss-120b-high": "gpt-oss-120b-medium",
+  "claude-sonnet-4-6": "claude-sonnet-4-6",
+  "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
 };
 
-/** El nombre real que acepta `agy --model` (`agy:claude-opus-5-5-high` → `claude-opus-5-5-high`). */
+/** El nombre real que acepta `agy --model` (`agy:claude-opus-5-5-high` → `claude-opus-4-6-thinking`). */
 export function modeloAgy(modelo: string): string {
   const sin = modelo.startsWith("agy:") ? modelo.slice("agy:".length) : modelo;
-  const con = /-(low|medium|high)$/.test(sin) ? sin : `${sin}-${sin === "gpt-oss-120b" ? "medium" : EFFORT_GEMINI_DEFECTO}`;
-  return TABLA_AGY[con] ?? con;
+  if (sin.startsWith("claude-sonnet")) return "claude-sonnet-4-6";
+  if (sin.startsWith("claude-opus")) return "claude-opus-4-6-thinking";
+  if (sin.startsWith("gpt-oss")) return "gpt-oss-120b-medium";
+  const con = /-(low|medium|high)$/.test(sin)
+    ? sin
+    : `${sin}-${sin === "gpt-oss-120b" ? "medium" : EFFORT_GEMINI_DEFECTO}`;
+  return TABLA_AGY[con] ?? TABLA_AGY[sin] ?? con;
 }
 
 /** Un valor que va a un archivo de config o a una línea de comandos: sin espacios ni nulos y que no empiece con guion (iría como flag). */

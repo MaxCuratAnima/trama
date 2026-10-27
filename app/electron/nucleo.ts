@@ -58,6 +58,8 @@ import { cuentasDeEstaMaquina } from "./cuentas.ts";
 import { enTerminal } from "./actualizador.ts";
 import { cuentasVarias } from "./cuentas-varias-canales.ts";
 import { cuentasDeEstaMaquinaVarias } from "./cuentas-varias.ts";
+import { carpetaDe, importarExtensiones, leerExtensiones } from "./extensiones.ts";
+import { esteConfigTrama } from "./plataforma.ts";
 import { alCambiarCupos, refrescarCupos } from "./cupos.js";
 import { modoLocal } from "./modo-local.js";
 import { DIR, leerStatusline, SESIONES, type Statusline } from "./statusline.js";
@@ -818,6 +820,11 @@ export function armarNucleo() {
     verEspera(String(x?.sid));
     return lider.mandar({ sid: x?.sid, texto: x?.texto, imagenes: x?.imagenes, modelo: x?.modelo, effort: x?.effort });
   });
+  // Forzar: lo que se manda a mitad de un turno lo lee en el próximo paso, sin esperar a que termine.
+  manejar("lider:inyectar", (_e, x: { sid: string; texto: string; imagenes?: unknown; modelo: string; effort: string }) => {
+    verEspera(String(x?.sid));
+    return lider.inyectar({ sid: x?.sid, texto: x?.texto, imagenes: x?.imagenes, modelo: x?.modelo, effort: x?.effort });
+  });
   // El usuario abrió la conversación de un líder que lo esperaba (o la tiene a la vista y volvió a la ventana).
   manejar("lider:visto", (_e, sid: string) => verEspera(String(sid)));
   // Un archivo que no es imagen: a `adjuntos/` del estado propio; el mensaje lleva su ruta.
@@ -917,6 +924,18 @@ export function armarNucleo() {
   manejar("cuentas:estado", () => cuentasDeEstaMaquina());
   // Varias cuentas por proveedor (el CLI `cuentas` del orquestador): lista, alta, renombre, baja y login. Después de un cambio el cupo se vuelve a pedir.
   cuentasVarias(manejar, cuentasDeEstaMaquinaVarias(enTerminal), () => void refrescarCupos(true));
+  // Ajustes > Extensiones: lo que tiene la carpeta de config de una cuenta (por su id, nunca por una ruta) y copiar desde la de siempre lo que le falta.
+  const raicesExt = () => ({ home: os.homedir(), dirTrama: esteConfigTrama() });
+  manejar("extensiones:leer", (_e, id: unknown) => {
+    const c = carpetaDe(id, raicesExt());
+    return c ? leerExtensiones(c) : null;
+  });
+  manejar("extensiones:importar", (_e, id: unknown) => {
+    const r = raicesExt();
+    const destino = carpetaDe(id, r);
+    const origen = carpetaDe("claude", r);
+    return destino && origen ? importarExtensiones(origen, destino) : { ok: false, error: textoT("main.extSinCarpeta") };
+  });
 
   // El tablero de pendientes (tablero.ts): se mira su vista desde la primera vez que se pide.
   // Si su carpeta todavía no existe no hay qué mirar: se prueba de nuevo la próxima vez que se pida.

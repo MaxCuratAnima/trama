@@ -15,6 +15,7 @@ import { abrirAtajos } from "./Atajos";
 import { abrirBienvenida } from "./Bienvenida";
 import { BarraGuardar, Celular, PlanYRed } from "./AjustesEditar";
 import { AjustesCuentas } from "./AjustesCuentas";
+import { AjustesExtensiones } from "./AjustesExtensiones";
 import { AjustesModelos } from "./AjustesModelos";
 import { Compactar } from "./AjustesCompactar";
 import { IcAtajos, IcAviso, IcCodigo, ICONO, IcIdioma, IcLetra, IcTiernos, IcTipografia } from "../ui/iconos";
@@ -165,6 +166,7 @@ export function Ajustes() {
   // El idioma, la letra y las fuentes van siempre, aunque los datos no hayan llegado o hayan fallado.
   const app = (
     <section className="pn-sec">
+      <h2 className="pn-h">{t("ajustes.aplicacionH")}</h2>
       <Dato nombre="ajustes.idioma" que="ajustes.idiomaQue" icono={<IcIdioma {...ICONO} />}>
         <div className="pn-sel">
           <Selector etiqueta={t("ajustes.idioma")} opciones={IDIOMAS} valor={idioma()} alElegir={elegirIdioma} reserva={[]} />
@@ -241,6 +243,9 @@ export function Ajustes() {
         </Cat>
         <Cat id="cuentas">
           <AjustesCuentas Dato={Dato} />
+        </Cat>
+        <Cat id="extensiones">
+          <AjustesExtensiones Dato={Dato} />
         </Cat>
         <AjustesModelos Dato={Dato} plan={a?.plan ?? null} />
         <Celular Dato={Dato} />

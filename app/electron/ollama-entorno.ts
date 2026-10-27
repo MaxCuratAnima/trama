@@ -19,7 +19,7 @@ export type EntornoOllama = {
   /** La GPU que más sirve para modelos (NVIDIA > AMD > Intel); `null` si no se vio ninguna. */
   gpu: Gpu | null;
   /** Cómo se instala: `pacman` con el paquete que toca, o el instalador oficial (`script`). `comando` es lo que se copia. */
-  instalar: { via: "pacman" | "script"; comando: string };
+  instalar: { via: "pacman" | "script" | "winget"; comando: string };
   /** Cómo se arranca: como servicio de systemd, o a mano con `ollama serve`. */
   arrancar: { via: "systemd" | "serve"; comando: string };
 };
@@ -80,10 +80,14 @@ export function comandoArrancar(servicio: boolean): EntornoOllama["arrancar"] {
 const existe = async (d: Deps, f: string) => (await d.tamano(f)) != null;
 
 /** ¿Está `ollama`? `HILOS_OLLAMA` (las pruebas), el PATH, `~/.local/bin` y donde lo deja el instalador oficial. */
-async function hayOllama(d: Deps): Promise<boolean> {
+async function hayOllama(d: Deps, plataforma: NodeJS.Platform): Promise<boolean> {
   if (d.env.HILOS_OLLAMA !== undefined) return !!d.env.HILOS_OLLAMA && (await existe(d, d.env.HILOS_OLLAMA));
-  const dirs = [...(d.env.PATH ?? "").split(path.delimiter), path.join(d.home, ".local", "bin"), "/usr/local/bin", "/usr/bin", "/opt/ollama/bin"].filter(Boolean);
-  for (const dir of dirs) if (await existe(d, path.join(dir, "ollama"))) return true;
+  const win = plataforma === "win32";
+  // En Windows el instalador de Ollama lo deja en %LOCALAPPDATA%ProgramsOllama (y lo suma al PATH).
+  const dirs = win
+    ? [...(d.env.PATH ?? "").split(path.delimiter), path.join(d.env.LOCALAPPDATA || path.join(d.home, "AppData", "Local"), "Programs", "Ollama")].filter(Boolean)
+    : [...(d.env.PATH ?? "").split(path.delimiter), path.join(d.home, ".local", "bin"), "/usr/local/bin", "/usr/bin", "/opt/ollama/bin"].filter(Boolean);
+  for (const dir of dirs) if (await existe(d, path.join(dir, win ? "ollama.exe" : "ollama"))) return true;
   return false;
 }
 
@@ -125,8 +129,20 @@ async function leerGpus(d: Deps): Promise<Gpu[]> {
   return vistas;
 }
 
-export async function leerEntornoOllama(d: Deps = depsDeVerdad()): Promise<EntornoOllama> {
-  const [osr, instalado, servicio, gpus] = await Promise.all([d.leer("/etc/os-release"), hayOllama(d), hayServicio(d), leerGpus(d)]);
+export async function leerEntornoOllama(d: Deps = depsDeVerdad(), plataforma: NodeJS.Platform = process.platform): Promise<EntornoOllama> {
+  // Windows: sin distro, systemd ni /sys; se instala con winget y se arranca a mano (o con la app de Ollama en la bandeja).
+  if (plataforma === "win32") {
+    const [instalado, gpus] = await Promise.all([hayOllama(d, plataforma), leerGpus(d)]);
+    return {
+      version: 1,
+      instalado,
+      distro: { id: "windows", nombre: "Windows", familia: "otra" },
+      gpu: mejorGpu(gpus),
+      instalar: { via: "winget", comando: "winget install --id Ollama.Ollama -e" },
+      arrancar: comandoArrancar(false),
+    };
+  }
+  const [osr, instalado, servicio, gpus] = await Promise.all([d.leer("/etc/os-release"), hayOllama(d, plataforma), hayServicio(d), leerGpus(d)]);
   const distro = familiaDe(osr ?? "");
   const gpu = mejorGpu(gpus);
   // Instalándolo, el paquete o el script dejan el servicio si hay systemd: se anticipa para decir cómo arrancarlo.

@@ -57,7 +57,7 @@ test("el arranque: si las estimaciones pasan al exacto, no hay desglose negativo
 test("modelos juntados en familias", () => {
   const s = (n: number) => ({ entrada: n, cacheCreado: n, cacheLeido: n, salida: n });
   const r = porFamilia({ "claude-opus-5-5": s(1), "claude-sonnet-5-5": s(2), "raro-1": s(3) });
-  assert.deepEqual(r.familias, { Opus: 3, Sonnet: 6, Fable: 0, otro: 9 });
+  assert.deepEqual(r.familias, { Opus: 3, Sonnet: 6, Fable: 0, Google: 0, otro: 9 });
   assert.equal(r.total, 18);
   assert.equal(total(s(1)), 3); // el caché escrito no suma: `medicion.tsv` no lo trae
 });

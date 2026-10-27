@@ -19,7 +19,7 @@
 // clip; miniaturas con × en la caja (src/hilo/adjuntos.ts) y en el globo.
 import { es } from "../atajos";
 import { Fragment, memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowUp, Check, Cpu, Folder, Paperclip, X } from "lucide-react";
+import { ArrowUp, Check, Cpu, Folder, Paperclip, X, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { VERSION, type Lider, type Mensaje, type MotivoRetomar, type MotivoTraer, type Tokens } from "../datos/contrato";
 import { fuente, type EnvioLider } from "../datos/fuente";
@@ -51,7 +51,8 @@ import { anotar, bajar, seguir } from "./seguir";
 import { anotarScroll, faltaLlegar, guardarAncla, restaurarScroll, retomarScroll, soltarScroll } from "./scrollGuardado";
 import { useCompactando } from "./compactando";
 import { useSeguir } from "./useSeguir";
-import { cola, comandosAgy, comandosClaude, confirmar, contestado, enCurso, enviado, escuchar, estilosClaude, fallo, mensajesVistos, parando, ponerEstilos, ponerModo, suscribir, suscribirComandos, suscribirEstilos, type Pedido } from "./vivo";
+import type { Encolado } from "./cola";
+import { cola, comandosAgy, comandosClaude, confirmar, contestado, enCurso, enviado, escuchar, estilosClaude, fallo, inyectado, mensajesVistos, parando, ponerEstilos, ponerModo, suscribir, suscribirComandos, suscribirEstilos, type Pedido } from "./vivo";
 import { ASPECTO, esModo, MODO_DEFAULT, siguienteModo, type Modo } from "./modos";
 import { directo, ESTILOS_FABRICA, menuEn, moverSel, parsearComando, reemplazar, type Sugerencia, type Valores } from "./comandos";
 import { main, mensaje } from "../puente";
@@ -492,6 +493,23 @@ export function ChatLider({ l, alCreado, alNuevo, lideres, alAbrirLider, mirar =
     );
   };
 
+  /** "Que lo lea ya": lo que espera en la cola se saca (para no duplicarlo) y se le pasa al líder a mitad del turno. Si no va, vuelve a la cola. */
+  const forzar = (x: Encolado) => {
+    if (!l) return;
+    const { id: _id, ...item } = x;
+    cola.quitar(l.id, x.id);
+    cola.inyectar(l.id, item).then(
+      () => {
+        inyectado(l.id, x.texto, x.imagenes);
+        scroll.current = { tipo: "fondo" };
+      },
+      (err) => {
+        cola.encolar(l.id, item).catch(() => {});
+        setErrorCaja(mensaje(err));
+      },
+    );
+  };
+
   const enviar = (crudo = texto, modoNuevoYa?: Modo) => {
     const archivos = archivosDe(adjuntos);
     // Los archivos que no son imágenes van como rutas al final del texto: Claude los lee con Read.
@@ -824,6 +842,12 @@ export function ChatLider({ l, alCreado, alNuevo, lideres, alAbrirLider, mirar =
                     {k === 0 && errorCola ? (
                       <button type="button" className="encolado-re" data-reintentar-cola onClick={() => cola.ya(l.id, false)}>
                         {tr("lider.colaReintentar")}
+                      </button>
+                    ) : null}
+                    {ocupado && app && !agy ? (
+                      <button type="button" className="encolado-ya" data-forzar-cola aria-label={tr("inyectar.queLoLea")} data-tip={tr("inyectar.tip")} onClick={() => forzar(x)}>
+                        <Zap size={12} strokeWidth={2.2} />
+                        <span>{tr("inyectar.queLoLea")}</span>
                       </button>
                     ) : null}
                     <button type="button" className="encolado-x" aria-label={tr("lider.quitarCola")} data-tip={tr("lider.quitarCola")} onClick={() => cola.quitar(l.id, x.id)}>

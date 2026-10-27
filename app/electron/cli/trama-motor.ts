@@ -26,7 +26,8 @@ export const rutaLog = (e: Entorno) => caminos(e.plataforma).join(dirEstadoPa(e.
 /** El entorno del motor: el de quien lo lanza, con `~/.local/bin` en el PATH y los tres avisos que lo ponen en modo producto. */
 export function entornoMotor(e: Entorno): Env {
   const env = entornoConLocal(e.plataforma, e.env, e.home);
-  return { ...env, HILOS_MOTOR: "1", TRAMA_UNIDAD: "1", TRAMA_LOCAL: "1", ELECTRON_RUN_AS_NODE: "1" };
+  // TRAMA_UNIDAD=1 dice "me supervisa systemd: para reiniciarme alcanza con salir". En Windows no hay supervisor: el motor se relanza solo.
+  return { ...env, HILOS_MOTOR: "1", ...(e.plataforma === "win32" ? {} : { TRAMA_UNIDAD: "1" }), TRAMA_LOCAL: "1", ELECTRON_RUN_AS_NODE: "1" };
 }
 
 export function vivo(pid: number): boolean {

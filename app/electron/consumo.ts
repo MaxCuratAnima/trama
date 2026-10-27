@@ -9,7 +9,7 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { medianoche, Sesion, sumar, transcriptsDesde, type Suma, type Uso } from "./transcripts.ts";
+import { medianoche, Sesion, sumar, transcriptsDesde, transcriptsPlanasDesde, type Suma, type Uso } from "./transcripts.ts";
 import { silencio } from "./log.ts";
 import { mirarCarpeta, type Mirada } from "./mirar.ts";
 
@@ -160,6 +160,12 @@ export function crearConsumo(o: { proyectos: string; planas?: string[]; paState:
     if (f) agregar(f);
   }
 
+  /** Los workers vivos pedidos que todavía no tienen `.sid` leído: se relee antes de decidir quién es líder y quién worker. */
+  async function sidsFaltantes(): Promise<void> {
+    const sin = (pedido?.workers ?? []).filter((id) => !sidDe.has(id));
+    if (sin.length) await leerSids(sin);
+  }
+
   const sidsPedidos = (): string[] => (pedido ? [...pedido.lideres, ...pedido.workers.map((id) => sidDe.get(id)).filter((s): s is string => !!s)] : []);
 
   function soltarWatches(): void {
@@ -219,6 +225,13 @@ export function crearConsumo(o: { proyectos: string; planas?: string[]; paState:
     sucias.clear();
     let cambio = false;
     for (const s of lote) if (await s.leer()) cambio = true;
+    // Si un worker nuevo todavía no tenía `.sid`, su transcript contaba como líder: se relee antes de armar.
+    const antes = sidDe.size;
+    await sidsFaltantes();
+    if (sidDe.size !== antes) {
+      for (const sid of sidsPedidos()) await buscar(sid);
+      cambio = true;
+    }
     mirarCarpetas();
     if (cambio) o.alCambiar(armar());
   }
@@ -226,7 +239,16 @@ export function crearConsumo(o: { proyectos: string; planas?: string[]; paState:
   function armar(): Consumo {
     const deWorker = new Set(sidDe.values());
     const c: Consumo = { n: ++orden, desde, lideres: {}, workers: {}, filas: {} };
-    for (const s of sesiones.values()) sumar(deWorker.has(s.sid) ? c.workers : c.lideres, s.reciente());
+    // Los subagentes de un líder (Agent de Claude Code) trabajan como workers: van a esa columna.
+    for (const s of sesiones.values()) {
+      if (deWorker.has(s.sid)) {
+        sumar(c.workers, s.reciente());
+        continue;
+      }
+      const { propio, subagentes } = s.recientePartido();
+      sumar(c.lideres, propio);
+      sumar(c.workers, subagentes);
+    }
     const fila = (sid: string | undefined): FilaConsumo | null => {
       const s = sid ? porSid.get(sid) : undefined;
       if (!s) return null;
@@ -251,8 +273,12 @@ export function crearConsumo(o: { proyectos: string; planas?: string[]; paState:
     }
     await leerSids(pedido?.workers ?? []);
     for (const ruta of await transcriptsDesde(o.proyectos, desde)) agregar(ruta);
+    // Los líderes de Gemini no escriben en `projects/`: sus transcripts están sueltos en las carpetas planas.
+    for (const d of o.planas ?? []) for (const ruta of await transcriptsPlanasDesde(d, desde)) agregar(ruta);
     for (const sid of sidsPedidos()) await buscar(sid);
     await Promise.all([...sesiones.values()].map((s) => s.leer()));
+    // Un worker recién lanzado puede escribir su `.sid` mientras se leía: se relee antes de clasificar.
+    await sidsFaltantes();
     if (pedido) mirarCarpetas();
     return armar();
   }

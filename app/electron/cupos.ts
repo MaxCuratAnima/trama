@@ -2,12 +2,15 @@
 // `reparto --cupos --json` (contrato `version: 1`, `suscripciones[]` con `ventanas[]` o `grupos[]`),
 // el único lector. Genérico: una suscripción nueva aparece sola en la cabecera, sin tocar esto.
 // Lo que no se sabe es `null` ("sin dato"), nunca un número inventado.
-import { execFileCmd } from "./procesos.js";
+import { execFileCmd, spawnCmd } from "./procesos.js";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { entornoPa, resolverAgy, resolverBinario } from "./binario.js";
 import { esteConfigTrama } from "./plataforma.js";
+import { argvUso, lineaInicio, lineaUso } from "./lider-arma.ts";
+import { oficialDe, type Lectura } from "./uso.ts";
+import { log } from "./log.js";
 
 const execFileP = (bin: string, args: string[], o: { env: NodeJS.ProcessEnv; timeout: number; maxBuffer: number }) =>
   new Promise<{ stdout: string }>((ok, mal) => execFileCmd(bin, args, o, (e, stdout) => (e ? mal(e) : ok({ stdout }))));
@@ -37,6 +40,8 @@ export interface SuscripcionCupo {
   ts: number;
   ventanas?: VentanaCupo[];
   grupos?: GrupoCupo[];
+  /** Nunca se pudo leer esta cuenta: sus ventanas van en null y ts es el de este intento. */
+  sinLectura?: true;
 }
 
 export interface CuposLeidos {
@@ -187,10 +192,55 @@ function cuposIniciales(): CuposLeidos | null {
 }
 
 const TTL_CUPOS_MS = 60_000;
+/** agy /quota y el get_usage de cada cuenta extra: cada 5 min, salvo refresco manual (cada uno arranca un proceso). */
+const TTL_LENTO_MS = 5 * 60_000;
+/** Lo que espera el get_usage de una cuenta extra; si no contesta, esa cuenta queda sin lectura. */
+const ESPERA_USO_MS = 25_000;
+/** Las credenciales de la cuenta de siempre no deben pasarle a la cuenta extra (como cli/cuentas.ts). */
+const CLAVES_CUENTA = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"] as const;
+
+/** Una cuenta de cuentas.json tal como la necesita el lector (dir: su CLAUDE_CONFIG_DIR). */
+type CuentaLeida = { id: string; nombre: string; proveedor: string; dir: string };
+
+/** Las cuentas agregadas (todas menos la de siempre). Si el archivo no se puede leer, ninguna. */
+function cuentasExtra(): CuentaLeida[] {
+  try {
+    const base = esteConfigTrama();
+    const cuentasPath = path.join(base, "cuentas.json");
+    if (!existsSync(cuentasPath)) return [];
+    const data = JSON.parse(readFileSync(cuentasPath, "utf8")) as { cuentas?: Array<{ id?: string; nombre?: string; proveedor?: string; dir?: string }> };
+    if (!Array.isArray(data.cuentas)) return [];
+    const res: CuentaLeida[] = [];
+    for (const c of data.cuentas) {
+      if (!c?.id || c.id === "claude") continue;
+      res.push({
+        id: c.id,
+        nombre: c.nombre || c.id,
+        proveedor: c.proveedor || "claude",
+        dir: c.dir || path.join(base, "cuentas", c.id),
+      });
+    }
+    return res;
+  } catch {
+    return [];
+  }
+}
+
 let cacheCupos: CuposLeidos | null = cuposIniciales();
 let ultimoIntentoMs = 0;
+let ultimoLentoMs = 0;
+/** Lo último BUENO de cada fuente lenta (google, o el id de una cuenta extra): se reusa entre lecturas lentas. */
+const lentos = new Map<string, SuscripcionCupo>();
 let enVuelo: Promise<CuposLeidos | null> | null = null;
 const oyentes = new Set<() => void>();
+/** Los avisos ya dichos: un fallo que se repite en cada refresco se loguea una sola vez (se limpia al volver a andar). */
+const avisados = new Set<string>();
+
+function avisarUna(clave: string, detalle: string): void {
+  if (avisados.has(clave)) return;
+  avisados.add(clave);
+  log.escribir("aviso", "cupos", detalle);
+}
 
 export function alCambiarCupos(fn: () => void): () => void {
   oyentes.add(fn);
@@ -206,110 +256,189 @@ function modoAisladoSinCupos(): boolean {
   return process.env.HILOS_PRUEBA === "1" || process.env.HILOS_CAPTURA === "1" || process.env.HILOS_BENCH === "1";
 }
 
-async function consultarCuposNativo(): Promise<CuposLeidos | null> {
-  const ahora = Date.now();
-  const tsS = Math.round(ahora / 1000);
-  const suscripciones: SuscripcionCupo[] = [];
-
-  // 1. Cuentas adicionales de Claude desde cuentas.json
-  try {
-    const cuentasPath = path.join(esteConfigTrama(), "cuentas.json");
-    if (existsSync(cuentasPath)) {
-      const data = JSON.parse(readFileSync(cuentasPath, "utf8")) as { cuentas?: Array<{ id?: string; nombre?: string; proveedor?: string }> };
-      if (Array.isArray(data.cuentas)) {
-        for (const c of data.cuentas) {
-          if (c?.id && c.id !== "claude") {
-            suscripciones.push({
-              id: c.id,
-              nombre: c.nombre || c.id,
-              proveedor: c.proveedor || "claude",
-              cuenta: c.id,
-              ts: tsS,
-              ventanas: [
-                { id: "5h", pct: null, vuelve: null },
-                { id: "7d", pct: null, vuelve: null },
-              ],
-            });
-          }
-        }
+/**
+ * El get_usage de una cuenta agregada de Claude, con su propio claude (CLAUDE_CONFIG_DIR de la
+ * cuenta): el mismo pedido que usa la de siempre (lider.ts, usoDeUnRato), sin turno ni transcript.
+ * null: no se pudo leer (no arranca, no contesta a tiempo o no dice nada del plan).
+ */
+function usoDeCuenta(dir: string): Promise<Lectura | null> {
+  return new Promise((listo) => {
+    const ID = "trama-uso";
+    const marcaId = "\"" + ID + "\"";
+    const marcaControl = "\"control_response\"";
+    const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_CONFIG_DIR: dir };
+    for (const k of CLAVES_CUENTA) delete env[k];
+    let hecho = false;
+    let resto = "";
+    let p: ReturnType<typeof spawnCmd>;
+    let t: NodeJS.Timeout;
+    const fin = (l: Lectura | null) => {
+      if (hecho) return;
+      hecho = true;
+      clearTimeout(t);
+      try {
+        p.stdin?.end();
+      } catch {
+        /* ya cerrado */
       }
+      if (p.exitCode === null && p.signalCode === null) p.kill("SIGTERM");
+      listo(l);
+    };
+    try {
+      p = spawnCmd(resolverBinario("claude", "HILOS_CLAUDE", process.env, homedir()), argvUso(), {
+        env,
+        stdio: ["pipe", "pipe", "ignore"],
+        windowsHide: true,
+      });
+    } catch (e) {
+      avisarUna("uso:" + dir, "get_usage de " + dir + ": " + (e as Error).message);
+      return listo(null);
     }
-  } catch {
-    /* ignorar */
-  }
+    t = setTimeout(() => {
+      avisarUna("uso:" + dir, "get_usage de " + dir + ": sin respuesta en " + ESPERA_USO_MS / 1000 + " s");
+      fin(null);
+    }, ESPERA_USO_MS);
+    p.stdout!.setEncoding("utf8");
+    p.stdout!.on("data", (trozo: string) => {
+      const partes = (resto + trozo).split("\n");
+      resto = partes.pop() ?? "";
+      for (const l of partes) {
+        // La respuesta a nuestro get_usage (no la del initialize, que tiene otro id).
+        if (!l.includes(marcaControl) || !l.includes(marcaId)) continue;
+        const lu = oficialDe(l, Math.floor(Date.now() / 1000));
+        if (!lu) avisarUna("uso:" + dir, "get_usage de " + dir + ": contestó sin datos del plan");
+        fin(lu);
+        return;
+      }
+    });
+    p.stdin!.on("error", () => {});
+    p.on("error", (e) => {
+      avisarUna("uso:" + dir, "get_usage de " + dir + ": " + e.message);
+      fin(null);
+    });
+    p.on("exit", () => fin(null));
+    // Como el Agent SDK: primero el initialize.
+    p.stdin!.write(lineaInicio(ID + "-inicio"));
+    p.stdin!.write(lineaUso(ID));
+  });
+}
 
-  // 2. Google / Gemini desde agy /quota
+/** Una cuenta extra de Claude como fila: sus ventanas de la lectura (null si no hubo), con sinLectura cuando no hay. */
+function filaDeCuenta(c: CuentaLeida, l: Lectura | null, tsS: number): SuscripcionCupo {
+  const ventana = (id: "5h" | "7d", v: Lectura["five_hour"]): VentanaCupo => ({
+    id,
+    pct: v ? Math.max(0, Math.min(100, Math.round(v.pct))) : null,
+    vuelve: v?.resets_at ?? null,
+  });
+  return {
+    id: c.id,
+    nombre: c.nombre,
+    proveedor: c.proveedor,
+    cuenta: c.id,
+    ts: tsS,
+    ventanas: [ventana("5h", l?.five_hour ?? null), ventana("7d", l?.seven_day ?? null)],
+    ...(l ? {} : { sinLectura: true as const }),
+  };
+}
+
+/** Google / Gemini desde agy /quota. null: no se pudo leer (agy falla o no trae grupos). */
+async function googleDeAgy(tsS: number): Promise<SuscripcionCupo | null> {
   try {
     const binAgy = resolverAgy(process.env, homedir());
     const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;
     const { stdout } = await execFileP(binAgy, ["-p", "/quota", "--output-format", "json"], { env, timeout: 12000, maxBuffer: 512 * 1024 });
     const raw = JSON.parse(stdout) as { command?: { data?: { groups?: Array<{ name?: string; buckets?: Array<{ id?: string; window?: string; remaining_fraction?: number; reset_time?: string }> }> } } };
     const groups = raw?.command?.data?.groups;
-    if (Array.isArray(groups) && groups.length > 0) {
-      const gruposCupo: GrupoCupo[] = [];
-      let geminiVentanas: VentanaCupo[] = [];
+    if (!Array.isArray(groups) || groups.length === 0) return null;
+    const gruposCupo: GrupoCupo[] = [];
+    let geminiVentanas: VentanaCupo[] = [];
 
-      for (const g of groups) {
-        const gName = g?.name || "";
-        const buckets = Array.isArray(g?.buckets) ? g.buckets : [];
-        const ventanas: VentanaCupo[] = [];
+    for (const g of groups) {
+      const gName = g?.name || "";
+      const buckets = Array.isArray(g?.buckets) ? g.buckets : [];
+      const ventanas: VentanaCupo[] = [];
 
-        for (const b of buckets) {
-          const rem = typeof b.remaining_fraction === "number" ? b.remaining_fraction : 1;
-          const pct = Math.max(0, Math.min(100, Math.round((1 - rem) * 100)));
-          const vuelve = b.reset_time ? Math.round(Date.parse(b.reset_time) / 1000) : null;
-          const id = (b.window === "weekly" || String(b.id).includes("weekly")) ? "7d" : "5h";
-          ventanas.push({ id, pct, vuelve: Number.isFinite(vuelve) ? vuelve : null });
-        }
-
-        if (ventanas.length > 0) {
-          gruposCupo.push({
-            id: gName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            nombre: gName,
-            ventanas,
-          });
-          if (gName.toLowerCase().includes("gemini") || geminiVentanas.length === 0) {
-            geminiVentanas = ventanas;
-          }
-        }
+      for (const b of buckets) {
+        const rem = typeof b.remaining_fraction === "number" ? b.remaining_fraction : 1;
+        const pct = Math.max(0, Math.min(100, Math.round((1 - rem) * 100)));
+        const vuelve = b.reset_time ? Math.round(Date.parse(b.reset_time) / 1000) : null;
+        const id = (b.window === "weekly" || String(b.id).includes("weekly")) ? "7d" : "5h";
+        ventanas.push({ id, pct, vuelve: Number.isFinite(vuelve) ? vuelve : null });
       }
 
-      if (gruposCupo.length > 0) {
-        suscripciones.push({
-          id: "google",
-          nombre: "Gemini",
-          proveedor: "google",
-          cuenta: "google",
-          ts: tsS,
-          ventanas: geminiVentanas,
-          grupos: gruposCupo,
+      if (ventanas.length > 0) {
+        gruposCupo.push({
+          id: gName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          nombre: gName,
+          ventanas,
         });
+        if (gName.toLowerCase().includes("gemini") || geminiVentanas.length === 0) {
+          geminiVentanas = ventanas;
+        }
       }
-    } else {
-      suscripciones.push({
-        id: "google",
-        nombre: "Gemini",
-        proveedor: "google",
-        cuenta: "google",
-        ts: tsS,
-        ventanas: [
-          { id: "5h", pct: null, vuelve: null },
-          { id: "7d", pct: null, vuelve: null },
-        ],
-      });
     }
-  } catch {
-    suscripciones.push({
+    if (gruposCupo.length === 0) return null;
+    avisados.delete("agy");
+    return {
       id: "google",
       nombre: "Gemini",
       proveedor: "google",
       cuenta: "google",
       ts: tsS,
-      ventanas: [
-        { id: "5h", pct: null, vuelve: null },
-        { id: "7d", pct: null, vuelve: null },
-      ],
-    });
+      ventanas: geminiVentanas,
+      grupos: gruposCupo,
+    };
+  } catch (e) {
+    avisarUna("agy", "agy /quota no se pudo leer: " + (e as Error).message);
+    return null;
+  }
+}
+
+async function consultarCuposNativo(manual: boolean): Promise<CuposLeidos | null> {
+  const ahora = Date.now();
+  const tsS = Math.round(ahora / 1000);
+  // Las fuentes lentas (agy y cada cuenta extra) se releen cada TTL_LENTO_MS, o a pedido; si no, queda lo último bueno.
+  const toca = manual || ahora - ultimoLentoMs >= TTL_LENTO_MS;
+  if (toca) ultimoLentoMs = ahora;
+  const suscripciones: SuscripcionCupo[] = [];
+
+  // 1. Cuentas adicionales de Claude: su propio get_usage (con CLAUDE_CONFIG_DIR de la cuenta).
+  for (const c of cuentasExtra()) {
+    const previa = lentos.get(c.id);
+    if (!toca && previa) {
+      suscripciones.push(previa);
+      continue;
+    }
+    if (c.proveedor !== "claude") {
+      suscripciones.push(filaDeCuenta(c, null, tsS));
+      continue;
+    }
+    const lectura = await usoDeCuenta(c.dir);
+    if (lectura) {
+      const fila = filaDeCuenta(c, lectura, tsS);
+      lentos.set(c.id, fila);
+      suscripciones.push(fila);
+    } else {
+      // Sin lectura nueva: vale lo último bueno (con su ts viejo, la barra lo marca); si nunca hubo, sin lectura.
+      suscripciones.push(previa ?? filaDeCuenta(c, null, tsS));
+    }
+  }
+
+  // 2. Google / Gemini desde agy /quota. En el agy de Windows `-p /quota` no es un comando: corre un turno del modelo
+  // (2 a 18 mil tokens por lectura) y no trae grupos. Por eso sólo a pedido ("Actualizar límites"), nunca solo.
+  const previaG = lentos.get("google");
+  if (!manual && previaG) {
+    suscripciones.push(previaG);
+  } else if (!manual) {
+    suscripciones.push({ id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
+  } else {
+    const g = await googleDeAgy(tsS);
+    if (g) {
+      lentos.set("google", g);
+      suscripciones.push(g);
+    } else {
+      suscripciones.push(previaG ?? { id: "google", nombre: "Gemini", proveedor: "google", cuenta: "google", ts: tsS, sinLectura: true, ventanas: [{ id: "5h", pct: null, vuelve: null }, { id: "7d", pct: null, vuelve: null }] });
+    }
   }
 
   if (suscripciones.length === 0) return null;
@@ -320,42 +449,52 @@ async function consultarCuposNativo(): Promise<CuposLeidos | null> {
   };
 }
 
-async function consultarCupos(): Promise<CuposLeidos | null> {
+async function consultarCupos(manual: boolean): Promise<CuposLeidos | null> {
   if (modoAisladoSinCupos()) return null;
   try {
     const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;
     const bin = resolverBinario("reparto", "HILOS_REPARTO", process.env, homedir());
     const { stdout } = await execFileP(bin, ["--cupos", "--json"], { env, timeout: 6000, maxBuffer: 512 * 1024 });
     const parsed = parsearCuposReparto(stdout, Date.now());
-    if (parsed) return parsed;
-  } catch {
-    /* sin reparto: usa el consultor nativo */
+    if (parsed) {
+      avisados.delete("reparto");
+      return parsed;
+    }
+    avisarUna("reparto", "reparto --cupos --json no trajo el contrato version 1: se leen las cuentas por la app");
+  } catch (e) {
+    avisarUna("reparto", "reparto --cupos no anduvo (" + (e as Error).message + "): se leen las cuentas por la app");
   }
-  return consultarCuposNativo();
+  return consultarCuposNativo(manual);
 }
 
 /** Las suscripciones sin la hora de la lectura: lo que decide si hay algo nuevo que avisar. */
 const huella = (c: CuposLeidos | null): string => JSON.stringify(c ? { claude: c.claude, n: c.claudeNombre, s: c.suscripciones.map((x) => ({ ...x, ts: 0 })) } : null);
 
-/** Relee `reparto` si venció el TTL (o `forzar`); avisa a los oyentes si algo cambió. Lo que falla deja la última lectura. */
-export function refrescarCupos(forzar = false): Promise<CuposLeidos | null> {
+/**
+ * Relee si venció el TTL (o forzar); avisa a los oyentes si algo cambió. forzar true salta el TTL
+ * de 60 s de reparto, pero las fuentes lentas (agy, cuentas extra) sólo se releen a pedido: "manual".
+ * Lo que falla deja la última lectura buena (su ts es el de esa lectura).
+ */
+export function refrescarCupos(forzar: boolean | "manual" = false): Promise<CuposLeidos | null> {
   if (modoAisladoSinCupos()) return Promise.resolve(null);
   const ahora = Date.now();
   if (!forzar && ultimoIntentoMs > 0 && ahora - ultimoIntentoMs < TTL_CUPOS_MS) return Promise.resolve(cacheCupos);
   if (enVuelo) return enVuelo;
   ultimoIntentoMs = ahora;
-  enVuelo = consultarCupos()
+  enVuelo = consultarCupos(forzar === "manual")
     .then((res) => {
       enVuelo = null;
       if (res) {
+        avisados.delete("refresco");
         const cambio = huella(cacheCupos) !== huella(res);
         cacheCupos = res;
         if (cambio) notificarCupos();
       }
       return cacheCupos;
     })
-    .catch(() => {
+    .catch((e: unknown) => {
       enVuelo = null;
+      avisarUna("refresco", "cupos: el refresco falló (" + (e as Error).message + "); queda la última lectura buena del " + new Date(cacheCupos?.ts ?? 0).toISOString());
       return cacheCupos;
     });
   return enVuelo;

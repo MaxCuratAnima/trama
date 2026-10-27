@@ -87,9 +87,13 @@ export function guardarEspejo(entrada: string, ctx: ContextoStatusline): Record<
       let ultima: unknown = null;
       try {
         ultima = JSON.parse(readFileSync(archivo, "utf8").trimEnd().split("\n").pop() ?? "null");
-      } catch {}
+      } catch {
+        // sin historial todavía (o la última línea quedó a medias): se escribe la fila igual
+      }
       if (sinTs(fila) !== sinTs(ultima)) appendFileSync(archivo, JSON.stringify(fila) + "\n");
-    } catch {}
+    } catch (e) {
+      console.error(`[hook-statusline] no pude anotar el historial: ${(e as Error).message}`);
+    }
   }
   return r.espejo;
 }
@@ -104,7 +108,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const entrada = await leerStdin();
   try {
     guardarEspejo(entrada, { plataforma: process.platform, env: process.env as Env, home: os.homedir(), ahora: () => Date.now() / 1000 });
-  } catch {}
+  } catch (e) {
+    console.error(`[hook-statusline] no pude guardar el espejo: ${(e as Error).message}`);
+  }
   const [bin, ...args] = process.argv.slice(2);
   if (bin) {
     const c = comandoEjecutable(bin, args, process.platform, process.env);

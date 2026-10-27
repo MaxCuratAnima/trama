@@ -175,7 +175,7 @@ function guardiaDocker(cmd: string, entrada: unknown, env: Env): string | null {
   const dir = env.TRAMA_GUARD_DIR;
   const guard = dir ? caminos(process.platform).join(dir, "docker-guard.py") : "";
   if (!guard || !existsSync(guard)) return null;
-  const r = spawnSync(env.TRAMA_PYTHON || "python3", ["-I", guard], { input: JSON.stringify(entrada), encoding: "utf8", timeout: 20000, windowsHide: true });
+  const r = spawnSync(env.TRAMA_PYTHON || (esWindows(process.platform) ? "python" : "python3"), ["-I", guard], { input: JSON.stringify(entrada), encoding: "utf8", timeout: 20000, windowsHide: true });
   return r.status === 2 ? r.stderr || "GUARD: docker-guard bloqueó el comando." : null;
 }
 

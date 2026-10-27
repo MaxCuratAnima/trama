@@ -31,7 +31,9 @@ export type Ejecutar = (bin: string, args: string[], o: { timeout: number }) => 
  * El motor corre bajo systemd sin sesión gráfica, así que su entorno no trae `WAYLAND_DISPLAY` ni `DISPLAY`: se
  * completan con lo que hay en `$XDG_RUNTIME_DIR` (socket `wayland-N`) o en `/tmp/.X11-unix` (X sólo si no hay Wayland).
  */
-export function entornoGrafico(env: NodeJS.ProcessEnv = process.env, uid: number = process.getuid?.() ?? 1000, x11 = "/tmp/.X11-unix"): NodeJS.ProcessEnv {
+export function entornoGrafico(env: NodeJS.ProcessEnv = process.env, uid: number = process.getuid?.() ?? 1000, x11 = "/tmp/.X11-unix", plataforma: NodeJS.Platform = process.platform): NodeJS.ProcessEnv {
+  // Windows no tiene Wayland ni X11: el entorno queda como está.
+  if (plataforma === "win32") return { ...env };
   const salida = { ...env };
   const lista = (d: string) => {
     try {

@@ -8,7 +8,9 @@ export type EventoPa = { tipo: string; id: string; proyecto: string; ts: number;
 /** Las líneas buenas de un trozo de `eventos.jsonl` (lo que no es JSON o no trae id y tipo se descarta). */
 export function eventosDe(texto: string): EventoPa[] {
   const out: EventoPa[] = [];
-  for (const linea of texto.split("\n")) {
+  const lineas = texto.split("\n");
+  for (let i = 0; i < lineas.length; i++) {
+    const linea = lineas[i];
     try {
       const e = JSON.parse(linea);
       if (typeof e?.id === "string" && typeof e.tipo === "string")
@@ -20,7 +22,10 @@ export function eventosDe(texto: string): EventoPa[] {
           // Hoy `pa` no lo escribe en el evento: lo completa el main (`jefeDeCorrida`). Si `pa` lo trae, vale.
           ...(typeof e.jefe_id === "string" && e.jefe_id ? { jefe_id: e.jefe_id, jefe: typeof e.jefe === "string" ? e.jefe : null } : {}),
         });
-    } catch {}
+    } catch (e) {
+      // una línea a medias (la última, mientras `pa` escribe) es normal; una rota de verdad se avisa
+      if (linea.trim() && i < lineas.length - 1) console.error(`[eventos-pa] línea ilegible en eventos.jsonl: ${(e as Error).message}`);
+    }
   }
   return out;
 }

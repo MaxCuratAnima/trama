@@ -156,6 +156,8 @@ export function armarRemoto(o: OpcionesArmar) {
   let calma: NodeJS.Timeout | null = null;
   function monitor() {
     if (hijo) return;
+    // Windows no tiene `ip` (ni `ip monitor`): queda el respaldo periódico. `HILOS_IP` (las pruebas) lo fuerza.
+    if (process.platform === "win32" && !process.env.HILOS_IP) return;
     let p: ChildProcess;
     try {
       p = spawn(process.env.HILOS_IP || "ip", ["-o", "monitor", "address", "dev", "tailscale0"], { stdio: ["ignore", "pipe", "ignore"] });

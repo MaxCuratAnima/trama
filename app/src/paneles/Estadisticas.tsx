@@ -409,7 +409,7 @@ function PorProyecto({ partes }: { partes: ReturnType<typeof resumir>["porProyec
   const filas = partes.slice(0, TOPE);
   const resto = partes.slice(TOPE);
   if (resto.length) {
-    const modelos = { Opus: 0, Sonnet: 0, Fable: 0, otro: 0 };
+    const modelos = { Opus: 0, Sonnet: 0, Fable: 0, Google: 0, otro: 0 };
     for (const p of resto) for (const f of FAMILIAS) modelos[f] += p.modelos[f];
     filas.push({
       nombre: t("est.otros", { n: resto.length }),

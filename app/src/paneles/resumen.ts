@@ -9,17 +9,23 @@
 //   - la semana de la cuota (la de Anthropic: termina en `sem_reset`).
 import type { Corrida, Muestra } from "../datos/paneles";
 import { coma, locale } from "../i18n/index.ts";
+import { parsearModelo } from "../datos/modelo-id.ts";
 
 const DIA = 86400;
 
-export type Familia = "Opus" | "Sonnet" | "Fable" | "otro";
-export const FAMILIAS: Familia[] = ["Opus", "Sonnet", "Fable", "otro"];
+export type Familia = "Opus" | "Sonnet" | "Fable" | "Google" | "otro";
+export const FAMILIAS: Familia[] = ["Opus", "Sonnet", "Fable", "Google", "otro"];
 
-/** "claude-opus-5-5" → "Opus"; lo que no se reconoce va a "otro" (no se pierde). */
+/**
+ * "claude-opus-5-5" → "Opus"; lo que no se reconoce va a "otro" (no se pierde). Manda el proveedor
+ * (src/datos/modelo-id.ts): lo que sirve Google, aunque sea un Claude ("agy:claude-opus-5-5"), es "Google" y no suma en Opus.
+ */
 export function familia(id: string): Familia {
-  const f = nombreModelo(id).split(" ")[0];
-  return f === "Opus" || f === "Sonnet" || f === "Fable" ? f : "otro";
+  const p = parsearModelo(id);
+  if (p.proveedor === "google") return "Google";
+  return p.proveedor === "anthropic" && (p.linea === "opus" || p.linea === "sonnet" || p.linea === "fable") ? FAMILIA_DE[p.linea] : "otro";
 }
+const FAMILIA_DE = { opus: "Opus", sonnet: "Sonnet", fable: "Fable" } as const;
 
 export type Suma = { n: number; tokens: number };
 export type Dia = Suma & { ts: number };
@@ -104,7 +110,7 @@ export function resumir(todas: Corrida[], dias: number, ahora: number, desde: nu
     m.tokens += c.tokens;
     let p = proyectos.get(c.proyecto);
     if (!p)
-      proyectos.set(c.proyecto, (p = { nombre: c.proyecto, n: 0, tokens: 0, modelos: { Opus: 0, Sonnet: 0, Fable: 0, otro: 0 } }));
+      proyectos.set(c.proyecto, (p = { nombre: c.proyecto, n: 0, tokens: 0, modelos: { Opus: 0, Sonnet: 0, Fable: 0, Google: 0, otro: 0 } }));
     p.n++;
     p.tokens += c.tokens;
     p.modelos[f] += c.tokens;
@@ -244,9 +250,7 @@ export function tokens(n: number) {
   return String(Math.round(n));
 }
 
-/** "claude-opus-5-5" → "Opus 5.5". Lo que no se reconoce queda como vino. */
+/** "claude-opus-5-5" → "Opus 5.5"; lo que sirve Google lo dice ("Claude Opus 5.5 · por Google"). Lo que no se reconoce queda como vino. */
 export function nombreModelo(id: string) {
-  const m = /^(?:claude-)?([a-z]+)-(\d+)(?:-(\d{1,2}))?(?:-\d{6,})?$/.exec(id);
-  if (!m) return id;
-  return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ""}`;
+  return parsearModelo(id).etiqueta || id;
 }

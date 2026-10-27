@@ -301,6 +301,18 @@ export function enviado(sid: string, texto: string, base: number, imagenes?: Men
   });
 }
 
+/**
+ * Un mensaje forzado a mitad de un turno (el líder lo lee en su próximo paso): entra a la tanda como lo propio, sin tocar
+ * el contador de tokens ni lo que está haciendo el líder. El turno sigue siendo el mismo, y cuenta desde este mensaje.
+ */
+export function inyectado(sid: string, texto: string, imagenes?: Mensaje["imagenes"]) {
+  cambiar(sid, (e) => {
+    const yo: Mensaje = { i: 0, rol: "user", texto, herramientas: [], ts: new Date().toISOString(), modelo: null, ...(imagenes?.length ? { imagenes } : {}) };
+    const tanda = [...e.tanda, yo].map((m, i) => ({ ...m, i }));
+    return { ...e, tanda, turno: tanda.length - 1, ocupado: true };
+  });
+}
+
 /** El envío falló: se saca lo último que mandó el usuario. */
 export function fallo(sid: string) {
   cambiar(sid, (e) => {
@@ -340,6 +352,8 @@ export const cola = {
   suscribir: espejo.suscribir,
   encolar: (sid: string, x: Omit<Encolado, "id">) => fuente.liderEncolar(sid, x),
   quitar: (sid: string, id: number) => fuente.liderColaQuitar(sid, id),
+  /** Forzar: lo que espera en la cola sale ya, y el líder lo lee en su próximo paso. */
+  inyectar: (sid: string, x: Omit<Encolado, "id">) => fuente.liderInyectar(sid, { texto: x.texto, modelo: x.modelo, effort: x.effort, ...(x.imagenes ? { imagenes: x.imagenes } : {}) }),
   /** Ahora: reintenta lo que no salió y, con `cortar`, corta lo que hace el de la terminal. */
   ya: (sid: string, cortar: boolean) => fuente.liderColaYa(sid, cortar),
 };

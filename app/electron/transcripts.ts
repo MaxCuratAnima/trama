@@ -240,6 +240,15 @@ export class Sesion {
     for (const l of this.subagentes.values()) sumar(r, l.lectura.reciente);
     return r;
   }
+
+  /** Lo de `reciente`, partido: la conversación principal y lo que gastaron sus subagentes (que trabajan como workers). */
+  recientePartido(): { propio: Record<string, Suma>; subagentes: Record<string, Suma> } {
+    const propio: Record<string, Suma> = {};
+    const subagentes: Record<string, Suma> = {};
+    sumar(propio, this.principal.lectura.reciente);
+    for (const l of this.subagentes.values()) sumar(subagentes, l.lectura.reciente);
+    return { propio, subagentes };
+  }
 }
 
 /** Los transcripts de primer nivel de `projects/` que se tocaron de `desde` en adelante. */
@@ -278,4 +287,24 @@ export function medianoche(ahora = Date.now()): number {
   const d = new Date(ahora);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
+}
+
+/** Lo mismo para una carpeta con `<sid>.jsonl` sueltos (los líderes de Gemini: `$HILOS_STATE/gemini`). */
+export async function transcriptsPlanasDesde(carpeta: string, desde: number): Promise<string[]> {
+  let nombres: string[] = [];
+  try {
+    nombres = await readdir(carpeta);
+  } catch {
+    return [];
+  }
+  const rutas: string[] = [];
+  for (const n of nombres) {
+    if (!n.endsWith(".jsonl")) continue;
+    const ruta = path.join(carpeta, n);
+    try {
+      const st = await lstat(ruta);
+      if (st.isFile() && st.mtimeMs >= desde) rutas.push(ruta);
+    } catch {}
+  }
+  return rutas.sort();
 }

@@ -13,6 +13,7 @@ import { t, textoMain } from "../i18n";
 import { comoSettle, GENERAL, type ComandoClaude, type Estilos, type EventoLider, type EventoPa, type Hilo, type Leidos, type Mensaje, type Nombres, type Orden, type RespuestaHilo, type RespuestaHilos, type RespuestaLideres, type Retomado, retomadoDe, type Statusline, type Traido, traidoDe, type Tokens, type Uso } from "./contrato";
 import { hiloDePa } from "./paHilo";
 import { listaValida, resultadoValido, type ListaCuentas, type PerfilCuenta, type ProveedorCuenta, type ResultadoCuenta } from "./cuentas";
+import { extensionesValidas, importarValido, type Extensiones, type ResultadoImportar } from "./extensiones";
 import { ordenDe } from "../barra/orden";
 import { consumoDe, consumoFijo, type Consumo, type Pedido } from "./consumo";
 import { cambioDe, vistaDe, type CambioPasos, type VistaPasos } from "./pasos";
@@ -171,6 +172,8 @@ export interface Fuente {
    */
   liderEncolar(sid: string, x: Omit<Encolado, "id">): Promise<void>;
   liderColaQuitar(sid: string, id: number): void;
+  /** Forzar: el mensaje va ya, a mitad del turno (lo lee en el próximo paso). Rechaza si no se puede (Gemini, sin proceso…). */
+  liderInyectar(sid: string, x: EnvioLider): Promise<void>;
   /** Ahora: reintenta lo que no había salido y, con `cortar`, corta lo que hace el de la terminal. */
   liderColaYa(sid: string, cortar: boolean): void;
   /** Las colas con algo (al abrir la vista). */
@@ -236,6 +239,10 @@ export interface Fuente {
   quitarCuenta(id: string, borrarCredenciales: boolean): Promise<ResultadoCuenta>;
   /** El inicio de sesión de esa cuenta en una terminal de la PC; vuelve cuando la persona termina. */
   loginCuenta(id: string): Promise<ResultadoCuenta>;
+  /** Skills, agentes, plugins y servidores MCP de la carpeta de config de esa cuenta de Claude (`"claude"` = la de siempre); `null`: no existe o no se pudo leer. */
+  extensiones(cuenta: string): Promise<Extensiones | null>;
+  /** Copia a esa cuenta las skills, agentes y MCP de la de siempre que no tiene (no pisa nada). */
+  importarExtensiones(cuenta: string): Promise<ResultadoImportar>;
   /** Relanzar con la versión nueva los líderes que no están respondiendo. */
   reiniciarLideres(): Promise<{ reiniciados: number; ocupados: number }>;
 }
@@ -699,6 +706,61 @@ function cuentasFijas() {
 }
 
 /**
+ * Las extensiones con fixtures: la cuenta de siempre tiene de todo y las agregadas arrancan con una skill y un servidor; "Importar" suma
+ * en memoria lo que falta (sin pisar), igual que el main.
+ */
+function extensionesFijas() {
+  const item = (nombre: string, descripcion: string, origen: string, modelo: string | null = null) => ({ nombre, descripcion, origen, modelo });
+  const base: Extensiones = {
+    version: 1,
+    cuenta: "claude",
+    defecto: true,
+    skills: [
+      item("mapa-herramientas", "Qué agente, skill, MCP y script usar para cada tarea.", "skills"),
+      item("texturizar-painter", "Cómo manejar Substance Painter por el MCP, sin mouse ni pantalla.", "skills"),
+      item("escribir-humano", "Para que los textos suenen a una persona y no a una IA.", "skills"),
+    ],
+    agentes: [item("explorador", "Busca archivos en varias carpetas y devuelve sólo las rutas.", "agents", "haiku"), item("verificador", "Segunda mirada independiente sobre lo visual.", "agents", "opus")],
+    plugins: [{ nombre: "panel-en-vivo", mercado: "local", version: "1.2.0", activo: true, origen: "installed_plugins.json" }],
+    mcp: [
+      { nombre: "unityVRC", tipo: "stdio", destino: "node", origen: ".claude.json" },
+      { nombre: "context7", tipo: "http", destino: "mcp.context7.com", origen: ".claude.json" },
+    ],
+  };
+  const propias = new Map<string, Extensiones>();
+  const de = (id: string): Extensiones | null => {
+    if (id === "claude") return base;
+    if (MODO.variante === "cuentas-sin" || id !== "max-curat") return null;
+    let e = propias.get(id);
+    if (!e) {
+      e = { version: 1, cuenta: id, defecto: false, skills: [base.skills[0]], agentes: [], plugins: [], mcp: [base.mcp[1]] };
+      propias.set(id, e);
+    }
+    return e;
+  };
+  const sumar = <T extends { nombre: string }>(a: T[], b: T[]): [T[], number] => {
+    const nuevos = b.filter((x) => !a.some((y) => y.nombre === x.nombre));
+    return [[...a, ...nuevos], nuevos.length];
+  };
+  return {
+    async extensiones(cuenta: string): Promise<Extensiones | null> {
+      const e = de(cuenta);
+      return e ? { ...e } : null;
+    },
+    async importarExtensiones(cuenta: string): Promise<ResultadoImportar> {
+      const e = de(cuenta);
+      if (!e || e.defecto) return { ok: false, error: "main.extMisma" };
+      await new Promise((r) => setTimeout(r, 500));
+      const [skills, ns] = sumar(e.skills, base.skills);
+      const [agentes, na] = sumar(e.agentes, base.agentes);
+      const [mcp, nm] = sumar(e.mcp, base.mcp);
+      propias.set(cuenta, { ...e, skills, agentes, mcp });
+      return { ok: true, skills: ns, agentes: na, mcp: nm, omitidos: base.skills.length + base.agentes.length + base.mcp.length - ns - na - nm };
+    },
+  };
+}
+
+/**
  * El `usage` del líder con fixtures: lo que pesa su conversación contra el
  * umbral de 200 mil. Las capturas del anillo (docs/estado/B16/) lo fuerzan a
  * 30, 75 y 95 %.
@@ -981,6 +1043,7 @@ const fija: Fuente = {
     };
   },
   ...cuentasFijas(),
+  ...extensionesFijas(),
   alCambiarAvisoAgy: () => () => {},
   descartarAvisoAgy() {},
   async actualizarAgy() {
@@ -1244,6 +1307,9 @@ const fija: Fuente = {
   async liderEncolar(sid, x) {
     colaFija().encolar(sid, x);
   },
+  async liderInyectar(sid, x) {
+    responderFijo(sid, x.texto, x.modelo, x.imagenes);
+  },
   liderColaQuitar(sid, id) {
     colaFija().quitar(sid, id);
   },
@@ -1427,6 +1493,12 @@ const conPa = (m: NonNullable<typeof main>): Fuente => ({
   },
   async loginCuenta(id) {
     return resultadoValido(await m.cuentas.login(id).catch(() => null));
+  },
+  async extensiones(cuenta) {
+    return extensionesValidas(await m.extensiones.leer(cuenta).catch(() => null));
+  },
+  async importarExtensiones(cuenta) {
+    return importarValido(await m.extensiones.importar(cuenta).catch(() => null));
   },
   alCambiarAvisoAgy(fn) {
     return m.agy.alCambiar((a) => fn(avisoValido(a)));
@@ -1773,6 +1845,11 @@ const conPa = (m: NonNullable<typeof main>): Fuente => ({
   },
   async liderEncolar(sid, x) {
     await m.lider.encolar({ sid, ...x }).catch((e) => {
+      throw new Error(mensaje(e));
+    });
+  },
+  async liderInyectar(sid, x) {
+    await m.lider.inyectar({ sid, ...x }).catch((e) => {
       throw new Error(mensaje(e));
     });
   },

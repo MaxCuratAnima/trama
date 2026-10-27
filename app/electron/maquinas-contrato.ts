@@ -42,6 +42,7 @@ export const RUTAS: Readonly<Record<string, Ruta>> = {
   "lider:encolar": "maquina",
   "lider:colaQuitar": "maquina",
   "lider:colaYa": "maquina",
+  "lider:inyectar": "maquina",
   "pa:cerrar": "maquina",
   "pa:hilo": "maquina",
   "pa:parar": "maquina",
@@ -151,6 +152,9 @@ export const RUTAS: Readonly<Record<string, Ruta>> = {
   "cuentas:renombrar": "local",
   "cuentas:quitar": "local",
   "cuentas:login": "local",
+  // Ajustes > Extensiones: la carpeta de config de Claude de esta máquina (skills, agentes, plugins, MCP).
+  "extensiones:leer": "local",
+  "extensiones:importar": "local",
   "setup:descartar": "local",
   // La pantalla de la PC (ventana-canales.ts, bench.ts): no existen en un motor sin ventana.
   "app:salir": "local",

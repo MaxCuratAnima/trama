@@ -18,7 +18,9 @@ registerHooks({
   },
 });
 
-const { comandoArrancar, comandoInstalar, familiaDe, leerEntornoOllama, mejorGpu, parsearNvidia, SCRIPT_OFICIAL } = await import("../electron/ollama-entorno.ts");
+const { comandoArrancar, comandoInstalar, familiaDe, leerEntornoOllama: leerEntorno, mejorGpu, parsearNvidia, SCRIPT_OFICIAL } = await import("../electron/ollama-entorno.ts");
+// Estas pruebas simulan Linux (sysfs, /etc/os-release): la plataforma va fija, no la de quien corre el test.
+const leerEntornoOllama = (d: Deps) => leerEntorno(d, "linux");
 type Deps = import("../electron/locales.ts").Deps;
 
 const ARCH = 'NAME="CachyOS Linux"\nPRETTY_NAME="CachyOS"\nID=cachyos\nID_LIKE=arch\n';
@@ -146,4 +148,12 @@ test("HILOS_OLLAMA manda: apuntando a un archivo que no está, no hay Ollama aun
 test("una tarjeta NVIDIA vista pero sin nvidia-smi sigue figurando, sin nombre ni memoria", async () => {
   const e = await leerEntornoOllama(deps({ archivos: { "/etc/os-release": ARCH, "/sys/class/drm/card0/device/vendor": "0x10de\n" } }));
   assert.deepEqual(e.gpu, { fabricante: "nvidia", nombre: null, vramMiB: null });
+});
+
+test("Windows: se instala con winget, se arranca con ollama serve y no se mira systemd ni la distro", async () => {
+  const e = await leerEntorno(deps({ archivos: { "/etc/os-release": UBUNTU } }), "win32");
+  assert.equal(e.distro.id, "windows");
+  assert.equal(e.instalar.via, "winget");
+  assert.equal(e.arrancar.via, "serve");
+  assert.equal(e.instalado, false);
 });

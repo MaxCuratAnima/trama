@@ -4,7 +4,7 @@
 import type { Clave, ClaveSola } from "../i18n";
 import { TIPOS } from "../../electron/modelos-tipos";
 
-export const CATS = ["cuentas", "modelos", "cupos", "locales", "celular", "general"] as const;
+export const CATS = ["cuentas", "extensiones", "modelos", "cupos", "locales", "celular", "general"] as const;
 export type CatId = (typeof CATS)[number];
 
 export const esCat = (x: unknown): x is CatId => typeof x === "string" && (CATS as readonly string[]).includes(x);
@@ -23,6 +23,12 @@ const tipoDe = (tipo: (typeof TIPOS)[number]): Item => ({
 export const ITEMS: readonly Item[] = [
   { cat: "cuentas", nombre: "ajustes.ctaClaude", que: "ajustes.ctaClaudeQue", sin: "anthropic login iniciar sesion cuenta conectar account sign in" },
   { cat: "cuentas", nombre: "ajustes.ctaGemini", que: "ajustes.ctaGeminiQue", sin: "google agy antigravity login iniciar sesion cuenta conectar account sign in" },
+  { cat: "extensiones", nombre: "ext.cuenta", que: "ext.cuentaQue", sin: "cuenta account mirar elegir ver claude" },
+  { cat: "extensiones", nombre: "ext.importar", que: "ext.importarQue", sin: "importar import copiar copy traer pasar cuenta account" },
+  { cat: "extensiones", nombre: "ext.skills", que: null, sin: "skills habilidades claude code carpeta folder extensiones" },
+  { cat: "extensiones", nombre: "ext.agentes", que: null, sin: "agentes agents subagentes subagents claude code modelo model" },
+  { cat: "extensiones", nombre: "ext.plugins", que: null, sin: "plugins marketplace mercado activos enabled extensiones" },
+  { cat: "extensiones", nombre: "ext.mcp", que: null, sin: "mcp servidores servers server model context protocol conectar herramientas tools" },
 
   { cat: "modelos", nombre: "ajustes.mdlLider", que: "ajustes.mdlLiderQue", sin: "lider leader jefe orquestador opus sonnet haiku fable esfuerzo effort" },
   { cat: "modelos", nombre: "ajustes.mdlTodo", que: "ajustes.mdlTodoQue", sin: "uno solo single un modelo todo one model suscripcion" },
@@ -185,7 +191,7 @@ export function deVariante(v: string | null | undefined): CatId | null {
   return null;
 }
 
-// --- Qué categorías existen en esta máquina (Celular sólo si el acceso es editable; Cuentas y Actualizaciones, sólo en el .exe) ---
+// --- Qué categorías existen en esta máquina: sólo Celular depende de algo (que el acceso sea editable). Cuentas siempre está: sin el comando `cuentas` la sección lo dice. ---
 let presentes: Partial<Record<CatId, boolean>> = {};
 export const presentesDe = () => presentes;
 /** Una sección dice si existe en esta máquina (llega tarde: se pregunta al main). */

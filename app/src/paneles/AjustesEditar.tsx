@@ -279,6 +279,7 @@ export function Celular({ Dato }: { Dato: FilaDato }) {
   return (
     <Cat id="celular">
     <section className="pn-sec pn-edita" ref={sec} data-celular>
+      <h2 className="pn-h">{t("ajustes.celular")}</h2>
       <EstadoEscucha activo={e.activo} url={escucha} />
       <div data-opc="ajustes.celGuia">
         <PasosCelular url={e.activo ? escucha : undefined} />
