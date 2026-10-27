@@ -11,25 +11,16 @@ import { armarBench } from "./bench.js";
 import { armarBandeja, type Bandeja } from "./bandeja.js";
 import { conPunto } from "./espera-aviso.js";
 import { crearTope } from "./bitacora.js";
-import { CODIGO_CERRADO, esconderAlCerrar, preguntarSalida } from "./cierre.js";
+import { esconderAlCerrar, preguntarSalida } from "./cierre.js";
 import { vigilarPagina, vigilarProceso } from "./contencion.js";
 import { abrirEnlace } from "./enlace.js";
-import { carpetaLocal, motorVivo, socketDe } from "./local.js";
-import { log, logAparte } from "./log.js";
+import { log } from "./log.js";
 import { ESTADO } from "./estado.js";
 import { baseConsulta, crearConsulta } from "./consulta.js";
-import { pedirSalida, pedirVista, ponerAnotadorDeVista, ponerEstadoEspera, ponerRecarga, ponerTextosBandeja, ponerVistas, ventanas } from "./ventana-canales.js";
-import type { Cliente } from "./ventana-cliente.js";
-import { acomodar, crearGuardadoVolver, guardarVolver, leerVolver, lugarDeVentana, type Ventana, type Volver } from "./volver.js";
+import { pedirSalida, pedirVista, ponerAnotadorDeVista, ponerEstadoEspera, ponerRecarga, ponerTextosBandeja, ponerVistas } from "./ventana-canales.js";
+import { crearGuardadoVolver, guardarVolver, leerVolver, type Ventana, type Volver } from "./volver.js";
 import { silencio } from "./log.js";
 import { enMarcha, marcar, type Corrida } from "./reinicio-marcas.js";
-import { esWindows } from "./plataforma.ts";
-
-// Wayland nativo SIEMPRE. Un cliente XWayland colgado puede congelar Hyprland
-// entero (pasó con webkit + GDK_BACKEND=x11); uno Wayland nativo colgado sólo
-// se cuelga a sí mismo.
-// (Windows no tiene Wayland ni ozone: ahí no se pasa.)
-if (!esWindows(process.platform)) app.commandLine.appendSwitch("ozone-platform", "wayland");
 
 // Sin GPU por default: con esta UI da los mismos fps (200 en HDMI-A-2) con menos
 // CPU, menos RAM y arranque más rápido (medido en B0b y otra vez en B1, ver
@@ -80,10 +71,8 @@ const aqui = import.meta.dirname;
 //                            (Ajustes); en bench y captura, prendidos (y sin rotar).
 //   HILOS_VISTA=todo|lideres la vista de la barra. Sin la variable: la de preferencias.json; en
 //                            bench y captura, todo.
-//   --escondida              (argumento) arranca sin mostrar la ventana: así la levanta la unidad de
-//                            systemd al iniciar la sesión. Abrirla desde el
-//                            lanzador la muestra.
-//   TRAMA_UNIDAD=1           lo pone la unidad: para reiniciarse alcanza con salir (Restart=always).
+//   --escondida              (argumento) arranca sin mostrar la ventana: así se levanta al iniciar la
+//                            sesión. Abrirla desde el lanzador la muestra.
 //   HILOS_BANDEJA=1          con HILOS_PERFIL (una trama residente de prueba) no hay ícono en la bandeja salvo que se pida:
 //                            la prueba no pone uno de más en la barra del usuario. HILOS_BANDEJA=0: ni la de siempre.
 //   HILOS_PERFIL=<carpeta>   otro `userData` (y otro candado de instancia única): una trama residente
@@ -99,20 +88,17 @@ const prueba = Number(process.env.HILOS_PRUEBA ?? 0);
 // Perfil aparte: que la prueba no comparta localStorage con la app que el usuario tiene abierta.
 if (prueba) app.setPath("userData", process.env.HILOS_PRUEBA_PERFIL ?? path.join(app.getPath("temp"), `hilos-prueba-${process.pid}`));
 else if (process.env.HILOS_PERFIL) app.setPath("userData", process.env.HILOS_PERFIL);
-// Bench y captura sin perfil propio: uno temporal, no el de la Trama del usuario (~/.config/hilos).
+// Bench y captura sin perfil propio: uno temporal, no el de la Trama del usuario.
 else if (guion || captura || png) {
   const perfil = path.join(app.getPath("temp"), `hilos-captura-${process.pid}`);
   app.setPath("userData", perfil);
   process.on("exit", () => rmSync(perfil, { recursive: true, force: true }));
 }
-// La unidad de systemd. Los líderes no la heredan: un `trama` corrido desde uno es el lanzador de siempre.
-const unidad = process.env.TRAMA_UNIDAD === "1";
-delete process.env.TRAMA_UNIDAD;
 const escondida = process.argv.includes("--escondida");
 /**
- * La ventana pedida a la vista aunque se arranque escondida: lo deja el lanzador cuando arranca la
- * unidad ("foco") y el reinicio que la tenía abierta ("foco" si lo tenía, si no "sin-foco"). Se gasta al leerlo, y uno viejo
- * (nadie lo gastó: p. ej. la unidad no llegó a arrancar) no vale: no abre la ventana al otro día.
+ * La ventana pedida a la vista aunque se arranque escondida: lo deja el lanzador ("foco") y el reinicio que la
+ * tenía abierta ("foco" si lo tenía, si no "sin-foco"). Se gasta al leerlo, y uno viejo
+ * (nadie lo gastó) no vale: no abre la ventana al otro día.
  */
 const MOSTRAR = path.join(ESTADO, "mostrar");
 const MOSTRAR_VALE_MS = 2 * 60_000;
@@ -130,7 +116,6 @@ function pedida(): "foco" | "sin-foco" | null {
 /** Cómo estaba la trama que se fue, sea cual sea la forma (electron/volver.ts): la ventana, y lo que cada vista tenía abierto. No se gasta al leerlo. */
 const VOLVER = path.join(ESTADO, "volver.json");
 let vuelta: Volver | null = null;
-const LUGAR_VALE_MS = 2 * 60_000;
 /** Lo mantiene al día mientras corre (sólo la residente: una captura o una prueba no dejan rastro). */
 let guardadoVolver: ReturnType<typeof crearGuardadoVolver> | null = null;
 const query: Record<string, string> = {};
@@ -154,12 +139,8 @@ const CAPTURA_REAL_MS = 60_000;
 /** La query con que carga el frontend (la ventana, y quien entra por red): los modos y lo de preferencias.json. */
 const consulta = crearConsulta(query, !!(guion || captura || png));
 
-/** El motor al que esta ventana le pide todo (modo cliente), o `null`: todo en uno. */
-let cliente: Cliente | null = null;
 /** Esta ventana nace de un reinicio por un build nuevo: su primera carga lleva el cartel "Actualizando Trama…" desde el primer cuadro (src/actualizando.ts). */
 let llegaDeReinicio = false;
-/** Anotar cómo estaba la ventana que se va (`anotarVolver`), que sigue en marcha mientras el motor cierra a los líderes. */
-let guardando: Promise<void> = Promise.resolve();
 
 /** Carga el frontend en la ventana; `extra` va en la query (`cartel=<detalle>`: sólo el cartel de error, sin la app). */
 function cargar(ventana: BrowserWindow, extra: Record<string, string> = {}) {
@@ -169,12 +150,12 @@ function cargar(ventana: BrowserWindow, extra: Record<string, string> = {}) {
   else void ventana.loadFile(path.join(aqui, "..", "dist", "index.html"), { query: q });
 }
 
-/** Cómo está la ventana ahora, para `volver.json` (el escritorio y el lugar sólo los anota el reinicio que pide el usuario: hyprctl tarda). */
+/** Cómo está la ventana ahora, para `volver.json`. */
 function ventanaAhora(): Ventana | null {
   const v = BrowserWindow.getAllWindows()[0];
   if (!v || v.isDestroyed()) return null;
   const [ancho, alto] = v.getSize();
-  return { ancho, alto, visible: v.isVisible(), foco: v.isFocused(), lugar: null };
+  return { ancho, alto, visible: v.isVisible(), foco: v.isFocused() };
 }
 
 function crearVentana() {
@@ -185,8 +166,7 @@ function crearVentana() {
   const visible = !png && !prueba && (!(residente && escondida) || mostrar !== null);
   const ventana = new BrowserWindow({
     title: "trama",
-    // La marca (public/favicon.svg, en PNG: Electron no abre SVG). En Wayland el ícono de la
-    // ventana lo pone el .desktop del lanzador; esto cubre lo demás.
+    // La marca (public/favicon.svg, en PNG: Electron no abre SVG).
     icon: path.join(aqui, "..", "public", "icon.png"),
     width: ancho,
     height: alto,
@@ -213,14 +193,10 @@ function crearVentana() {
 
   // Volvía de un reinicio con la ventana abierta pero sin el foco: vuelve a la vista sin pedirlo.
   if (visible && mostrar === "sin-foco") ventana.once("ready-to-show", () => ventana.showInactive());
-  // Y al escritorio (y al lugar, si flotaba) donde estaba: Hyprland la abre en el activo.
-  // (El lugar sólo lo anota el reinicio del usuario: uno de hace rato ya no es de ese reinicio.)
-  const lugar = visible && vuelta && Date.now() - vuelta.cuando < LUGAR_VALE_MS ? vuelta.ventana?.lugar : null;
-  if (lugar) ventana.once("ready-to-show", () => void acomodar(process.pid, lugar));
 
   if (guardadoVolver) ventana.on("resize", guardadoVolver.tocar);
 
-  // Super+Q (el cierre de ventana de Hyprland) y el ✕ llegan acá: la ventana se esconde y trama sigue viva, con su ícono en la bandeja.
+  // El ✕ (y Alt+F4) llegan acá: la ventana se esconde y trama sigue viva, con su ícono en la bandeja.
   if (residente) ventana.on("close", esconderAlCerrar(ventana, () => saliendo));
 
   // Una página que carga con el motor caído se entera ya (el aviso de la caída le llegó a la anterior).
@@ -273,9 +249,9 @@ async function anotarVolver() {
     const visible = !!v?.isVisible();
     const foco = !!v?.isFocused();
     const [ancho, alto] = v?.getSize() ?? [0, 0];
-    const [vista, lugar] = await Promise.all([pedirVista(), visible ? lugarDeVentana(process.pid) : null]);
-    guardarVolver(VOLVER, { ventana: v ? { ancho, alto, visible, foco, lugar } : null, vistas: vista === null ? {} : { ventana: vista } });
-    // Lo que sigue (salir) no le pisa el archivo: ése lleva el escritorio y el lugar.
+    const vista = await pedirVista();
+    guardarVolver(VOLVER, { ventana: v ? { ancho, alto, visible, foco } : null, vistas: vista === null ? {} : { ventana: vista } });
+    // Lo que sigue (salir) no le pisa el archivo.
     guardadoVolver?.congelar();
     if (visible) writeFileSync(MOSTRAR, foco ? "foco\n" : "sin-foco\n");
   } catch (e) {
@@ -283,13 +259,8 @@ async function anotarVolver() {
   }
 }
 
-/**
- * Se va este proceso tras "Cerrar del todo" (Ctrl+Q, la bandeja). Bajo la unidad sale con `CODIGO_CERRADO` (en `RestartPreventExitStatus`):
- * Cerrar del todo no la levanta de nuevo a los 0,5 s; vuelve con `trama` (el lanzador la arranca) o con la próxima sesión.
- */
+/** Se va este proceso tras "Cerrar del todo" (Ctrl+Q, la bandeja); vuelve con `trama` (el lanzador la arranca) o con la próxima sesión. */
 function irseDelTodo() {
-  // `process.exitCode` no llega: Electron sale con 0 al terminar `app.quit()`; el código se pone cuando ya terminó de cerrar.
-  if (unidad) app.once("quit", () => process.exit(CODIGO_CERRADO));
   app.quit();
 }
 
@@ -324,35 +295,13 @@ function armarLaBandeja() {
   ponerEstadoEspera((e) => bandeja?.espera(e));
 }
 
-/**
- * Tras un reinicio que hizo el motor: espera a que conteste el motor NUEVO (otro pid que el que se fue) mientras Electron arranca,
- * en vez de decidir cómo arrancar con un motor que se está yendo. `false` si no aparece (entonces arranca como siempre).
- */
-async function esperarMotorNuevo(viejo: number, sock: string, ms = 20_000): Promise<boolean> {
-  const dueno = path.join(ESTADO, "dueno");
-  const t0 = Date.now();
-  while (Date.now() - t0 < ms) {
-    let pid: unknown;
-    try {
-      pid = JSON.parse(readFileSync(dueno, "utf8"))?.pid;
-    } catch {}
-    if (pid !== viejo && (await motorVivo(dueno, sock))) return true;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  log.escribir("aviso", "main", `reinicio: el motor nuevo no apareció en ${ms} ms`);
-  return false;
-}
-
-/** Sale este proceso y vuelve otro con el build nuevo: bajo la unidad alcanza con salir (Restart=always la levanta); suelta, se relanza ella. */
+/** Sale este proceso y vuelve otro con el build nuevo. */
 function relanzarProceso() {
-  if (!unidad) app.relaunch({ args: [...process.argv.slice(1).filter((a) => a !== "--escondida"), "--escondida"] });
+  app.relaunch({ args: [...process.argv.slice(1).filter((a) => a !== "--escondida"), "--escondida"] });
   app.quit();
 }
 
-/**
- * Un build nuevo (electron/reinicio.ts): cuando el usuario toca Reiniciar y no queda nada que cortar, vuelve
- * como estaba. En modo cliente el cartel lo tiene el motor (ver `alMotorNuevo` en armarCliente).
- */
+/** Un build nuevo (electron/reinicio.ts): cuando el usuario toca Reiniciar y no queda nada que cortar, vuelve como estaba. */
 async function armarRelanzoVentana() {
   const { armarRelanzo } = await import("./reinicio.js");
   armarRelanzo({
@@ -375,10 +324,8 @@ const residente = !guion && !captura && !png && !prueba && !process.env.HILOS_DE
 let saliendo = false;
 
 if (residente && !app.requestSingleInstanceLock()) {
-  // Ya hay una trama (a ésa le llegó `second-instance`). Si ésta es la de la unidad, la otra está
-  // suelta: salir con 3 le dice a systemd que no insista (RestartPreventExitStatus), o le abriría
-  // la ventana a la otra cada 2 s.
-  app.exit(unidad ? 3 : 0);
+  // Ya hay una trama (a ésa le llegó `second-instance`).
+  app.exit(0);
 } else {
   void arrancar().catch((e) => {
     log.escribir("error", "main", e);
@@ -402,7 +349,7 @@ async function arrancar() {
   app.on("window-all-closed", () => app.quit());
   if (residente)
     app.on("second-instance", (_e, argv) => {
-      // Otra que arrancó escondida (la unidad, con ésta suelta) no trae la ventana, salvo que el lanzador la haya pedido.
+      // Otra que arrancó escondida no trae la ventana, salvo que el lanzador la haya pedido.
       if (argv.includes("--escondida") && pedida() === null) return;
       const v = BrowserWindow.getAllWindows()[0];
       if (!v) return;
@@ -412,55 +359,25 @@ async function arrancar() {
   armarBench();
   // Electron arranca mientras se decide lo demás: nada espera a nadie de más.
   const electronListo = app.whenReady().then(() => void marcar("ventana", "electron-listo"));
-  // ¿Viene de un reinicio por un build nuevo? Entonces la ventana nace con el cartel, y si lo reinició el motor se lo espera.
+  // ¿Viene de un reinicio por un build nuevo? Entonces la ventana nace con el cartel.
   const deReinicio: Corrida | null = residente ? enMarcha() : null;
   if (deReinicio) {
     llegaDeReinicio = true;
     marcar("ventana", "ventana-arranco", undefined, Math.round(Date.now() - process.uptime() * 1000));
   }
-  // ¿Hay un motor? (bench y captura, nunca: sus fixtures son de esta ventana.)
-  const sock = socketDe(carpetaLocal());
-  if (deReinicio?.via === "motor") await esperarMotorNuevo(deReinicio.marcas[0]?.pid ?? 0, sock);
-  // En Windows no hay trama-motor ni socket unix: siempre todo en uno.
-  const conMotor = !(guion || captura || png || esWindows(process.platform)) && (await motorVivo(path.join(ESTADO, "dueno"), sock));
-  marcar("ventana", conMotor ? "motor-visto" : "sin-motor");
-  if (conMotor) {
-    // El motor tiene el núcleo, la cola, los líderes, el remoto y el cartel del build nuevo: acá sólo la ventana.
-    logAparte("ventana.log");
-    const { armarCliente } = await import("./ventana-cliente.js");
-    cliente = await armarCliente({
-      sock,
-      recargar: () => recargarVentana(),
-      irse: irseDelTodo,
-      // El motor se va por un build nuevo: se anota cómo estaba la ventana, y cuando el motor nuevo contesta se relanza
-      // este proceso también (la ventana queda en Reconectando entre uno y otro, sin cortar nada).
-      motorSaliendo: () => {
-        marcar("ventana", "ventana-aviso");
-        if (residente) guardando = anotarVolver().then(() => void marcar("ventana", "ventana-guardo"));
-      },
-      motorNuevo: () => (residente ? void guardando.then(relanzarProceso) : recargarVentana()),
-    });
-    marcar("ventana", "cliente-armado");
-    query.cliente = "1";
-  } else {
-    const { armarIpc } = await import("./ipc.js");
-    armarIpc(irseDelTodo);
-    // trama desde el celular (electron/remoto-armar.ts): sólo con `remoto.json`, y nunca en bench ni captura.
-    if (!(guion || captura || png)) {
-      const { armarRemoto } = await import("./remoto-armar.js");
-      armarRemoto({ dist: path.join(aqui, "..", "dist"), preload: path.join(aqui, "preload.cjs"), consulta });
-    }
+  // Siempre todo en uno: en Windows no hay motor aparte.
+  marcar("ventana", "sin-motor");
+  const { armarIpc } = await import("./ipc.js");
+  armarIpc(irseDelTodo);
+  // trama desde el celular (electron/remoto-armar.ts): sólo con `remoto.json`, y nunca en bench ni captura.
+  if (!(guion || captura || png)) {
+    const { armarRemoto } = await import("./remoto-armar.js");
+    armarRemoto({ dist: path.join(aqui, "..", "dist"), preload: path.join(aqui, "preload.cjs"), consulta });
   }
-  if (residente) log.escribir("info", "main", `trama arrancó (pid ${process.pid}, electron ${process.versions.electron}${cliente ? ", cliente del motor" : ""})`);
+  if (residente) log.escribir("info", "main", `trama arrancó (pid ${process.pid}, electron ${process.versions.electron})`);
   await electronListo;
   crearVentana();
   armarLaBandeja();
-  // El cartel del build nuevo: en modo cliente lo tiene el motor (la ventana se relanza cuando vuelve).
-  if (residente && !cliente) await armarRelanzoVentana();
-}
-
-/** Vuelve a cargar la página (un motor nuevo: se pone al día), como el Recargar del cartel. */
-function recargarVentana() {
-  const v = ventanas()[0];
-  if (v && !v.isDestroyed()) cargar(v);
+  // El cartel del build nuevo.
+  if (residente) await armarRelanzoVentana();
 }

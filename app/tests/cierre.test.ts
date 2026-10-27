@@ -57,7 +57,6 @@ test("el pedido de salida: sólo valen los dos modos; lo raro es seguir sin forz
   assert.deepEqual(cierre.pedidoDeSalida({ modo: "parar", forzar: true }), { modo: "parar", forzar: true });
   assert.deepEqual(cierre.pedidoDeSalida({ modo: "seguir" }), { modo: "seguir", forzar: false });
   for (const raro of [undefined, null, true, "parar", { modo: "matar", forzar: "sí" }]) assert.deepEqual(cierre.pedidoDeSalida(raro), { modo: "seguir", forzar: false });
-  assert.equal(cierre.CODIGO_CERRADO, 3, "el que la unidad no levanta de nuevo (RestartPreventExitStatus)");
 });
 
 test("Cerrar del todo: con 0 líderes respondiendo el proceso se va; con alguien respondiendo, no", async () => {

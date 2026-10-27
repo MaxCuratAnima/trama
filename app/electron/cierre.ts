@@ -5,16 +5,13 @@
 export type Modo = "seguir" | "parar";
 export const esModo = (x: unknown): x is Modo => x === "seguir" || x === "parar";
 
-/** Con qué código se va el proceso bajo la unidad de systemd: el 3 está en `RestartPreventExitStatus`, así que Cerrar del todo no la levanta de nuevo a los 0,5 s. */
-export const CODIGO_CERRADO = 3;
-
 /** Lo que llega por `app:salir`: `{ modo, forzar }`; cualquier otra cosa es una salida normal sin forzar. */
 export function pedidoDeSalida(x: unknown): { modo: Modo; forzar: boolean } {
   const o = (x && typeof x === "object" ? x : {}) as { modo?: unknown; forzar?: unknown };
   return { modo: esModo(o.modo) ? o.modo : "seguir", forzar: o.forzar === true };
 }
 
-/** El `close` de la ventana (Super+Q, el ✕): sólo se esconde; trama sigue viva. Si ya se está saliendo, no se interpone. */
+/** El `close` de la ventana (el ✕, Alt+F4): sólo se esconde; trama sigue viva. Si ya se está saliendo, no se interpone. */
 export function esconderAlCerrar(ventana: { hide(): void }, saliendo: () => boolean) {
   return (e: { preventDefault(): void }) => {
     if (saliendo()) return;
