@@ -32,7 +32,7 @@ test("cada fila del índice y cada categoría tienen texto en inglés y en espa�
 });
 
 test("cada fila del índice está dibujada con su data-opc (el salto la encuentra)", () => {
-  const fuente = ["Ajustes.tsx", "AjustesModelos.tsx", "AjustesEditar.tsx", "AjustesCuentas.tsx", "AjustesCupos.tsx", "AjustesCompactar.tsx"]
+  const fuente = ["Ajustes.tsx", "AjustesModelos.tsx", "AjustesEditar.tsx", "AjustesCuentas.tsx", "AjustesCupos.tsx", "AjustesCompactar.tsx", "AjustesExtensiones.tsx"]
     .map((f) => readFileSync(path.join(import.meta.dirname, "..", "src", "paneles", f), "utf8"))
     .join("\n");
   // Los tipos de worker se dibujan con la clave armada (`mdl.t.${tipo}`); el resto, con su clave literal.
@@ -83,7 +83,7 @@ test("efectiva: la recordada si existe en esta máquina; si no, la primera que h
   irA("cuentas");
   assert.equal(
     efectiva((c) => c !== "cuentas"),
-    "modelos",
+    "extensiones",
   );
   assert.equal(
     efectiva(() => true),
