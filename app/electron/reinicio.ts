@@ -2,7 +2,7 @@
 // avisa con un cartel (src/barra/Reinicio.tsx, también en el celular) y se reinicia cuando el usuario toca
 // Reiniciar, y ni así cortando algo (electron/relanzar.ts): espera a que no haya líder respondiendo,
 // mensaje de la cola saliendo, integración corriendo ni líder de la app con workers vivos.
-// Lo arman main.ts (todo en uno: guarda cómo estaba la ventana y sale) y motor.ts (sale y systemd lo levanta).
+// Lo arman main.ts (todo en uno: guarda cómo estaba la ventana y sale) y motor.ts (sale y se vuelve a lanzar).
 import { respondiendo } from "./lider.js";
 import { alCambiarLider, avisarReinicio, colaEnCamino, lideresEsperando, ponerReinicio, queEspera, tareasCorriendo } from "./nucleo.js";
 import { log } from "./log.js";
@@ -28,7 +28,7 @@ export function armarRelanzo(o: { raiz: string; quien: Extract<Quien, "motor" | 
   let ultimo: string | null = null;
   let yendose = false;
   // Lo que espera lleva 20 min sin un evento: el cartel ofrece "Reiniciar igual" (los workers de pa siguen
-  // solos, setsid; los líderes de la app se cierran con `cerrarTodos` y se retoman con `--resume`).
+  // solos; los líderes de la app se cierran con `cerrarTodos` y se retoman con `--resume`).
   const colgadoMs = Number(process.env.HILOS_COLGADO_MS) || COLGADO_MS;
   const colgado = () => {
     const q = queEspera();
@@ -54,7 +54,7 @@ export function armarRelanzo(o: { raiz: string; quien: Extract<Quien, "motor" | 
     colgado,
     ocupado() {
       const m = motivo();
-      // Qué espera, una vez por motivo (`journalctl --user -u trama`).
+      // Qué espera, una vez por motivo.
       if (m !== ultimo && m) console.error(`[relanzar] reinicio pedido, espera: ${m}`);
       ultimo = m;
       return m !== null;
