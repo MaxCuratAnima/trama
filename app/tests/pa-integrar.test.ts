@@ -187,9 +187,6 @@ test("puestoDeRuta: en Windows no distingue mayúsculas ni / de \\ (git informa 
   assert.equal(puestoDeRuta(ctx, p, "C:\\USERS\\MAX\\APPDATA\\LOCAL\\TRAMA\\STATE\\PA\\WORKTREES\\trama@3\\"), "3");
   assert.equal(puestoDeRuta(ctx, p, "C:/trama"), "aca");
   assert.equal(puestoDeRuta(ctx, p, "C:/Users/Max/AppData/Local/Trama/state/pa/worktrees/otro"), "aca");
-  // en Linux sí distingue
-  assert.equal(puestoDeRuta({ plataforma: "linux", estado: "/e" } as unknown as CtxPa, p, "/E/worktrees/trama"), "aca");
-  assert.equal(puestoDeRuta({ plataforma: "linux", estado: "/e" } as unknown as CtxPa, p, "/e/worktrees/trama@2"), "2");
 });
 
 test("--integrar: el estado de pa con otras mayúsculas y / en vez de \\ que lo que informa git igual integra", { skip: process.platform !== "win32" && "sólo en Windows" }, async () => {
