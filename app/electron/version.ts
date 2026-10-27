@@ -75,10 +75,3 @@ export function ultimaDeActualizador(texto: unknown): string | null {
   const m = texto.match(/Stable Version:\s*v?(\d+\.\d+\.\d+)/i);
   return m ? m[1] : null;
 }
-
-/** La respuesta de `aur.archlinux.org/rpc/v5/info`: `results[0].Version` ("1.4.2_4835981233356800-1" → "1.4.2"). */
-export function ultimaDeAur(j: unknown): string | null {
-  const r = (j as { results?: unknown } | null)?.results;
-  const v = Array.isArray(r) ? (r[0] as { Version?: unknown } | undefined)?.Version : null;
-  return normal(v);
-}
