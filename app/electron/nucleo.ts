@@ -530,8 +530,8 @@ const hilosAhora = () => ultimosHilos;
 
 /**
  * Un quit que no pasó por Ctrl+Q (p. ej. la sesión que se cierra): espera a los que responden, pero
- * nunca más de `TOPE_SALIDA_MS` (10 s): el 13/10 un cierre de sesión esperó a un líder 120 s y systemd
- * mató a trama con SIGKILL. El estado (`volver.json`) ya se guardó en el `before-quit` de main.ts; lo que
+ * nunca más de `TOPE_SALIDA_MS` (10 s): el 13/10 un cierre de sesión esperó a un líder 120 s y el sistema
+ * mató a trama. El estado (`volver.json`) ya se guardó en el `before-quit` de main.ts; lo que
  * no cerró a tiempo se corta (su conversación sigue en disco) y queda en el log (`cerrarTodos`).
  * `null`: no hay a quién esperar, se sale ya. Si no, quien sale frena el quit, espera esto y sale.
  */
@@ -912,7 +912,7 @@ export function armarNucleo() {
   // Actualizar: `claude update`; con cuántos líderes de la app quedaron abiertos con la vieja.
   manejar("claude:actualizar", async () => ({ ...(await actualizar()), abiertos: lider.vivos() }));
   manejar("claude:reiniciar", () => lider.reiniciarOciosos());
-  // Lo mismo para Antigravity CLI (Actualizar abre una terminal con paru); sin `agy` instalado el aviso es siempre null.
+  // Lo mismo para Antigravity CLI (Actualizar corre `agy update`); sin `agy` instalado el aviso es siempre null.
   alCambiarAvisoAgy((a) => enviar("agy:version", a));
   manejar("agy:version", () => leerAvisoAgy());
   manejar("agy:descartar", () => descartarAgy());
