@@ -15,5 +15,5 @@ const archivos = pedidos.length
       .sort()
       .map((f) => path.join("tests", f));
 
-const r = spawnSync(process.execPath, ["--test", "--experimental-strip-types", ...archivos], { cwd: raiz, stdio: "inherit" });
+const r = spawnSync(process.execPath, ["--test", "--test-timeout=120000", "--experimental-strip-types", ...archivos], { cwd: raiz, stdio: "inherit" });
 process.exit(r.status ?? 1);
