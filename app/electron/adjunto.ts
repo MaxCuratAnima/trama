@@ -15,7 +15,7 @@ export type ArchivoAdjunto = { nombre: string; ruta: string };
 function rutaDe(linea: string): string | null {
   const p = PREFIJOS_ADJUNTO.find((x) => linea.startsWith(x));
   const ruta = p ? linea.slice(p.length).trim() : "";
-  return ruta.startsWith("/") ? ruta : null;
+  return ruta.startsWith("/") || /^[A-Za-z]:[\\/]/.test(ruta) || ruta.startsWith("\\\\") ? ruta : null;
 }
 
 /** El texto sin las líneas de archivo del final, y los archivos que nombraban (en orden). */
@@ -24,7 +24,7 @@ export function separarAdjuntos(texto: string): { texto: string; archivos: Archi
   const archivos: ArchivoAdjunto[] = [];
   for (let ruta = rutaDe(lineas.at(-1) ?? ""); ruta !== null; ruta = rutaDe(lineas.at(-1) ?? "")) {
     lineas.pop();
-    archivos.unshift({ nombre: ruta.split("/").pop() || ruta, ruta });
+    archivos.unshift({ nombre: ruta.split(/[\\/]/).pop() || ruta, ruta });
   }
   return archivos.length ? { texto: lineas.join("\n").trimEnd(), archivos } : { texto, archivos };
 }

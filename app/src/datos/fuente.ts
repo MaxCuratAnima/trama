@@ -95,6 +95,8 @@ export interface Fuente {
   alCambiarConsumo(fn: (c: Consumo) => void): () => void;
   /** La vista de un worker: empieza a mirar sus pasos (suelta el que miraba) y contesta la vista entera. `null`: el main no la entendió. */
   pasosMirar(id: string): Promise<VistaPasos | null>;
+  /** Los pasos de un subagente (lo que lanza una sesión con su herramienta Agent): sus comandos, tiempos y razonamiento. */
+  pasosSubagente(sid: string, id: string): Promise<VistaPasos | null>;
   /** Se cerró la vista de worker: el main deja de mirar su transcript. */
   pasosSoltar(): void;
   /** Pasos nuevos o tocados del worker mirado, por lotes; se ponen al día con `aplicar` (src/datos/pasos.ts). */
@@ -1177,6 +1179,9 @@ const fija: Fuente = {
     if (MODO.captura === "worker-vista-vivo") return pasosFijos(id, true);
     return vistaDe({ id, hay: false });
   },
+  async pasosSubagente(_sid, id) {
+    return vistaDe({ id, hay: false });
+  },
   pasosSoltar() {},
   alCambiarPasos() {
     return () => {};
@@ -1694,6 +1699,9 @@ const conPa = (m: NonNullable<typeof main>): Fuente => ({
   },
   async pasosMirar(id) {
     return vistaDe(await m.pasos.mirar(id));
+  },
+  async pasosSubagente(sid, id) {
+    return vistaDe(await m.pasos.subagente(sid, id).catch(() => null));
   },
   pasosSoltar() {
     void m.pasos.soltar().catch(() => {});

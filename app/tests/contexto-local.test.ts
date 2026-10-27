@@ -1,5 +1,6 @@
 // El contexto de Ana para un líder local: los CLAUDE.md sin lo del jefe, el índice de memoria y los hooks de arranque, con tope.
 // Todo en una carpeta temporal y un hook de mentira: ni GPU, ni el `tablero` ni el `~` de verdad.
+import { notaDePlataforma } from "../electron/nota-windows.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -177,13 +178,13 @@ test("prefacioGemini: las instrucciones de un líder de Gemini más los CLAUDE.m
 });
 
 test("prefacioGemini: sin archivos queda el de las instrucciones solo", async () => {
-  assert.equal(await prefacioGemini({ home: "/no/existe", deps: { leer: async () => null, hook: async () => "" } }), PROMPT_GEMINI);
+  assert.equal(await prefacioGemini({ home: "/no/existe", deps: { leer: async () => null, hook: async () => "" } }), [PROMPT_GEMINI, notaDePlataforma(process.platform)].filter(Boolean).join("\n\n"));
 });
 
 test("prefacioGemini: trae la guía de delegar sin skill, y la ruta de pa sólo si se la pasan absoluta", async () => {
   const deps = { leer: async () => null, hook: async () => "" };
   const sin = await prefacioGemini({ home: "/no/existe", deps });
-  assert.match(sin, /pa <proyecto> --tipo/);
+  assert.match(sin, /pa <proyecto> --async --tipo/);
   assert.match(sin, /--async/);
   assert.match(sin, /--integrar/);
   assert.doesNotMatch(sin, /command not found/, "sin ruta absoluta no se agrega nada");

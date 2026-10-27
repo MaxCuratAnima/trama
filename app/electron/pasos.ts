@@ -611,7 +611,8 @@ export class ArmadorPasos {
         this.pendiente.set(paso.id, [{ new_string: contenido }]);
         break;
       }
-      case "Bash": {
+      case "Bash":
+      case "PowerShell": {
         const comando = str(e.command);
         paso = this.agregar({
           ...base,

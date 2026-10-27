@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import { t } from "../i18n";
 import { useIdioma } from "../i18n/react";
 import { MODO } from "../modo";
+import { esShell } from "./shell.ts";
 import { cambios, cuerpo, type Grupo, type LineaDiff, type Uso } from "./herramientas";
 import { HERRAMIENTA_PREGUNTAS, respondidas } from "./preguntas-datos";
 import { LlamadaPreguntas } from "./Preguntas";
@@ -18,7 +19,7 @@ const MAX_DIFF = 80;
  * Abierta de entrada: el Bash siempre (B26: al abrir el trabajo se ve el comando y lo que
  * devolvió; se puede cerrar a mano); las demás, cerradas. Captura `herramientas`: también el Edit; `herramientas-resultados`: todas.
  */
-const abiertaAlMontar = (u: Uso) => u.nombre === "Bash" || (MODO.captura === "herramientas" && u.nombre === "Edit") || MODO.captura === "herramientas-resultados";
+const abiertaAlMontar = (u: Uso) => esShell(u.nombre) || (MODO.captura === "herramientas" && u.nombre === "Edit") || MODO.captura === "herramientas-resultados";
 
 function Diff({ tramos, cortado }: { tramos: LineaDiff[][]; cortado: boolean }) {
   return (

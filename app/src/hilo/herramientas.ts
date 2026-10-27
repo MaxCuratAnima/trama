@@ -3,6 +3,7 @@
 // "Edit · src/x.ts +3 −1") y, al abrirla, el comando entero o el diff. Puro: lo
 // prueba `tests/herramientas.test.ts`.
 import type { Herramienta } from "../datos/contrato";
+import { esShell } from "./shell.ts";
 
 /** Lo que `pa --hilo` (y el transcript de un líder) deja de cada texto de la entrada. */
 export const CORTE = 2000;
@@ -47,7 +48,7 @@ export function relativa(ruta: string, transcript: string | null): string {
 /** Lo que hizo una llamada en un renglón: Bash → su descripción; los de archivo → la ruta; etc. */
 export function resumen(nombre: string, entrada: Record<string, unknown>, transcript: string | null = null): string {
   const e = entrada ?? {};
-  if (nombre === "Bash") return renglon(str(e.description) ?? str(e.command) ?? "");
+  if (esShell(nombre)) return renglon(str(e.description) ?? str(e.command) ?? "");
   if (ARCHIVO.has(nombre)) {
     const r = str(e.file_path) ?? str(e.notebook_path) ?? str(e.path);
     return r ? relativa(r.trim(), transcript) : "";
@@ -158,7 +159,7 @@ const cortado = (s: unknown) => typeof s === "string" && s.length >= CORTE;
 export function cuerpo(d: Herramienta | null): Cuerpo {
   if (!d) return { tipo: "nada" };
   const e = d.entrada ?? {};
-  if (d.nombre === "Bash" && typeof e.command === "string") return { tipo: "comando", comando: e.command, cortado: !!d.cortado || cortado(e.command) };
+  if (esShell(d.nombre) && typeof e.command === "string") return { tipo: "comando", comando: e.command, cortado: !!d.cortado || cortado(e.command) };
   if (d.nombre === "Edit" && typeof e.old_string === "string" && typeof e.new_string === "string")
     return { tipo: "diff", tramos: [diffLineas(e.old_string, e.new_string)], cortado: !!d.cortado || cortado(e.old_string) || cortado(e.new_string) };
   if (d.nombre === "MultiEdit" && Array.isArray(e.edits)) {

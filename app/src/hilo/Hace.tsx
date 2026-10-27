@@ -15,6 +15,7 @@ import { Tierno, useTiernos } from "./Tierno";
 import { Compactando, Hojas } from "./Posta";
 import { Actividad } from "./Actividad";
 import { clasificar, clasificarPedido } from "./actividad-datos";
+import { esShell } from "./shell.ts";
 import { enCurso, indicador, razonDelTurno, razona, suscribir, type Indicador } from "./vivo";
 
 const LEER = new Set(["Read", "WebFetch", "NotebookRead"]);
@@ -28,7 +29,7 @@ const GENERICO = new Set<HaceLider["que"]>(["pidiendo", "pensando", "escribiendo
 export function textoHace(h: HaceLider): string {
   if (h.que !== "herramienta") return t(`hace.${h.que}`);
   const { nombre: n, detalle: d } = h;
-  if (n === "Bash") return t("hace.correr", { h: d ? `Bash: ${d}` : "Bash" });
+  if (esShell(n)) return t("hace.correr", { h: d ? `${n}: ${d}` : n });
   if (!d) return t("hace.usar", { h: n });
   if (LEER.has(n)) return t("hace.leer", { d });
   if (EDITAR.has(n)) return t("hace.editar", { d });

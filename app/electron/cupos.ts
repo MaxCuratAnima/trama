@@ -343,6 +343,9 @@ function filaDeCuenta(c: CuentaLeida, l: Lectura | null, tsS: number): Suscripci
 
 /** Google / Gemini desde agy /quota. null: no se pudo leer (agy falla o no trae grupos). */
 async function googleDeAgy(tsS: number): Promise<SuscripcionCupo | null> {
+  // En el agy de Windows `-p /quota` no es un comando: corre un turno del modelo (hasta 18 mil tokens) que nunca trae los grupos.
+  // No se llama: gastaría cupo para no decir nada, y la pantalla explica que Gemini no lo informa.
+  if (process.platform === "win32") return null;
   try {
     const binAgy = resolverAgy(process.env, homedir());
     const env = entornoPa(process.env, homedir()) as NodeJS.ProcessEnv;

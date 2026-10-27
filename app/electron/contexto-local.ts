@@ -7,6 +7,7 @@ import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { entornoLider } from "./lider-arma.ts";
 import { shellDe } from "./procesos.ts";
+import { notaDePlataforma } from "./nota-windows.ts";
 import { deDueno, dueno } from "./dueno.ts";
 
 /** Los encabezados que no le tocan a un local: él no delega (no hay `pa`) ni elige workers. */
@@ -180,9 +181,9 @@ export const PROMPT_GEMINI = [
   "Sos un líder de Trama (una app para manejar workers de `pa` y chatear con sus líderes) y corrés como Gemini dentro de `agy`, no como Claude.",
   "Estás en el home de la persona: sos el jefe que delega el trabajo de cada proyecto a workers con `pa`, que tenés en el PATH de tu herramienta de comandos (`pa --help` explica cómo se usa).",
   "Cómo delegar, en corto (esto vale aunque no tengas ningún skill):",
-  "- `pa <proyecto> --tipo <tipo> \"<tarea>\"` lanza un worker adentro del proyecto y espera su resultado (RESULTADO / ARCHIVOS / DECISION). Tipos: mecanico, lectura, codigo-acotado, codigo-multi, frontend, diseno, debug. Sin `-m`, `pa` elige el modelo según el tipo.",
-  "- Varias tareas a la vez, o una larga: `pa <proyecto> --async --tipo <tipo> \"<tarea>\"` imprime el id; después `pa --esperar <proyecto> --id <id>` (o `pa --esperar-todos`) trae el resultado.",
-  "- `<proyecto>` es un nombre de `~/.config/proyectos/registry.json` (`proyecto-ruta --listar` los muestra). Si el proyecto no está, decíselo a la persona; no lo inventes.",
+  "- Lanzá SIEMPRE con `--async`: `pa <proyecto> --async --tipo <tipo> \"<tarea>\"` imprime el id y vuelve enseguida. Tipos: mecanico, lectura, codigo-acotado, codigo-multi, frontend, diseno, debug. Sin `-m`, `pa` elige el modelo según el tipo.",
+  "- Sin `--async`, tu herramienta de comandos pasa `pa` a segundo plano a los 8 s y el worker muere cuando se corta tu turno. El resultado (RESULTADO / ARCHIVOS / DECISION) se trae con `pa --esperar <proyecto> --id <id>` o `pa --esperar-todos`.",
+  "- `<proyecto>` es un nombre del registro de proyectos (`proyecto-ruta --listar` los muestra). Si el proyecto no está, decíselo a la persona; no lo inventes.",
   "- Lo que hace un worker queda en una rama: no está en main hasta `pa <proyecto> --integrar <id>`. No toques vos el código de un proyecto: delegá.",
   "Si tenés el skill `trama-orquestar` (`~/.claude/skills/trama-orquestar/SKILL.md`), leelo con view_file antes de delegar algo más que lo básico: dice qué modelo y `--tipo` conviene, cómo integrar y cómo seguir a un worker.",
   "Tus herramientas son las de agy (comandos, archivos, búsqueda). Contestá en el idioma en que te escriben, claro y al grano, y contá qué hiciste.",
@@ -213,5 +214,7 @@ export async function prefacioGemini(x: { home: string; cwd?: string; pa?: strin
   const skill = await skillOrquestar(x.home);
   const base = skill === SKILL_GENERICA ? PROMPT_GEMINI : PROMPT_GEMINI.replaceAll(SKILL_GENERICA, skill);
   const prompt = x.pa && path.isAbsolute(x.pa) ? `${base}\nSi un comando dice "pa: command not found", \`pa\` está en \`${x.pa}\`: llamalo con esa ruta.` : base;
-  return c?.texto ? `${prompt}\n\n${c.texto}` : prompt;
+  const nota = notaDePlataforma(process.platform);
+  const conNota = nota ? `${prompt}\n\n${nota}` : prompt;
+  return c?.texto ? `${conNota}\n\n${c.texto}` : conNota;
 }

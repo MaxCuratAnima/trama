@@ -83,6 +83,8 @@ type Main = {
   pasos: {
     mirar(id: string): Promise<unknown>;
     soltar(): Promise<void>;
+    /** Los pasos de un subagente de una sesión (electron/subagentes.ts), sin validar. */
+    subagente(sid: string, id: string): Promise<unknown>;
     alCambiar(fn: (c: unknown) => void): Soltar;
   };
   pa: {

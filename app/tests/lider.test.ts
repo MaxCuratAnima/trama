@@ -58,6 +58,7 @@ test("argv nuevo: stream-json, permisos salteados, modelo, effort, session-id y 
     "claude-sonnet-5-5",
     "--effort",
     "high",
+    ...(process.platform === "win32" ? ["--disallowedTools", "Bash"] : []),
     "--session-id",
     SID,
     "--name",

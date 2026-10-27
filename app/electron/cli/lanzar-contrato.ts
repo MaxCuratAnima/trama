@@ -51,7 +51,7 @@ write (code, comments, docs, CLAUDE.md, commit messages) keep the language the p
 
 Nada de diffs, logs ni volcados de código, salvo que la tarea los pida explícitamente.
 Commiteá ANTES de cualquier comando largo (tests, builds), no al final: si te quedás sin
-turnos, lo commiteado no se pierde. Lo largo va en FOREGROUND pasándole al tool Bash su
+turnos, lo commiteado no se pierde. Lo largo va en FOREGROUND pasándole al tool de comandos (Bash o PowerShell) su
 parámetro \`timeout\` en MILISEGUNDOS (ej. timeout: 600000 = 10 min, que es el máximo). El
 \`timeout 540 <cmd>\` del SHELL no alcanza: el tool corta a los 120s igual y te manda el
 comando a background. \`run_in_background\` está BLOQUEADO por un hook, no lo intentes: en
@@ -97,9 +97,9 @@ herramientas no llegó, tomá la suposición más razonable y decila en DECISION
 progreso ni de "terminé".`;
 
 const MODO_LECTURA =
-  "Modo LECTURA: no escribís nada. Bash existe SOLO para git de lectura (log, diff, show, status, rev-list, rev-parse, merge-base, ls-files, ls-tree, blame, shortlog, describe, cat-file, grep, branch --list, worktree list, stash list/show), con -C <ruta> en vez de cd, y a lo sumo un pipe a head/tail/grep/wc/cut. Nada de ;, &&, redirecciones ni $(...): un hook bloquea todo lo demás.";
+  "Modo LECTURA: no escribís nada. La herramienta de comandos (PowerShell) existe SOLO para git de lectura (log, diff, show, status, rev-list, rev-parse, merge-base, ls-files, ls-tree, blame, shortlog, describe, cat-file, grep, branch --list, worktree list, stash list/show), con -C <ruta> en vez de cd. Acotá la salida con las opciones de git (-n 20, --stat, -- <ruta>), sin pipes. Nada de ;, &&, redirecciones ni $(...): un hook bloquea todo lo demás.";
 const MODO_AHORRO =
-  "Modo ahorro (la suscripción es chica): leé SOLO lo que la tarea necesita; si te dieron rutas, empezá por ahí y no recorras el repo. Buscá con Grep/Glob antes de abrir archivos enteros, y leé rangos (offset/limit) en archivos largos. Filtrá la salida de los comandos (`| tail -n 40`, `| grep -E 'FAIL|error'`): todo lo que entra al contexto se vuelve a pagar en cada turno. Verificá con el test más acotado que pruebe tu cambio, no la suite entera, salvo que la tarea lo pida. No lances subagentes. Si la tarea resulta mucho más grande de lo que pinta, hacé la parte que cierra, commiteala y decí en DECISION cómo partir el resto.";
+  "Modo ahorro (la suscripción es chica): leé SOLO lo que la tarea necesita; si te dieron rutas, empezá por ahí y no recorras el repo. Buscá con Grep/Glob antes de abrir archivos enteros, y leé rangos (offset/limit) en archivos largos. Filtrá la salida de los comandos (`| Select-Object -Last 40`, `| Select-String 'FAIL|error'`): todo lo que entra al contexto se vuelve a pagar en cada turno. Verificá con el test más acotado que pruebe tu cambio, no la suite entera, salvo que la tarea lo pida. No lances subagentes. Si la tarea resulta mucho más grande de lo que pinta, hacé la parte que cierra, commiteala y decí en DECISION cómo partir el resto.";
 const ABANICO =
   'Abanico de Haikus: cuando muchos intentos verificables valen más que uno pensado (buscar algo que un grep no encuentra, revisar muchos archivos o candidatos, probar variantes contra un test o chequeo), repartilo en paralelo entre subagentes (Agent con model "haiku" y effort xhigh si se puede; hasta ~10, un pedazo cada uno, que devuelvan algo verificable) y verificá vos. No para diseño, decisiones ni código donde un intento malo cuesta caro. Esos subagentes no son delegar: siguen siendo tu trabajo.';
 

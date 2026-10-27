@@ -5524,6 +5524,12 @@ summary.sis-div-t:hover,
   font-family: var(--font-mono);
   color: var(--txt-4);
 }
+.sub-plegar {
+  display: flex;
+  flex: none;
+  cursor: pointer;
+  border-radius: var(--radio-1, 4px);
+}
 .sub-fila .chevron {
   flex: none;
   margin-top: var(--esp-1);

@@ -78,7 +78,7 @@ test("un líder de Gemini contesta: modelo con su esfuerzo en agy, el prefacio c
   assert.ok(hace.includes("Bash") && hace.includes("Read"), JSON.stringify(hace));
   // Lo que recibió agy.
   const [l] = llamadas();
-  assert.equal(l.args[l.args.indexOf("--model") + 1], "gemini-3.8-flash-low");
+  assert.equal(l.args[l.args.indexOf("--model") + 1], "gemini-3.8-flash-high");
   assert.ok(l.args.includes("--output-format") && l.args.includes("stream-json"));
   assert.ok(!l.args.includes("--conversation"), "el primer turno abre la conversación");
   assert.match(l.prompt, /líder de Trama/);
@@ -87,7 +87,7 @@ test("un líder de Gemini contesta: modelo con su esfuerzo en agy, el prefacio c
   assert.equal(l.env.length, 0, `ninguna variable de Claude/Ollama en agy: ${l.env}`);
   // Delegar: `pa` en el PATH de agy aunque la app no lo traiga, la guía en el prefacio aunque no haya skill y la ruta por si falla.
   assert.ok(l.path.split(":").includes(dirPa), `la carpeta de pa va en el PATH de agy: ${l.path}`);
-  assert.match(l.prompt, /pa <proyecto> --tipo/, "la guía de delegar viene en el prefacio, sin depender de ningún skill");
+  assert.match(l.prompt, /pa <proyecto> --async --tipo/, "la guía de delegar viene en el prefacio, sin depender de ningún skill");
   assert.ok(l.prompt.includes(`\`${process.env.HILOS_PA}\``), "la ruta de pa por si el comando no se encuentra");
   // Su transcript es aparte de los de Claude y lo encuentra el mismo lector.
   const t = await lider.transcriptDe(sid);

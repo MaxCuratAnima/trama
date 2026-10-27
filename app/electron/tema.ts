@@ -98,6 +98,31 @@ export function tituloLider(t: Pick<Tema, "custom" | "ai" | "primero">, sesion: 
   return util(t.custom) ?? util(sesion) ?? t.ai ?? (t.primero ? tituloDeTexto(t.primero) : "");
 }
 
+const LARGO_TITULO = 60;
+/** Un resumen del modelo que se pasó del tope se corta más corto: si no, parece el primer mensaje recortado. */
+const LARGO_RESUMEN = 40;
+
+/** Lo que dijo el modelo como título: una línea, sin comillas ni punto final, de largo razonable. Vacío si no sirve. */
+export function limpiarTitulo(salida: string): string {
+  const linea = salida.split("\n").map((l) => l.trim()).find((l) => l !== "") ?? "";
+  const t = linea.replace(/^["'«“`*#\s]+|["'»”`*\s.]+$/g, "").replace(/\s+/g, " ");
+  return t.length > LARGO_TITULO ? recortar(t, LARGO_RESUMEN) : t;
+}
+
+/** El primer mensaje como título corto: hasta el largo de un título, cortado en una palabra entera. */
+export function recortar(s: string, largo: number = LARGO_TITULO): string {
+  if (s.length <= largo) return s;
+  const corte = s.slice(0, largo);
+  const i = corte.lastIndexOf(" ");
+  return (i > largo / 2 ? corte.slice(0, i) : corte).replace(/[\s,;:.-]+$/, "") + "…";
+}
+
+/** ¿El título de este líder sería su primer mensaje (nadie le puso uno y Claude Code tampoco)? Entonces conviene un resumen. */
+export function tituloEsElPrimero(t: Pick<Tema, "custom" | "ai" | "primero">, sesion: string): boolean {
+  const util = (s: string | null | undefined) => (s && !nombreInterno(s) ? s : null);
+  return !util(t.custom) && !util(sesion) && !t.ai && !!t.primero;
+}
+
 /** Un mensaje como título: sin las líneas de archivo adjunto; si sólo traía archivos, sus nombres. */
 export function tituloDeTexto(s: string): string {
   const { texto, archivos } = separarAdjuntos(s);

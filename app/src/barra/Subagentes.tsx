@@ -1,6 +1,6 @@
 // Los subagentes de una sesión, colgando bajo su fila como un worker: descripción, modelo, estado, cuánto lleva,
 // lo último que hizo en una línea y sus tokens. Al terminar, las primeras líneas de su informe y "Ver informe".
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Subagente } from "../../electron/subagentes";
 import { fuente } from "../datos/fuente";
@@ -9,6 +9,7 @@ import { locale } from "../i18n/index";
 import { useIdioma } from "../i18n/react";
 import { duracion, pintorDura } from "../tiempo";
 import { Punto, Reloj } from "./piezas";
+import { verSubagente, refrescarSubagente } from "./subagente-visto";
 import { activo, useSubagentes } from "./subagentes-datos";
 
 /** Cuántos que ya cerraron se ven sin pedirlos: lo que sigue está tras "N anteriores". */
@@ -38,9 +39,11 @@ const Fila = memo(function Fila({ u, vivo }: { u: Subagente; vivo: boolean }) {
       () => setPidiendo(false),
     );
   };
+  // Mientras corre, el panel de pasos recibe cada versión nueva de la fila (estado, último mensaje).
+  useEffect(() => refrescarSubagente(u), [u]);
   return (
     <li className="w sub" data-estado={vivo || u.estado !== "corriendo" ? u.estado : "obsoleto"} data-sub={u.id}>
-      <button type="button" className="sub-fila" aria-expanded={abierto} onClick={() => setAbierto((a) => !a)}>
+      <button type="button" className="sub-fila" aria-expanded={abierto} data-tip={tr("sub.verPasos")} onClick={() => verSubagente(u)}>
         <span className="sub-pt">
           <Punto tipo={tipo} clave={`sub:${u.id}`} />
         </span>
@@ -56,7 +59,24 @@ const Fila = memo(function Fila({ u, vivo }: { u: Subagente; vivo: boolean }) {
             {!abierto && linea ? <span className="sub-ultimo">{linea}</span> : null}
           </span>
         </span>
-        <ChevronDown className="chevron" size={11} strokeWidth={2} aria-hidden />
+        <span
+          role="button"
+          tabIndex={0}
+          className="sub-plegar"
+          aria-label={tr("sub.verInformeBreve")}
+          onClick={(e) => {
+            e.stopPropagation();
+            setAbierto((a) => !a);
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            e.stopPropagation();
+            setAbierto((a) => !a);
+          }}
+        >
+          <ChevronDown className="chevron" size={11} strokeWidth={2} aria-hidden />
+        </span>
       </button>
       {abierto ? (
         <div className="sub-cuerpo">

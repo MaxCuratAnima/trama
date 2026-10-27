@@ -69,7 +69,7 @@ function arg(nombre: string): string | null {
 
 const sid = arg("sid") ?? "";
 const nombre = arg("nombre") ?? "";
-const modelo = arg("modelo") ?? "gemini-3.8-flash-low";
+const modelo = arg("modelo") ?? "gemini-3.8-flash-high";
 const cwd = arg("cwd") || process.cwd();
 const prefacio = process.env.TRAMA_AGY_PREFACIO ?? "";
 

@@ -115,6 +115,7 @@ export const RUTAS: Readonly<Record<string, Ruta>> = {
   // Los pasos de un worker, de su transcript: el de esta máquina (el de otra se pediría a su motor, todavía no).
   "pasos:mirar": "local",
   "pasos:soltar": "local",
+  "pasos:subagente": "local",
   // Dictar: Handy y el micrófono de quien pide; el audio se transcribe en el motor al que está conectada la ventana.
   "dictado:transcribir": "local",
   "dictado:modelos": "local",

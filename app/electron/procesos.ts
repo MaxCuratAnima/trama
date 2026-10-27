@@ -54,12 +54,17 @@ export function deStat(texto: string): EstadoProceso {
 }
 
 const TOPE_PS_MS = 8000;
-const PS_ARGS = (pid: number) => ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`];
+const PS_ARGS = (pid: number) => ["-NoProfile", "-NonInteractive", "-Command", `$p = Get-Process -Id ${pid} -ErrorAction Stop; $q = (Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}' -ErrorAction SilentlyContinue).ParentProcessId; "$($p.StartTime.ToUniversalTime().Ticks) $q"`];
 
-/** El arranque de PowerShell es el ticks UTC (`StartTime`): un número, igual para el mismo proceso. */
+/** La salida de PowerShell es `<ticks UTC de StartTime> <pid del padre>`: el primero es el arranque (un número, igual para el mismo proceso). */
 function ticks(salida: string): string | null {
-  const t = salida.trim();
+  const t = salida.trim().split(/\s+/)[0] ?? "";
   return /^\d+$/.test(t) ? t : null;
+}
+
+function ppidDe(salida: string): number | null {
+  const t = salida.trim().split(/\s+/)[1] ?? "";
+  return /^\d+$/.test(t) && Number(t) > 0 ? Number(t) : null;
 }
 
 const pidValido = (pid: number) => Number.isInteger(pid) && pid > 0;
@@ -92,7 +97,8 @@ export async function estadoDeProceso(pid: number, d?: Partial<Deps>): Promise<E
   try {
     if (!esWindows(x.plataforma)) return deStat(await x.leer(`/proc/${pid}/stat`));
     x.existe(pid);
-    return { estado: "", arranque: ticks(await x.correr("powershell", PS_ARGS(pid), { timeout: TOPE_PS_MS, windowsHide: true })), ppid: null };
+    const salida = await x.correr("powershell", PS_ARGS(pid), { timeout: TOPE_PS_MS, windowsHide: true });
+    return { estado: "", arranque: ticks(salida), ppid: ppidDe(salida) };
   } catch {
     return null;
   }

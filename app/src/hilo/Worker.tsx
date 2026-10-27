@@ -1,8 +1,9 @@
 // La vista de un worker (al tocarlo en la barra): el resultado en una frase con sus chips, el mapa de la corrida, los pasos y el detalle
 // del elegido (docs/estado/worker-vista.md). Los pasos los arma el main de su transcript (src/hilo/usePasos.ts); lo que se saca de ellos
 // (nombre corto, grupos, resumen, chip de tests, diff) es de worker-datos.ts. A un worker no se le escribe: acá sólo se mira, y se lo para.
-import { memo, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Bot, Brain, Check, ChevronRight, FilePlus, FileText, Info, MessageSquare, Pencil, Search, Square, Terminal, Wrench, type LucideIcon } from "lucide-react";
+import type { Subagente } from "../../electron/subagentes";
 import { comoSettle, type Estado, type Hilo } from "../datos/contrato";
 import { fuente } from "../datos/fuente";
 import type { Detalle, Paso, TipoPaso, VistaPasos } from "../datos/pasos";
@@ -378,10 +379,10 @@ const GrupoFila = memo(function GrupoFila({ ps, abierto, alAlternar, elegido, an
 
 // ---- El resultado --------------------------------------------------------------------------------------------------------
 
-function Chips({ h, vista, pasos, vive, alElegir }: { h: Hilo; vista: VistaPasos; pasos: readonly Paso[]; vive: boolean; alElegir: (n: number) => void }) {
+function Chips({ resultado, vista, pasos, vive, alElegir }: { resultado: string | null; vista: VistaPasos; pasos: readonly Paso[]; vive: boolean; alElegir: (n: number) => void }) {
   const tests = useMemo(() => testsDe(pasos), [pasos]);
   const archivos = useMemo(() => chipsDe(vista.encabezado), [vista.encabezado]);
-  const { supuestos } = useMemo(() => resumenDe(textoFinal(vista.pasos) ?? h.resultado), [vista.pasos, h.resultado]);
+  const { supuestos } = useMemo(() => resumenDe(textoFinal(vista.pasos) ?? resultado), [vista.pasos, resultado]);
   const del = (ruta: string) => [...pasos].reverse().find((p) => (p.detalle.clase === "editar" || p.detalle.clase === "escribir") && p.detalle.ruta === ruta)?.n;
   return (
     <div className="wk-chips">
@@ -530,7 +531,7 @@ export function VistaWorker({ h, estado, vista, settle, alCerrar, alRetomar, alP
               <Texto texto={pregunta} />
             </div>
           ) : null}
-          <Chips h={h} vista={vista} pasos={pasos} vive={vive} alElegir={alElegir} />
+          <Chips resultado={h.resultado} vista={vista} pasos={pasos} vive={vive} alElegir={alElegir} />
         </section>
 
         {pasos.length ? <Mapa pasos={pasos} fin={vive ? null : e.fin} sel={selN} alElegir={alElegir} /> : null}
@@ -552,6 +553,102 @@ export function VistaWorker({ h, estado, vista, settle, alCerrar, alRetomar, alP
                   <Compactando desde={compacta} />
                 </li>
               ) : null}
+            </ol>
+          </div>
+          {!angosto ? (
+            <section className="wk-panel" data-t={sel?.tipo}>
+              {sel ? <Detalle key={sel.n} p={sel} /> : null}
+            </section>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Un subagente (lo que lanza una sesión con su herramienta Agent) --------------------------------------------------------
+
+/** Cada cuánto se vuelve a leer lo que hizo un subagente que sigue corriendo. */
+const REPASO_MS = 2500;
+
+/** Sus pasos, del transcript del subagente: se piden al abrirlo y se repiten mientras corre. `undefined`: leyendo; `null`: no se pudo. */
+function usePasosSubagente(u: Subagente): VistaPasos | null | undefined {
+  const [e, setE] = useState<{ k: string; vista: VistaPasos | null } | null>(null);
+  const k = `${u.sid}:${u.id}`;
+  const corre = u.estado === "corriendo";
+  useEffect(() => {
+    let vivo = true;
+    let reloj: ReturnType<typeof setTimeout> | null = null;
+    const pedir = () =>
+      fuente.pasosSubagente(u.sid, u.id).then(
+        (v) => v,
+        () => null,
+      ).then((v) => {
+        if (!vivo) return;
+        setE({ k, vista: v && v.hay ? v : null });
+        if (corre) reloj = setTimeout(pedir, REPASO_MS);
+      });
+    void pedir();
+    return () => {
+      vivo = false;
+      if (reloj) clearTimeout(reloj);
+    };
+  }, [k, corre, u.ultimo_en]);
+  return e && e.k === k ? e.vista : undefined;
+}
+
+/** Al tocar un subagente en la barra: lo que hizo paso a paso (comandos, cuánto tardó cada uno, si pensó) y lo que informó. */
+export function VistaSubagente({ u }: { u: Subagente }) {
+  useIdioma();
+  const angosto = useAngosto();
+  const vista = usePasosSubagente(u);
+  const vive = u.estado === "corriendo";
+  const lista = useRef<HTMLDivElement>(null);
+  const seg = useSeguir(lista);
+  const pasos = useMemo(() => visibles(vista?.pasos ?? []), [vista?.pasos]);
+  const [elegido, setElegido] = useState<number | "ninguno" | null>(null);
+  const [abiertos, setAbiertos] = useState<ReadonlySet<number>>(() => new Set());
+  const porDef = useMemo(() => porDefecto(pasos, vive), [pasos, vive]);
+  const selN = elegido === "ninguno" ? null : (elegido ?? porDef);
+  const sel = pasos.find((p) => p.n === selN) ?? null;
+  const fs = useMemo(() => filas(pasos), [pasos]);
+  const alElegir = (n: number) => setElegido((x) => (x === n && angosto ? "ninguno" : n));
+  const alternar = (n: number) =>
+    setAbiertos((s) => {
+      const x = new Set(s);
+      if (!x.delete(n)) x.add(n);
+      return x;
+    });
+  useLayoutEffect(() => {
+    if (!vive) seg.pegado = false;
+  }, []);
+  const final = (vista ? textoFinal(vista.pasos) : null) ?? (vive ? null : u.resultado);
+  const { resultado } = useMemo(() => resumenDe(final), [final]);
+
+  return (
+    <div className="wk">
+      <div className="wk-in">
+        <section className="wk-fin" aria-label={t("wk.resultado")}>
+          <div className="wk-fila">
+            {resultado ? <Entero texto={resultado} className="wk-txt" /> : <p className="wk-txt espera">{vive ? t("wk.espera") : t("wk.sinResultado")}</p>}
+          </div>
+          {vista ? <Chips resultado={u.resultado} vista={vista} pasos={pasos} vive={vive} alElegir={alElegir} /> : null}
+        </section>
+        {vista && pasos.length ? <Mapa pasos={pasos} fin={vive ? null : vista.encabezado.fin} sel={selN} alElegir={alElegir} /> : null}
+        <div className="wk-paneles">
+          <div className="wk-lista" ref={lista}>
+            <ol aria-label={t("wk.pasos")}>
+              {vista === undefined ? <li className="wk-nota">{t("vista.leyendo")}</li> : null}
+              {vista === null ? <li className="wk-nota">{t("sub.sinPasos")}</li> : null}
+              {vista && vista.omitidos > 0 ? <li className="wk-nota wk-omit">{t("wk.anteriores", { n: vista.omitidos })}</li> : null}
+              {vista && !pasos.length ? <li className="wk-nota">{t("wk.sinPasos")}</li> : null}
+              {fs.map((f) =>
+                f.grupo ? (
+                  <GrupoFila key={f.ps[0].n} ps={f.ps} abierto={abiertos.has(f.ps[0].n) || f.ps.some((p) => p.n === selN)} alAlternar={() => alternar(f.ps[0].n)} elegido={selN} angosto={angosto} alElegir={alElegir} />
+                ) : (
+                  <FilaPaso key={f.p.n} p={f.p} sel={f.p.n === selN} angosto={angosto} alElegir={alElegir} />
+                ),
+              )}
             </ol>
           </div>
           {!angosto ? (

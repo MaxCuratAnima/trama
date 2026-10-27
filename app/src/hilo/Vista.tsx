@@ -36,7 +36,8 @@ import { Compactando } from "./Posta";
 import { useSeguir } from "./useSeguir";
 import { mensaje } from "../puente";
 import { usePasos } from "./usePasos";
-import { VistaWorker, WorkerExtras } from "./Worker";
+import { VistaSubagente, VistaWorker, WorkerExtras } from "./Worker";
+import { soltarSubagente, useSubagenteVisto } from "../barra/subagente-visto";
 
 const puesto = (p: string) => (p === "aca" ? tr("vista.aca") : tr("vista.puesto", { p }));
 
@@ -75,7 +76,43 @@ type Props = {
   alRetomar: (id: string) => void;
 };
 
-export function Vista({
+/**
+ * La vista del panel derecho: la de siempre, o (al tocar un subagente en la barra) los pasos de ese subagente. La de siempre
+ * queda montada y escondida: no pierde el scroll ni lo escrito en la caja del líder.
+ */
+export function Vista(props: Props) {
+  useIdioma();
+  const sub = useSubagenteVisto();
+  return (
+    <>
+      <VistaPrincipal {...props} oculta={sub !== null} />
+      {sub ? (
+        <main className="hilo">
+          <header className="migas">
+            <Lado etq={props.barraAbierta ? tr("comun.ocultarBarra") : tr("comun.mostrarBarra")} alAlternar={props.alAlternarBarra} />
+            <div className="ruta" data-desliza>
+              <span>{tr("sub.pasosTitulo")}</span>
+              <span>/</span>
+              <b>{sub.descripcion}</b>
+            </div>
+            {sub.modelo ? <span className="sub-modelo">{sub.modelo}</span> : null}
+            <span className="estado c-cerrado">
+              <i />
+              {sub.estado === "corriendo" ? tr("sub.corriendo") : sub.estado === "error" ? tr("sub.error") : tr("sub.terminado")}
+            </span>
+            <button type="button" className="btn2" onClick={soltarSubagente}>
+              {tr("sub.volver")}
+            </button>
+          </header>
+          <VistaSubagente key={`${sub.sid}:${sub.id}`} u={sub} />
+        </main>
+      ) : null}
+    </>
+  );
+}
+
+function VistaPrincipal({
+  oculta,
   h,
   estado,
   settle,
@@ -93,7 +130,7 @@ export function Vista({
   alCerrar,
   alPasar,
   alRetomar,
-}: Props) {
+}: Props & { oculta: boolean }) {
   const lado = barraAbierta ? tr("comun.ocultarBarra") : tr("comun.mostrarBarra");
   const titulos = useTitulos();
   const t = estado && h ? tipoDe(h, estado) : undefined;
@@ -106,7 +143,7 @@ export function Vista({
   }, [t]);
 
   return (
-    <main className="hilo">
+    <main className="hilo" style={oculta ? { display: "none" } : undefined}>
       <header className="migas">
         <Lado etq={lado} alAlternar={alAlternarBarra} />
         {h && estado ? (

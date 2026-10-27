@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld("hilos", {
   pasos: {
     mirar: (id: string): Promise<unknown> => ipcRenderer.invoke("pasos:mirar", id),
     soltar: (): Promise<void> => ipcRenderer.invoke("pasos:soltar"),
+    subagente: (sid: string, id: string): Promise<unknown> => ipcRenderer.invoke("pasos:subagente", sid, id),
     alCambiar: oir("pasos:cambio"),
   },
   pa: {

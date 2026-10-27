@@ -371,7 +371,7 @@ export const DEFAULTS_CLAUDE: Record<Tipo, Eleccion> = {
 
 /** Lo mismo cuando sólo hay Gemini (sin `claude`): Argon para todo lo que pesa y Flash sólo para lo mecánico. */
 export const DEFAULTS_GEMINI: Record<Tipo, Eleccion> = Object.fromEntries(
-  TIPOS.map((t) => [t, { modelo: t === "mecanico" ? "gemini-3.8-flash-medium" : "gemini-4-argon-high" }]),
+  TIPOS.map((t) => [t, { modelo: t === "mecanico" ? "gemini-3.8-flash-high" : "gemini-4-argon-high" }]),
 ) as Record<Tipo, Eleccion>;
 
 /** Los defaults de la máquina: los de Gemini si no hay Claude, los de Claude si no. */

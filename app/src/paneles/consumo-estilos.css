@@ -47,8 +47,14 @@
   flex: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--esp-2-5) 0 var(--esp-4);
+  /* Los botones de ventana (ControlesVentana, fijos arriba a la derecha) ocupan 8.5rem: igual que .migas en index.css. */
+  padding: 0 8.5rem 0 var(--esp-4);
   border-bottom: 1px solid var(--borde-1);
+  -webkit-app-region: drag;
+}
+/* Los botones del encabezado no arrastran la ventana. */
+.cs-cab .lado {
+  -webkit-app-region: no-drag;
 }
 .cs-cab b {
   color: var(--txt-1);

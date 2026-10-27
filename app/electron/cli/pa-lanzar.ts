@@ -7,15 +7,17 @@
 // Gemini/agy sí: un modelo `gemini*` o `agy:*` se lanza con `agy -p` (`TRAMA_AGY`) en vez de `claude` (rama `esGemini`).
 import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
-import { closeSync, existsSync, openSync, readFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
 import { modeloAgy } from "../modelos-config.ts";
+import { Traductor } from "../agy-stream.ts";
 import { comandoEjecutable, esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
 import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
+import { medir } from "./medicion.ts";
 import type { CtxPa } from "./contexto.ts";
 import { tomarCandado, type Candado } from "./candado.ts";
 import {
@@ -24,6 +26,7 @@ import {
 } from "./estado-archivos.ts";
 import { decisionDe, decisionEsNada } from "./hilos.ts";
 import { armarContrato, nombreDueno } from "./lanzar-contrato.ts";
+import { notaDePlataforma } from "../nota-windows.ts";
 import { leerModelos, resolverPolitica, TIPOS_VALIDOS } from "./lanzar-politica.ts";
 import { hooksDeWorker } from "./hook-comando.ts";
 import { shellDeHooks } from "./hook-comando.ts";
@@ -389,22 +392,30 @@ async function correr(b: Base): Promise<number> {
         scripts: { latido: script("hook-latido"), guardia: script("hook-guardia") }, hb, leer: o.leer,
       }),
     });
-    const contrato = armarContrato({ dueno, jefe: jefe.nombre, plan, leer: o.leer, rama, rutaTrabajo });
+    const nota = notaDePlataforma(ctx.plataforma);
+    const contrato = armarContrato({ dueno, jefe: jefe.nombre, plan, leer: o.leer, rama, rutaTrabajo }) + (nota ? `
+
+${nota}` : "");
     const nombreWorker = `pa/${slug}${o.leer ? "" : sufijoPuesto(puesto)}`;
     const autocompact = /^\d+$/.test(env.PA_AUTOCOMPACT ?? "") && Number(env.PA_AUTOCOMPACT) >= 100000 && Number(env.PA_AUTOCOMPACT) <= 1000000 ? env.PA_AUTOCOMPACT! : "180000";
     const esGemini = modelo.toLowerCase().startsWith("gemini") || modelo.toLowerCase().startsWith("agy:");
     const args: string[] = [];
     if (esGemini) {
       const mAgy = modeloAgy(modelo);
-      args.push("-p", `${contrato}\n\n${tarea}`, "--model", mAgy, "--dangerously-skip-permissions", "--output-format", "json");
+      args.push("-p", `${contrato}\n\n${tarea}`, "--model", mAgy, "--dangerously-skip-permissions", "--output-format", "stream-json");
     } else {
       args.push(
         "-p", tarea, "--model", modelo, ...(esfuerzo ? ["--effort", esfuerzo] : []), "--output-format", "json", "--append-system-prompt", contrato,
         "--permission-mode", "bypassPermissions", "--autocompact", autocompact, "--settings", settings, "--name", nombreWorker,
       );
       if (!o.mcp) args.push("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
-      if (o.leer) args.push("--tools", "Read,Grep,Glob,Bash,ToolSearch,ListAgents,SendMessage");
-      else if (plan === "pro") args.push("--disallowedTools", "Agent");
+      // En Windows el shell es PowerShell: Bash (Git Bash) queda afuera, así no le salen comandos de Linux.
+      const shellDe = esWindows(ctx.plataforma) ? "PowerShell" : "Bash";
+      if (o.leer) args.push("--tools", `Read,Grep,Glob,${shellDe},ToolSearch,ListAgents,SendMessage`);
+      else {
+        const sinHerramientas = [...(plan === "pro" ? ["Agent"] : []), ...(esWindows(ctx.plataforma) ? ["Bash"] : [])];
+        if (sinHerramientas.length) args.push("--disallowedTools", sinHerramientas.join(","));
+      }
       if (o.maxTurns) args.push("--max-turns", o.maxTurns);
       if (o.maxBudget) args.push("--max-budget-usd", o.maxBudget);
       args.push("--session-id", sid);
@@ -434,9 +445,39 @@ async function correr(b: Base): Promise<number> {
     const fo = openSync(out, "w");
     const fe = openSync(err, "w");
     const orden = comandoEjecutable(claudeBin, args, ctx.plataforma);
+    // Un worker Gemini habla `stream-json`: sale por un pipe, cada línea se guarda en el .json y se traduce al transcript de Claude Code
+    // (`transcript`, el que lee el panel del worker: comandos, tiempos, rama). Al terminar el .json queda como un solo objeto.
+    const trad = esGemini ? new Traductor({ sid, modelo: modeloAgy(modelo) }) : null;
+    let resultadoAgy: Record<string, unknown> | null = null;
+    const anotarT = (x: Record<string, unknown>) => {
+      try {
+        appendFileSync(transcript, JSON.stringify({ ...x, timestamp: new Date().toISOString(), sessionId: sid, uuid: randomUUID(), cwd: rutaTrabajo, isSidechain: false }) + "\n");
+      } catch {
+        // sin transcript el panel queda con lo de siempre; el worker sigue
+      }
+    };
+    const escribirT = (x: Record<string, any>) => {
+      if (x.type === "assistant" || (x.type === "user" && Array.isArray(x.message?.content) && x.message.content[0]?.type === "tool_result")) anotarT({ type: x.type, message: x.message });
+    };
+    if (trad) {
+      mkdirSync(path.dirname(transcript), { recursive: true });
+      anotarT({ type: "user", message: { role: "user", content: tarea } });
+    }
+    let restoAgy = "";
+    const lineaAgy = (l: string) => {
+      if (!l.trim()) return;
+      try {
+        appendFileSync(out, l + "\n");
+        const ev = JSON.parse(l);
+        if (ev?.event === "result" && ev.result && typeof ev.result === "object") resultadoAgy = ev.result as Record<string, unknown>;
+        for (const x of trad!.linea(ev)) escribirT(x);
+      } catch {
+        // una línea rota no corta al worker
+      }
+    };
     const hijo = spawn(orden.file, orden.args, {
       ...orden.opciones,
-      cwd: rutaTrabajo, windowsHide: true, detached: !esWindows(ctx.plataforma), stdio: ["ignore", fo, fe],
+      cwd: rutaTrabajo, windowsHide: true, detached: !esWindows(ctx.plataforma), stdio: ["ignore", trad ? "pipe" : fo, fe],
       // la cuenta (sacar ANTHROPIC_API_KEY, poner CLAUDE_CONFIG_DIR…) va SÓLO en el proceso del worker
       env: entornoConCuenta({
         ...process.env, ...env, PA_WORKER: "1", GIT_EDITOR: "true", GIT_SEQUENCE_EDITOR: "true",
@@ -445,6 +486,26 @@ async function correr(b: Base): Promise<number> {
     });
     closeSync(fo);
     closeSync(fe);
+    // el stdout de agy: línea por línea al .json y al transcript; `salidaCerrada` avisa cuando ya no queda nada por leer
+    let salidaCerrada: Promise<void> = Promise.resolve();
+    if (trad && hijo.stdout) {
+      hijo.stdout.setEncoding("utf8");
+      hijo.stdout.on("data", (d: string) => {
+        restoAgy += d;
+        const partes = restoAgy.split("\n");
+        restoAgy = partes.pop() ?? "";
+        partes.forEach(lineaAgy);
+      });
+      salidaCerrada = new Promise<void>((ok) => {
+        hijo.stdout!.on("end", () => {
+          lineaAgy(restoAgy);
+          restoAgy = "";
+          ok();
+        });
+        hijo.stdout!.on("error", () => ok());
+        hijo.stdout!.on("close", () => ok());
+      });
+    }
     hijoPid = hijo.pid;
     await registro(); // ahora sí con el pid del claude
     let matado = false;
@@ -464,9 +525,20 @@ async function correr(b: Base): Promise<number> {
     process.removeListener("SIGINT", bajar);
     hijoPid = undefined;
     tengoSalida = true;
+    await Promise.race([salidaCerrada, new Promise<void>((ok) => setTimeout(ok, 3000))]);
+    if (trad) {
+      // si agy se fue sin `result`, el transcript cierra el turno igual
+      for (const x of trad.fin(resultadoAgy ? null : matado ? "matado" : codigo !== 0 ? `agy salió con código ${codigo}` : null)) {
+        if (x.type === "assistant" || x.type === "user") escribirT(x as Record<string, any>);
+      }
+    }
     if (matado) {
       ctx.err(`pa: matado; el worker de '${slug}' también.\n`);
       return (rc = 130);
+    }
+    if (resultadoAgy) {
+      // el .json queda como un solo objeto (el formato `--output-format json` de agy), que es lo que sigue leyendo el resto de `pa`
+      await writeFile(out, JSON.stringify(resultadoAgy)).catch(() => {});
     }
 
     // --- qué salió ---
@@ -483,10 +555,21 @@ async function correr(b: Base): Promise<number> {
       j.session_id = typeof j.conversation_id === "string" ? j.conversation_id : sid;
       j.total_cost_usd = 0;
       j.num_turns = typeof j.num_turns === "number" ? j.num_turns : 1;
+      // agy escribe `response`; `--esperar` y `cierre` (DECISION/SIGUE al .hilo) leen `result` del archivo: sin esto salía "(sin resultado)".
+      await writeFile(out, JSON.stringify(j)).catch(() => {});
     }
     const resultado = typeof j?.result === "string" ? j.result : "";
     const esError = j?.is_error === true;
     const errTxt = (await leerTexto(err)) ?? "";
+    // una fila en medicion.tsv por corrida: es lo que lee la pantalla Estadísticas
+    const uso = (j?.usage ?? {}) as Record<string, unknown>;
+    medir(ctx.estado, {
+      id: ts, proyecto: slug, modelo, effort: esfuerzo || "", leer: !!o.leer, seguir: false, esError: codigo !== 0 || esError,
+      turnos: num(j?.num_turns), duracionS: Math.round(num(j?.duration_ms) / 1000), costo: num(j?.total_cost_usd), plan, origen: lanzo, tipo: o.tipo ?? "", cuenta,
+      // `tokens` incluye lo leído de caché (Estadísticas calcula caché = cache_read / tokens, que si no pasaría del 100 %)
+      tokens: (num(uso.total_tokens) || num(uso.input_tokens) + num(uso.output_tokens) + num(uso.cache_creation_input_tokens)) + (num(uso.cache_read_tokens) || num(uso.cache_read_input_tokens)),
+      cacheRead: num(uso.cache_read_tokens) || num(uso.cache_read_input_tokens), cacheCreation: num(uso.cache_creation_input_tokens),
+    });
     const guardarSesion = async () => {
       const nuevo = typeof j?.session_id === "string" ? j.session_id : "";
       if (nuevo && !o.leer) {

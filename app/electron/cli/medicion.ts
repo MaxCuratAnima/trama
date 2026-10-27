@@ -2,7 +2,7 @@
 // El archivo tiene el encabezado de hoy (con la columna `cuenta` al final) o uno viejo, que es un prefijo de éste: se lee por NOMBRE de
 // columna y se toleran las filas más cortas que el encabezado (las de antes no se reescriben). Todavía no: escribir una fila al terminar
 // una corrida (`medir`); esta versión de `pa` sólo lee y actualiza el encabezado.
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { CtxPa } from "./contexto.ts";
 
@@ -10,6 +10,29 @@ export const MEDICION_HEADER_VIEJO = "fecha\tid\tproyecto\tmodelo\teffort\tleer\
 // plan, compactaciones, autocompact, origen, la caché, tipo/integrada/retrabajo (`pa --rinde`) y cuenta: todo AL FINAL, las columnas viejas no se movieron.
 export const MEDICION_HEADER =
   MEDICION_HEADER_VIEJO + "\tplan\tcompactaciones\tautocompact\torigen\tcache_read\tcache_creation\tephemeral_1h\tephemeral_5m\ttipo\tintegrada\tretrabajo\tcuenta";
+
+export type FilaMedicion = {
+  id: string; proyecto: string; modelo: string; effort: string; leer: boolean; seguir: boolean; esError: boolean;
+  turnos: number; duracionS: number; tokens: number; costo: number; plan: string; cacheRead: number; cacheCreation: number;
+  origen: string; tipo: string; cuenta: string;
+};
+
+/** Una fila al terminar la corrida (la lee Estadísticas). Con el archivo nuevo o con encabezado viejo, deja el de hoy. Nunca tira la corrida: si no puede escribir, sigue. */
+export function medir(estado: string, f: FilaMedicion, ahora: Date = new Date()): void {
+  try {
+    const ruta = path.join(estado, "medicion.tsv");
+    if (!existsSync(ruta)) writeFileSync(ruta, MEDICION_HEADER + "\n");
+    else actualizarEncabezado(ruta);
+    const limpio = (v: string) => v.replace(/[\t\r\n]+/g, " ");
+    const col = [
+      ahora.toISOString(), f.id, f.proyecto, f.modelo, f.effort, f.leer ? 1 : 0, f.seguir ? 1 : 0, f.esError ? 1 : 0, f.turnos, f.duracionS,
+      f.tokens, f.costo, "", f.plan, "", "", f.origen, f.cacheRead, f.cacheCreation, "", "", f.tipo, "", "", f.cuenta,
+    ].map((v) => limpio(String(v)));
+    appendFileSync(ruta, col.join("\t") + "\n");
+  } catch {
+    // sin medición: Estadísticas queda sin esta corrida, pero el worker ya terminó bien
+  }
+}
 
 /** ¿Este encabezado es un prefijo (propio) del de hoy? Entonces se actualiza solo. */
 export const encabezadoViejo = (linea: string) => linea !== MEDICION_HEADER && MEDICION_HEADER.startsWith(linea) && linea.startsWith("fecha\t");

@@ -3,6 +3,7 @@
 // escribiendo), el verbo, lo concreto en una pastilla y los pasos que ya pasaron. Sin React ni i18n: devuelve claves
 // (`hz.*`) y textos ya limpios; los traduce la vista. De qué evento del stream sale cada tipo: docs/estado/actividad.md.
 import type { HaceLider } from "../datos/contrato";
+import { esShell } from "./shell.ts";
 
 export type Tipo = "pensando" | "web" | "codigo" | "editando" | "comando" | "delegando" | "permiso" | "escribiendo";
 
@@ -60,7 +61,7 @@ export function iconoDe(h: HaceLider): Icono {
     case "codigo":
       return LEER.has(h.nombre) ? "leer" : "buscar";
     case "comando":
-      return h.nombre === "Bash" ? "correr" : "otro";
+      return esShell(h.nombre) ? "correr" : "otro";
     default:
       return "otro";
   }
@@ -157,7 +158,7 @@ function partes(h: HaceLider): Partes {
   if (EDITAR.has(n)) return { tipo: "editando", verbo: "hz.editar", paso: "hz.p.edito", d: d ? rutaLegible(d) : n };
   if (n === "Write") return { tipo: "editando", verbo: "hz.escribirArchivo", paso: "hz.p.escribioArchivo", d: d ? rutaLegible(d) : n };
   if (DELEGAR.has(n)) return { tipo: "delegando", verbo: "hz.delegar", paso: "hz.p.delego", d: d ? unaLinea(extra ? `${extra} · ${d}` : d) : (extra ?? n) };
-  if (n === "Bash") {
+  if (esShell(n)) {
     const pa = d ? delegaPa(d) : null;
     if (pa) return { tipo: "delegando", verbo: "hz.delegar", paso: "hz.p.delego", d: unaLinea(pa) };
     return { tipo: "comando", verbo: "hz.correr", paso: "hz.p.corrio", d: d ? limpiarComando(d) : n };
@@ -177,7 +178,7 @@ export function clasificar(h: HaceLider): Actividad {
 export function clasificarPedido(p: { herramienta: string; detalle: string | null; plan: string | null; preguntas: { question: string }[] | null }): Actividad {
   if (p.plan !== null || p.herramienta === "ExitPlanMode") return { tipo: "permiso", verbo: "hz.permiso", detalle: "", detalleClave: "hz.d.plan", icono: "permiso" };
   if (p.preguntas?.length) return { tipo: "permiso", verbo: "hz.permiso", detalle: unaLinea(p.preguntas[0].question), detalleClave: "hz.d.pregunta", icono: "permiso" };
-  const d = p.detalle ? (p.herramienta === "Bash" ? limpiarComando(p.detalle) : unaLinea(p.detalle)) : "";
+  const d = p.detalle ? (esShell(p.herramienta) ? limpiarComando(p.detalle) : unaLinea(p.detalle)) : "";
   return { tipo: "permiso", verbo: "hz.permiso", detalle: unaLinea(d ? `${p.herramienta}: ${d}` : p.herramienta), detalleClave: "hz.d.permiso", icono: "permiso" };
 }
 

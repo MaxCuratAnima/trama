@@ -112,6 +112,8 @@ export type SuscripcionCupo = {
   ts: number;
   ventanas?: VentanaCupo[];
   grupos?: GrupoCupo[];
+  /** Nunca se pudo leer esta cuenta: sus ventanas van en null. */
+  sinLectura?: true;
 };
 
 /**

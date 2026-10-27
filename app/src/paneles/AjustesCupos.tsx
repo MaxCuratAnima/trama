@@ -57,6 +57,9 @@ function Ventana({ nombre, pct, vuelve }: { nombre: string; pct: number | null; 
 
 const nombreVentana = (id: string) => (id === "5h" ? t("uso.5h") : id === "7d" ? t("uso.sem") : id);
 
+/** Ninguna ventana tiene porcentaje: no hay lectura, por más que la fila traiga sus ventanas vacías. */
+const sinPct = (vs: VentanaCupo[] | undefined) => !!vs?.length && vs.every((v) => v.pct == null);
+
 const Ventanas = ({ vs }: { vs: VentanaCupo[] }) => (
   <>
     {vs.map((v) => (
@@ -122,7 +125,9 @@ function Conectar({ id, c, como, alMirar }: { id: Proveedor; c: CuentaEstado | u
 function CupoDe({ uso, proveedor, perfil }: { uso: Uso | null; proveedor: ProveedorCuenta; perfil: PerfilCuenta }) {
   const s = conDatos(uso) ? uso.suscripciones?.find((x) => (x.proveedor ?? x.id) === proveedor && (x.cuenta ?? x.id) === perfil.id) : undefined;
   if (s?.grupos?.length) return <>{s.grupos.map((g) => <Grupo key={g.id} g={g} />)}</>;
-  if (s?.ventanas?.length) return <Ventanas vs={s.ventanas} />;
+  if (s?.ventanas?.length && !s.sinLectura && !sinPct(s.ventanas)) return <Ventanas vs={s.ventanas} />;
+  // Sin lectura y sin sesión: no es "todavía", es que hay que volver a conectarla.
+  if (perfil.logueado === false) return <div className="cu-sin">{t("uso.sesionVencida")}</div>;
   return <div className="cu-sin">{t("uso.sinDatoCupo")}</div>;
 }
 
@@ -181,7 +186,7 @@ export function CuposTarjetas({ b, uso, plan }: { b: Borrador; uso: Uso | null; 
   ) : (
     <div className="cu-sin">{t("uso.sinDatoCupo")}</div>
   );
-  const cupoGoogle = google?.grupos ? google.grupos.map((g) => <Grupo key={g.id} g={g} />) : google?.ventanas ? <Ventanas vs={google.ventanas} /> : <div className="cu-sin">{t("uso.sinDatoCupo")}</div>;
+  const cupoGoogle = google?.sinLectura || sinPct(google?.ventanas) ? <div className="cu-sin">{t("uso.sinDatoGoogle")}</div> : google?.grupos ? google.grupos.map((g) => <Grupo key={g.id} g={g} />) : google?.ventanas ? <Ventanas vs={google.ventanas} /> : <div className="cu-sin">{t("uso.sinDatoCupo")}</div>;
 
   return (
     <section className="cu-sec">

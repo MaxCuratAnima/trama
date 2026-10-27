@@ -7,6 +7,7 @@ import { ttlDeUso } from "./cache.ts";
 import { errorT, textoT } from "./errores.ts";
 import { deDueno } from "./dueno.ts";
 import { entornoConLocal, type Plataforma } from "./plataforma.ts";
+import { notaDePlataforma } from "./nota-windows.ts";
 import { contenidoUsuario, imagenesDeContenido, type Imagen } from "./imagenes.ts";
 import { HERRAMIENTA_PREGUNTAS, preguntasDe, type Pregunta } from "./preguntas.ts";
 
@@ -41,7 +42,7 @@ export const PROMPT_LOCAL = [
   "Contestá en el idioma en que te escriben, claro y al grano.",
   "Tenés herramientas para leer, buscar y editar archivos y para correr comandos en esta máquina: usalas cuando hagan falta y contá qué hiciste.",
   "No lanzás workers ni delegás (no hay `pa` ni subagentes para vos): el trabajo lo hacés vos, acá.",
-  `Los pendientes ${deDueno()} viven en \`tablero\`, que tenés por Bash: \`tablero listar\`, \`tablero ver <id>\`, \`tablero agregar\`, \`tablero cerrar <id>\`. Si no sabés algo ${deDueno()}, de sus proyectos o de sus pendientes, mirá abajo o consultalo ahí antes de decir que no existe.`,
+  `Los pendientes ${deDueno()} viven en \`tablero\`, que tenés por la herramienta de comandos: \`tablero listar\`, \`tablero ver <id>\`, \`tablero agregar\`, \`tablero cerrar <id>\`. Si no sabés algo ${deDueno()}, de sus proyectos o de sus pendientes, mirá abajo o consultalo ahí antes de decir que no existe.`,
   "Antes de algo que no se deshace (borrar, sobrescribir, publicar), preguntá.",
 ].join("\n");
 
@@ -49,7 +50,7 @@ export const PROMPT_LOCAL = [
  * Las herramientas de un líder local: sin subagentes, skills, web ni tareas (cada una suma su esquema a cada pedido). `--bare`
  * ya deja sólo estas tres (≈ 1K tokens de esquemas; medido con claude 2.1.302 contra un servidor falso): se dicen igual por si cambia.
  */
-export const HERRAMIENTAS_LOCAL = "Bash,Read,Edit";
+export const HERRAMIENTAS_LOCAL = process.platform === "win32" ? "PowerShell,Read,Edit" : "Bash,Read,Edit";
 
 /**
  * Lo que se le agrega al argv de un líder local. `--bare`: sin CLAUDE.md, hooks, plugins, skills de orquestación ni memoria
@@ -57,7 +58,10 @@ export const HERRAMIENTAS_LOCAL = "Bash,Read,Edit";
  * llama-server, que no la mira: nunca `ANTHROPIC_API_KEY`). `--system-prompt-snapshot off`: si la sesión fue de Claude, no
  * reusar el prompt grabado. Sin `--effort` (los niveles locales no son los de Claude): va en el entorno (`entornoLocal`).
  */
-const argvLocal = (contexto?: string) => [
+const argvLocal = (contexto?: string) => {
+  const nota = notaDePlataforma(process.platform);
+  const base = nota ? `${PROMPT_LOCAL}\n\n${nota}` : PROMPT_LOCAL;
+  return [
   "--bare",
   "--settings",
   JSON.stringify({ apiKeyHelper: "echo trama-local" }),
@@ -65,10 +69,11 @@ const argvLocal = (contexto?: string) => [
   "--tools",
   HERRAMIENTAS_LOCAL,
   "--system-prompt",
-  contexto ? `${PROMPT_LOCAL}\n\n${contexto}` : PROMPT_LOCAL,
+  contexto ? `${base}\n\n${contexto}` : base,
   "--system-prompt-snapshot",
   "off",
-];
+  ];
+};
 
 /**
  * `claude -p` persistente que lee y escribe stream-json. En bypass,
@@ -104,6 +109,8 @@ export function argvLider({ modelo, effort, sid, nombre, resume, modo = MODO_DEF
     // Ollama no entiende `claude-*` ni los esfuerzos de Claude: su modelo, y sin `--effort`.
     ollama ? ollama.modelo : modelo,
     ...(local ? argvLocal(local.contexto) : ollama ? [] : ["--effort", effort]),
+    // En Windows el shell es PowerShell: Bash (Git Bash) queda afuera para que no escriba comandos de Linux.
+    ...(!local && process.platform === "win32" ? ["--disallowedTools", "Bash"] : []),
   ];
   if (resume) args.push("--resume", sid);
   else args.push("--session-id", sid, "--name", nombre);

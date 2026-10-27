@@ -15,7 +15,8 @@ import { ESTADO, escribirAtomico, PA_STATE } from "./pa.js";
 import { lideresApp, procDe, transcriptDe, transcriptPorDefecto, usoVisto } from "./lider.js";
 import { real, registro, type Proyecto } from "./registro.js";
 import { sesiones, type Sesion } from "./sesiones.js";
-import { creadoEn, proyectoEnTexto, temaDe, tituloLider } from "./tema.js";
+import { creadoEn, proyectoEnTexto, recortar, temaDe, tituloEsElPrimero, tituloLider } from "./tema.js";
+import { tituloAuto } from "./titulo-auto.js";
 import { cuposActuales, type SuscripcionCupo } from "./cupos.js";
 import { deStatusline, esCuentaDeSiempre, usoDe, type Ventana } from "./uso.ts";
 import { verCaidos, type Caido } from "./vigia.js";
@@ -143,7 +144,9 @@ async function caidosDe(muertas: Sesion[], vivas: Set<string>, ahora: number): P
 async function deQueTrata(sid: string, cwd: string | null, sesion: string, regs: Proyecto[], home: string) {
   const archivo = cwd === null ? transcriptPorDefecto(sid) : await transcriptDe(sid, cwd).catch(() => null);
   const t = await temaDe(sid, archivo);
-  return { nombre: tituloLider(t, sesion), inferido: t.primero ? proyectoEnTexto(t.primero, regs, home) : null, creado: t.creado };
+  // Sin título propio, el de la barra es un resumen del tema (lo genera Haiku una vez); hasta que llega, el primer mensaje recortado.
+  const nombre = tituloEsElPrimero(t, sesion) ? (tituloAuto(sid, t.primero!) ?? recortar(tituloLider(t, sesion))) : tituloLider(t, sesion);
+  return { nombre, inferido: t.primero ? proyectoEnTexto(t.primero, regs, home) : null, creado: t.creado };
 }
 
 

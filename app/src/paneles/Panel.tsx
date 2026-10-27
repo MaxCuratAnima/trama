@@ -1,5 +1,5 @@
 // Los paneles del pie de la barra (Ajustes, Ramas, Estadísticas, Tablero): ocupan
-// el lado derecho, donde va la conversación. Esc o "Volver" los cierra.
+// el lado derecho, donde va la conversación. Esc o otro clic en el botón del pie los cierra.
 import { useRef } from "react";
 import { useFoco } from "../foco";
 import { Ajustes } from "./Ajustes";
@@ -9,7 +9,6 @@ import { Tablero, type PropsTablero } from "./Tablero";
 import { TableroNuevo } from "./TableroNuevo";
 import { t, type ClaveSola } from "../i18n";
 import { useIdioma } from "../i18n/react";
-import { Fijo } from "../i18n/Fijo";
 import { Lado } from "../hilo/Lado";
 import "./paneles.css";
 import "./lavado.css";
@@ -32,7 +31,7 @@ type Props = {
   tablero: PropsTablero;
 };
 
-export function Panel({ cual, barraAbierta, alAlternarBarra, alVolver, ramas, tablero }: Props) {
+export function Panel({ cual, barraAbierta, alAlternarBarra, ramas, tablero }: Props) {
   useIdioma();
   // El foco entra al panel al abrirlo (Tab sigue por su contenido) y, al cerrarlo, vuelve al botón del pie que lo abrió; Esc lo maneja la barra.
   const raiz = useRef<HTMLElement>(null);
@@ -45,9 +44,6 @@ export function Panel({ cual, barraAbierta, alAlternarBarra, alVolver, ramas, ta
         <div className="ruta" data-desliza>
           <b>{t(PANELES[cual])}</b>
         </div>
-        <button type="button" className="btn2 pn-volver" onClick={alVolver}>
-          <Fijo k="panel.volver" /> <kbd>Esc</kbd>
-        </button>
       </header>
       <div className="conv-zona">
         {/* La clave: al cambiar de panel el contenido entra de nuevo. */}

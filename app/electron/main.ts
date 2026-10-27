@@ -304,7 +304,10 @@ function armarLaBandeja() {
     v.show();
     v.focus();
   };
-  const icono = nativeImage.createFromPath(path.join(aqui, "..", "public", "icon.png"));
+  // En desarrollo el ícono está en public/; instalada, la app solo trae dist/ (vite copia ahí public/): sin probar los dos, la bandeja sale en blanco.
+  const icono = [path.join(aqui, "..", "public", "icon.png"), path.join(aqui, "..", "dist", "icon.png")]
+    .map((ruta) => nativeImage.createFromPath(ruta))
+    .find((img) => !img.isEmpty()) ?? nativeImage.createEmpty();
   const normal = icono.isEmpty() ? icono : icono.resize({ width: 24, height: 24 });
   // Con alguien esperando, el mismo ícono con un punto ámbar (el de "te necesita" de la barra).
   const conEspera = normal.isEmpty()

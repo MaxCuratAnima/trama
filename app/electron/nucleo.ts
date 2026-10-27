@@ -975,6 +975,8 @@ export function armarNucleo() {
   // Los subagentes de cada sesión con proceso y el informe entero de uno terminado: de esta máquina sola.
   manejar("subagentes:leer", () => subagentes.leer());
   manejar("subagentes:informe", (_e, sid: unknown, id: unknown) => subagentes.informe(sid, id));
+  // Los pasos de un subagente (lo que se ve al tocarlo en la barra): de su transcript, a pedido (la vista repregunta mientras corre).
+  manejar("pasos:subagente", (_e, sid: unknown, id: unknown) => subagentes.pasos(sid, id));
 
   if (maquinas) juntarMaquinas(maquinas);
 }

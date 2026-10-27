@@ -10,6 +10,7 @@ import { open, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { mirarCarpeta, type Mirada } from "./mirar.ts";
 import { silencio } from "./log.ts";
+import { ArmadorPasos, type VistaPasos } from "./pasos.ts";
 
 export type EstadoSubagente = "corriendo" | "terminado" | "error";
 
@@ -376,5 +377,23 @@ export function crearSubagentes(o: Opciones) {
     seguidas.clear();
   }
 
-  return { sincronizar, leer, informe, cerrar };
+  /** Armadores de los subagentes mirados (por archivo): releer sólo lo que creció. Pocos: se mira de a uno. */
+  const armadores = new Map<string, ArmadorPasos>();
+
+  /** Los pasos de un subagente de una sesión seguida, de su transcript: comandos, tiempos y si pensó. `null` si no se encuentra. */
+  async function pasos(sid: unknown, id: unknown): Promise<VistaPasos | null> {
+    const x = typeof sid === "string" ? seguidas.get(sid) : undefined;
+    if (!x || typeof id !== "string" || !ID.test(id)) return null;
+    const archivo = path.join(dirDe(x), `agent-${id}.jsonl`);
+    if (!(await stat(archivo).then((s) => s.isFile(), () => false))) return null;
+    let a = armadores.get(archivo);
+    if (!a) {
+      if (armadores.size >= 4) armadores.delete(armadores.keys().next().value as string);
+      armadores.set(archivo, (a = new ArmadorPasos(archivo, { subagente: true })));
+    }
+    await a.leer();
+    return a.vista(id);
+  }
+
+  return { sincronizar, leer, informe, pasos, cerrar };
 }

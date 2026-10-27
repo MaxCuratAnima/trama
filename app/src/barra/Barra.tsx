@@ -85,6 +85,7 @@ import { armarArrastre, CARPETAS } from "./arrastre";
 import { control } from "./control";
 import { Fila, FilaLider, RESORTE } from "./Fila";
 import { Subagentes } from "./Subagentes";
+import { soltarSubagente } from "./subagente-visto";
 import { corriendo, useTodosSubagentes } from "./subagentes-datos";
 import { correrGuion } from "./guion";
 import { Logo } from "./Logo";
@@ -339,6 +340,10 @@ export function Barra() {
     abierto.current = { activa, panel };
     if (medio && !MODO.captura && (a.activa !== activa || a.panel !== panel)) setConsumo(false);
   }, [medio, activa, panel]);
+  // Abrir un panel del pie (Ajustes, Ramas, Estadísticas) deja de mirar los pasos del subagente.
+  useEffect(() => {
+    if (panel) soltarSubagente();
+  }, [panel]);
   const raiz = useRef<HTMLDivElement>(null);
   const campo = useRef<HTMLInputElement>(null);
   const lista = useRef<HTMLDivElement>(null);
@@ -574,6 +579,7 @@ export function Barra() {
   }, []);
 
   const abrir = useCallback((id: string) => {
+    soltarSubagente();
     alFrente();
     setActiva(id);
     setPanel(null);
@@ -583,12 +589,14 @@ export function Barra() {
   }, []);
 
   const abrirLider = useCallback((id: string) => {
+    soltarSubagente();
     alFrente();
     setPanel(null);
     setActiva(LIDER + id);
   }, []);
 
   const abrirLiderNuevo = useCallback(() => {
+    soltarSubagente();
     nuevaEn.current = null;
     alFrente();
     setPanel(null);

@@ -225,7 +225,7 @@ export function procesarLatido(argumentos: string[], entrada: string, ctx: Conte
   const shell = esShell(herramienta);
   if (modo === "leer" && fase === "pre" && shell && !gitDeLectura(cmd)) {
     return bloqueo(
-      "BLOQUEADO: estás en modo LECTURA (pa --leer). Bash sólo acepta git de lectura: log, diff, show, status, rev-list, rev-parse, merge-base, ls-files, ls-tree, blame, shortlog, describe, cat-file, grep, branch --list, worktree list, stash list/show. Usá 'git -C <ruta>' en vez de cd, y como mucho un pipe a head/tail/grep/wc/cut. Nada de ;, &&, redirecciones, $(...) ni otros comandos. Para leer archivos usá Read/Grep/Glob.",
+      "BLOQUEADO: estás en modo LECTURA (pa --leer). La herramienta de comandos sólo acepta git de lectura: log, diff, show, status, rev-list, rev-parse, merge-base, ls-files, ls-tree, blame, shortlog, describe, cat-file, grep, branch --list, worktree list, stash list/show. Usá 'git -C <ruta>' en vez de cd y acotá la salida con las opciones de git (-n 20, --stat, -- <ruta>). Nada de ;, &&, redirecciones, $(...) ni otros comandos. Para leer archivos usá Read/Grep/Glob.",
     );
   }
 
