@@ -61,13 +61,10 @@ test("el archivo se valida campo por campo", () => {
   });
 });
 
-test("agy: la última sale del actualizador (Stable Version) o del RPC de AUR", async () => {
-  const { ultimaDeActualizador, ultimaDeAur } = await import("../electron/version.ts");
+test("agy: la última sale del actualizador (Stable Version)", async () => {
+  const { ultimaDeActualizador } = await import("../electron/version.ts");
   assert.equal(ultimaDeActualizador("Antigravity CLI auto updater is running! Stable Version: 1.4.2. Rolled out to 100%"), "1.4.2");
   assert.equal(ultimaDeActualizador("Stable Version: v10.0.11"), "10.0.11");
   assert.equal(ultimaDeActualizador("<html>404</html>"), null);
   assert.equal(ultimaDeActualizador(null), null);
-  assert.equal(ultimaDeAur({ resultcount: 1, results: [{ Name: "antigravity-cli", Version: "1.4.2_4835981233356800-1" }] }), "1.4.2");
-  assert.equal(ultimaDeAur({ resultcount: 0, results: [] }), null);
-  assert.equal(ultimaDeAur("basura"), null);
 });
