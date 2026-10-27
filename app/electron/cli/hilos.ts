@@ -1,6 +1,6 @@
 // `pa --hilos [--json] [--todo]`: el contrato JSON que lee la app (version 1). Lectura pura, sin locks. Un "hilo" es una
 // corrida: su `.hilo` (o, en las de antes del `.hilo`, lo que quede de `.corrida`/`.json`) más su estado de ahora.
-// Es el port de `cmd_hilos` de `motor/bin/pa` (bash + jq): mismos campos, mismas reglas; ahí está la referencia.
+// Es el port de `cmd_hilos` de `motor/bin/pa`: mismos campos, mismas reglas; ahí está la referencia.
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { CtxPa } from "./contexto.ts";
@@ -241,6 +241,8 @@ export function calcularHilos(ctx: CtxPa, op: OpcionesHilos = {}): SalidaHilos {
     return rutaCache.get(slug)!;
   };
   const pidEnCola = (d: string, id: string) => {
+    // Terminada (.listo/.entregado, o con `in=` en el .hilo): su .pid puede haber quedado con un pid que Windows reasignó.
+    if (existsSync(path.join(d, `${id}.listo`)) || existsSync(path.join(d, `${id}.entregado`)) || campoRapido(path.join(d, `${id}.hilo`), "in")) return false;
     const l = primeraLinea(path.join(d, `${id}.pid`));
     return l !== null && /^[0-9]+$/.test(l) && ctx.existePid(Number(l)) && !ctx.esZombi(Number(l));
   };

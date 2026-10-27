@@ -1,4 +1,4 @@
-// Candado entre procesos, igual en Linux y en Windows (sin `flock`): un archivo que se crea con creación exclusiva
+// Candado entre procesos, sin `flock`: un archivo que se crea con creación exclusiva
 // (`wx`) y guarda el pid y el arranque de quien lo tiene. Si el dueño ya no existe (o su pid lo reusó otro proceso, que
 // arrancó en otro momento) el candado es viejo y se saca. `procesos.ts` dice si un pid vive y cuándo arrancó.
 import { link, mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";

@@ -1,7 +1,7 @@
 // Lanzar un worker (`pa <proyecto> "<tarea>"`, `--leer`, `--async`, `--aca`): port de la parte de lanzamiento de `motor/bin/pa`.
 // Un worktree propio por puesto (`<estado>/worktrees/<slug>[@k]`) y una rama `pa/<slug>/<id>` desde el HEAD del tree principal,
-// `claude -p` con el contrato y los hooks del worker (latido + guardia), y los mismos archivos de estado que el bash
-// (`.corrida .hilo .sid .json .pid .puesto .jefe .log .running .ultimo .listo`). Sin bash ni `setsid`: los procesos van por `procesos.ts`.
+// `claude -p` con el contrato y los hooks del worker (latido + guardia), y los mismos archivos de estado que el pa original
+// (`.corrida .hilo .sid .json .pid .puesto .jefe .log .running .ultimo .listo`). Los procesos van por `procesos.ts`.
 // Todavía no: --seguir, --actualizar, --integrar/--descartar/--matar/--ramas, reparto, tope global y RAM, ollama, medicion.tsv,
 // tablero, el auto-cierre por falta de turnos, el reintento por 529 y symlinks de caches (node_modules, target) al worktree.
 // Gemini/agy sí: un modelo `gemini*` o `agy:*` se lanza con `agy -p` (`TRAMA_AGY`) en vez de `claude` (rama `esGemini`).
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirClaudeConfig, rutaModelos } from "../plataforma.ts";
 import { modeloAgy } from "../modelos-config.ts";
 import { Traductor } from "../agy-stream.ts";
-import { comandoEjecutable, esWindows, estadoDeProceso, matarArbol } from "../procesos.ts";
+import { comandoEjecutable, estadoDeProceso, matarArbol } from "../procesos.ts";
 import { enPath } from "./trama-estado.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import { medir } from "./medicion.ts";
@@ -409,11 +409,10 @@ ${nota}` : "");
         "--permission-mode", "bypassPermissions", "--autocompact", autocompact, "--settings", settings, "--name", nombreWorker,
       );
       if (!o.mcp) args.push("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}');
-      // En Windows el shell es PowerShell: Bash (Git Bash) queda afuera, así no le salen comandos de Linux.
-      const shellDe = esWindows(ctx.plataforma) ? "PowerShell" : "Bash";
-      if (o.leer) args.push("--tools", `Read,Grep,Glob,${shellDe},ToolSearch,ListAgents,SendMessage`);
+      // En Windows el shell es PowerShell: Bash (Git Bash) queda afuera.
+      if (o.leer) args.push("--tools", "Read,Grep,Glob,PowerShell,ToolSearch,ListAgents,SendMessage");
       else {
-        const sinHerramientas = [...(plan === "pro" ? ["Agent"] : []), ...(esWindows(ctx.plataforma) ? ["Bash"] : [])];
+        const sinHerramientas = [...(plan === "pro" ? ["Agent"] : []), "Bash"];
         if (sinHerramientas.length) args.push("--disallowedTools", sinHerramientas.join(","));
       }
       if (o.maxTurns) args.push("--max-turns", o.maxTurns);
@@ -477,7 +476,7 @@ ${nota}` : "");
     };
     const hijo = spawn(orden.file, orden.args, {
       ...orden.opciones,
-      cwd: rutaTrabajo, windowsHide: true, detached: !esWindows(ctx.plataforma), stdio: ["ignore", trad ? "pipe" : fo, fe],
+      cwd: rutaTrabajo, windowsHide: true, stdio: ["ignore", trad ? "pipe" : fo, fe],
       // la cuenta (sacar ANTHROPIC_API_KEY, poner CLAUDE_CONFIG_DIR…) va SÓLO en el proceso del worker
       env: entornoConCuenta({
         ...process.env, ...env, PA_WORKER: "1", GIT_EDITOR: "true", GIT_SEQUENCE_EDITOR: "true",

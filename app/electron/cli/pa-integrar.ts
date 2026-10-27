@@ -14,7 +14,7 @@ import { anotarFin, escribirAtomico, evento, hiloPoner, leerCampo, leerTexto, pr
 import { runningDeId } from "./parar.ts";
 import type { OpcionesProyecto } from "./args.ts";
 import { resolver } from "./proyecto-ruta.ts";
-import { caminos, esWindows, mismaRuta, restoDeRuta } from "../plataforma.ts";
+import { caminos, mismaRuta, restoDeRuta } from "../plataforma.ts";
 
 // --- git ---
 
@@ -128,7 +128,7 @@ export function puestoDeRuta(ctx: CtxPa, p: Proy, wt: string): string {
   const resto = restoDeRuta(ctx.plataforma, wt, caminos(ctx.plataforma).join(ctx.estado, "worktrees"));
   if (resto === null || /[\\/]/.test(resto)) return "aca";
   const slug = p.slug.toLowerCase(); // el slug va en minúscula; git/Windows pueden devolver la carpeta con otra capitalización
-  const r = esWindows(ctx.plataforma) ? resto.toLowerCase() : resto;
+  const r = resto.toLowerCase();
   if (r === slug) return "1";
   return r.startsWith(slug + "@") ? resto.slice(slug.length + 1) : "aca";
 }
@@ -267,6 +267,7 @@ const viveId = (ctx: CtxPa, pid: string) => /^\d+$/.test(pid.trim()) && ctx.exis
 /** Viva = corriendo (su `.running`) o en cola (el pid de `<id>.pid` vive). */
 export async function corridaViva(ctx: CtxPa, p: Proy, id: string): Promise<boolean> {
   if (await runningDeId(ctx, p.slug, id)) return true;
+  if (existsSync(rutaDe(p.dir, id, "listo")) || existsSync(rutaDe(p.dir, id, "entregado"))) return false; // terminada: su pid pudo reasignarse
   const pid = ((await leerTexto(rutaDe(p.dir, id, "pid"))) ?? "").trim();
   return viveId(ctx, pid);
 }

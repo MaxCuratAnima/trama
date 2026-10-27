@@ -1,11 +1,10 @@
 // `pa --esperar <proyecto>` y `pa --esperar-todos`: entregan (y marcan `.entregado`) el resultado de una corrida async que
 // lanzó este jefe. Port de `cmd_esperar`, `cmd_esperar_todos`, `mostrar_resultado`, `stats_resultado`, `linea_rama` y
 // `claude_falla` de `motor/bin/pa`. Falta el aviso de solapamiento de `linea_rama` (`solapamiento`, que depende de
-// `ramas_sin_integrar`, todavía sin portar). Los `exit N` del bash son `Salida(N)`; los códigos son los mismos.
+// `ramas_sin_integrar`, todavía sin portar). Los `exit N` del pa original son `Salida(N)`; los códigos son los mismos.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import path from "node:path";
-import { esWindows, deStat } from "../procesos.ts";
 import type { CtxPa } from "./contexto.ts";
 import { campoDe, slugDe } from "./estado-archivos.ts";
 import { resolver } from "./proyecto-ruta.ts";
@@ -13,9 +12,9 @@ import { resolver } from "./proyecto-ruta.ts";
 /** Corrida ya entregada por otra espera, dentro de `--esperar-todos` (interno: nunca sale de pa). */
 const OTRA_ESPERA = 94;
 const DIA_SEG = 86400;
-const CLAUDE_ARREGLO = "node ~/.local/lib/node_modules/@anthropic-ai/claude-code/install.cjs";
+const CLAUDE_ARREGLO = "irm https://claude.ai/install.ps1 | iex";
 
-/** `exit N` del bash: corta la espera con ese código. */
+/** `exit N` del pa original: corta la espera con ese código. */
 class Salida extends Error {
   rc: number;
   constructor(rc: number) {
@@ -68,7 +67,6 @@ const vivo = (ctx: CtxPa, ruta: string): boolean => {
   const p = campo(ruta, "pid") || campo(ruta, "pa_pid");
   return p !== "" && ctx.existePid(Number(p));
 };
-
 /** `jefe_id=` de la corrida, o el de su `.jefe` (que escribe el padre de --async antes del fork). */
 const jefeDe = (d: string, t: string): string => campo(path.join(d, `${t}.corrida`), "jefe_id") || campo(path.join(d, `${t}.jefe`), "jefe_id");
 
@@ -80,30 +78,12 @@ const esMia = (d: string, t: string, yo: string): boolean => {
 };
 
 /**
- * `jefe_id` de esta sesión: `PA_JEFE_ID`, o `PA_JEFE`, o el `sessionId` del `~/.claude/sessions/<pid>.json` del
- * ancestro más cercano. Fuera de Linux no hay árbol de procesos por /proc: sale "" y no filtra.
+ * `jefe_id` de esta sesión: `PA_JEFE_ID` o `PA_JEFE`. Sin ninguno sale "" y no filtra (en Windows no se sube por el árbol
+ * de procesos hasta el `sessionId` del jefe).
  */
 export function jefeId(ctx: CtxPa): string {
   if (ctx.env.PA_JEFE_ID !== undefined) return ctx.env.PA_JEFE_ID;
   if (ctx.env.PA_JEFE !== undefined) return ctx.env.PA_JEFE;
-  if (esWindows(ctx.plataforma)) return "";
-  let p = process.ppid;
-  while (p > 1) {
-    const f = path.join(ctx.home, ".claude", "sessions", `${p}.json`);
-    if (existsSync(f)) {
-      try {
-        const sid = JSON.parse(readFileSync(f, "utf8")).sessionId;
-        return typeof sid === "string" ? sid : "";
-      } catch {
-        return "";
-      }
-    }
-    try {
-      p = deStat(readFileSync(`/proc/${p}/stat`, "utf8")).ppid ?? 0;
-    } catch {
-      return "";
-    }
-  }
   return "";
 }
 
@@ -223,7 +203,7 @@ function mostrarResultado(ctx: CtxPa, json: string): void {
   lineaRama(ctx, json);
 }
 
-/** `pa --esperar <proyecto> [--timeout N] [--id <corrida>]`. Sale con el rc del worker, o 1/2/75/82 como el bash. */
+/** `pa --esperar <proyecto> [--timeout N] [--id <corrida>]`. Sale con el rc del worker, o 1/2/75/82 como el pa original. */
 export async function esperar(ctx: CtxPa, args: string[]): Promise<number> {
   const proy = args[0] ?? "";
   let timeout = 0;
@@ -292,7 +272,7 @@ export async function esperarTodos(ctx: CtxPa, args: string[]): Promise<number> 
   let rc = 0;
   for (const { slug, id } of cola) {
     const resto = fin ? Math.max(1, fin - ctx.ahora()) : 0;
-    // El stdout de cada espera se junta y sale con su encabezado; el stderr va directo, como en el bash.
+    // El stdout de cada espera se junta y sale con su encabezado; el stderr va directo, como en el pa original.
     let sal = "";
     const hijo: CtxPa = { ...ctx, out: (s) => void (sal += s) };
     const rc1 = await correr(() => esperarProyecto(hijo, slug, { id, timeout: resto, todos: true }));
@@ -432,7 +412,8 @@ async function esperarProyecto(ctx: CtxPa, proy: string, op: Opciones): Promise<
   const corridaViva = (t: string): boolean => {
     const p = path.join(d, `${t}.pid`);
     const pid = existsSync(p) ? (leerOpt(p) ?? "").trim() : "";
-    if (pid && ctx.existePid(Number(pid))) return true;
+    const terminada = existsSync(path.join(d, `${t}.listo`)) || existsSync(path.join(d, `${t}.entregado`));
+    if (pid && !terminada &&ctx.existePid(Number(pid))) return true;
     return [...runningDe(ctx, slug, false), ...runningDe(ctx, slug, true)].some((r) => campo(r, "id") === t && vivo(ctx, r));
   };
   // Writers de MI jefe que siguen vivos (corriendo o en cola). Es lo que el pelado espera.

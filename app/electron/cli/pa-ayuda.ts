@@ -7,11 +7,11 @@ Es el gemelo no interactivo de \`p\`: corre el worker en modo -p (headless) para
 hacer cd a la ruta del puesto, el worker carga el CLAUDE.md del proyecto y su memoria propia.
 
 Lo que vuelve por stdout es SOLO el resultado corto del worker. El JSON completo queda en el estado de pa
-(Windows: %LOCALAPPDATA%\\Trama\\state\\pa\\<proyecto>\\; Linux: ~/.local/state/pa/<proyecto>/).
+(Windows: %LOCALAPPDATA%\\Trama\\state\\pa\\<proyecto>\\).
 
 Uso:
   pa <proyecto> "<tarea>"              delegar (el worker puede escribir, en su worktree de un puesto)
-  pa <proyecto> --leer "<pregunta>"    sólo lectura (Read/Grep/Glob + git de lectura por Bash, sin Edit)
+  pa <proyecto> --leer "<pregunta>"    sólo lectura (Read/Grep/Glob + git de lectura por PowerShell, sin Edit)
                                        NO toma puesto: corre en paralelo con los que escriben y con otros --leer
   pa <proyecto> --archivo-tarea <ruta> la tarea sale de ese archivo (\`-\` = stdin), entera y con sus saltos de línea. Usalo para tareas de
                                        varias líneas desde pa.cmd: cmd.exe corta el argumento en el primer salto de línea

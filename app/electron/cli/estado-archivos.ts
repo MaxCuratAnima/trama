@@ -1,5 +1,5 @@
 // Archivos de estado de `pa` (`<estado>/<slug>/<id>.{hilo,corrida,sid,pid,puesto,jefe,json}` y `<estado>/<slug>.running`):
-// el MISMO formato que escribe y lee `motor/bin/pa` (bash), para que la app y los scripts viejos se entiendan.
+// el MISMO formato que escribe y lee `motor/bin/pa`, para que la app y los scripts viejos se entiendan.
 // `clave=valor` por línea (el valor es el resto de la línea; sin comillas ni escapes), en un orden fijo.
 // `.sid`, `.pid`, `.puesto` y `.cola` son el valor pelado, sin salto de línea final.
 import { appendFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -129,7 +129,7 @@ export async function escribirHilo(ruta: string, h: Hilo): Promise<boolean> {
 
 /**
  * `hilo_poner`: pone UN campo del `.hilo` (borra el que había y lo agrega al final), bajo candado.
- * Mismo resultado que el `grep -v "^campo="` + `printf` del bash.
+ * Mismo resultado que el `grep -v "^campo="` + `printf` del pa original.
  */
 export async function hiloPoner(ruta: string, campo: string, valor: string | number, op?: OpcionesCandado): Promise<void> {
   await conCandado(

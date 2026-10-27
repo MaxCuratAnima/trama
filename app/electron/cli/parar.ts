@@ -1,15 +1,15 @@
 // `pa --parar <id>`: baja ESA corrida, esté corriendo (su `.running`) o en cola (el `pa` hijo de --async que espera puesto).
 // Port de `cmd_parar` + `matar_run` + `matar_arbol` de `motor/bin/pa`. El matado va por `DepsParar`: los tests lo reemplazan;
-// el real usa `/proc` en Linux y `procesos.matarArbol` (taskkill /T) en Windows.
-import { readdirSync, readFileSync } from "node:fs";
+// el real usa `procesos.matarArbol` (taskkill /T).
+import { readdirSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import path from "node:path";
-import { deStat, esWindows, matarArbol as matarArbolDe } from "../procesos.ts";
+import { matarArbol as matarArbolDe } from "../procesos.ts";
 import type { CtxPa } from "./contexto.ts";
 import { anotarFin, evento, leerCampo, proyectoDeId, rutaDe, leerTexto } from "./estado-archivos.ts";
 
 export type DepsParar = {
-  /** TERM a todo el árbol de los pids (más lo que lleve el sid), KILL a los 5 s. Devuelve los que quedaron vivos. */
+  /** Baja el árbol de los pids (taskkill /T) y fuerza a los 5 s. Devuelve los que quedaron vivos. */
   matar: (sid: string, paciente: string, pids: number[]) => Promise<number[]>;
 };
 
@@ -18,91 +18,16 @@ const esperar = async (cond: () => boolean, ms: number) => {
   for (let t = 0; t < ms && !cond(); t += 100) await dormir(100);
 };
 
-type Proc = { pid: number; ppid: number; args: string[] };
-
-/** Los procesos de Linux: pid, ppid y argv (de `/proc/<pid>/stat` y `cmdline`). */
-function procesosLinux(): Proc[] {
-  const out: Proc[] = [];
-  for (const n of readdirSync("/proc")) {
-    if (!/^[0-9]+$/.test(n)) continue;
-    try {
-      const ppid = deStat(readFileSync(`/proc/${n}/stat`, "utf8")).ppid;
-      let args: string[] = [];
-      try {
-        args = readFileSync(`/proc/${n}/cmdline`, "utf8").split("\0");
-      } catch {
-        // se fue o no es nuestro
-      }
-      out.push({ pid: Number(n), ppid: ppid ?? 0, args });
-    } catch {
-      // se fue
-    }
-  }
-  return out;
-}
-
-/** Los `claude -p` de UNA conversación (no un `--resume` interactivo del dueño): se mira argumento por argumento. */
-const delSid = (procs: Proc[], sid: string): number[] =>
-  sid
-    ? procs
-        .filter((p) => p.args.some((a, i) => (a === "--session-id" || a === "--resume") && p.args[i + 1] === sid) && p.args.some((a) => a === "-p" || a === "--print"))
-        .map((p) => p.pid)
-    : [];
-
-function arbolDe(procs: Proc[], raices: number[]): number[] {
-  const out: number[] = [];
-  const cola = raices.filter((p) => p > 0);
-  while (cola.length) {
-    const p = cola.shift() as number;
-    if (out.includes(p)) continue;
-    out.push(p);
-    for (const h of procs) if (h.ppid === p) cola.push(h.pid);
-  }
-  return out;
-}
-
 export function depsPararReales(ctx: CtxPa): DepsParar {
   const vive = (p: number) => ctx.existePid(p) && !ctx.esZombi(p);
-  const senal = (pids: number[], s: NodeJS.Signals) => {
-    for (const p of pids) {
-      try {
-        process.kill(p, s);
-      } catch {
-        // ya no está
-      }
-    }
-  };
   return {
-    matar: async (sid, paciente, pids) => {
-      if (esWindows(ctx.plataforma)) {
-        const todos = pids.filter((p) => p > 0);
-        for (const p of todos) matarArbolDe(p, false);
-        await esperar(() => !todos.some(vive), 5000);
-        for (const p of todos.filter(vive)) matarArbolDe(p, true);
-        await esperar(() => !todos.some(vive), 2000);
-        return todos.filter(vive);
-      }
-      const antes = procesosLinux();
-      const todos = [...new Set([...arbolDe(antes, pids), ...delSid(antes, sid)])];
-      if (!todos.length) return [];
-      senal(todos, "SIGTERM");
-      senal(todos, "SIGCONT"); // uno parado no atiende el TERM
-      // lo que alcanzó a nacer entre la lectura y el TERM: sólo a los NUEVOS (un segundo TERM al pa lo mataba sin su trap)
-      const ahora = procesosLinux();
-      const nuevos = [...arbolDe(ahora, todos.filter(vive)), ...delSid(ahora, sid)].filter((p) => !todos.includes(p));
-      senal(nuevos, "SIGTERM");
-      todos.push(...nuevos);
-      const pac = Number(paciente) || 0;
-      const otros = todos.filter((p) => p !== pac);
-      await esperar(() => !otros.some(vive), 5000);
-      senal(otros.filter(vive), "SIGKILL");
-      if (pac) {
-        await esperar(() => !vive(pac), 3000);
-        if (vive(pac)) senal([pac], "SIGKILL");
-      }
-      const fin = () => [...new Set([...todos, ...delSid(procesosLinux(), sid)])].filter(vive);
-      await esperar(() => fin().length === 0, 1000);
-      return fin().sort((a, b) => a - b);
+    matar: async (_sid, _paciente, pids) => {
+      const todos = pids.filter((p) => p > 0);
+      for (const p of todos) matarArbolDe(p, false);
+      await esperar(() => !todos.some(vive), 5000);
+      for (const p of todos.filter(vive)) matarArbolDe(p, true);
+      await esperar(() => !todos.some(vive), 2000);
+      return todos.filter(vive);
     },
   };
 }

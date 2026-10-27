@@ -1,6 +1,6 @@
 // El parser de argumentos de `pa`, igual al de `motor/bin/pa`: primero los comandos globales (`pa --estado`, `pa --hilos`…,
 // que miran sólo el primer argumento) y después `pa <proyecto> [opciones] "<tarea>"`. Puro: no toca el disco ni el entorno
-// (lo que el bash saca de variables llega por parámetro).
+// (lo que el pa original saca de variables llega por parámetro).
 
 export const COMANDOS_GLOBALES = [
   "--estado", "--plan", "--esperar", "--esperar-todos", "--bien", "--bien-auto", "--rinde", "--cupo-gemini", "--modelos",
