@@ -1,6 +1,6 @@
-// Trama como producto para un tercero (Windows con WSL2, o cualquier Linux sin Tailscale): el servidor web
+// Trama como producto para un tercero (Windows sin Tailscale): el servidor web
 // (remoto.ts) sirve en 127.0.0.1 y nada más, sin Tailscale ni `remoto.json`. Se prende con `TRAMA_LOCAL=1`
-// (lo pone la unidad `trama-motor.service` del producto); sin esa variable todo sigue como siempre, por la tailnet.
+// (lo pone el lanzador del producto); sin esa variable todo sigue como siempre, por la tailnet.
 // Sin `electron`: lo prueba tests/modo-local.test.ts.
 import { crearRemoto, type OpcionesRemoto } from "./remoto.ts";
 

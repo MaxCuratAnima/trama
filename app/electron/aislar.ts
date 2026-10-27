@@ -1,10 +1,10 @@
 // Aislamiento de las corridas de prueba: bench, captura, pruebas (`HILOS_PRUEBA`) y fixtures (`HILOS_FIXTURES=1`)
 // nunca tocan los datos del usuario. Con ese modo prendido, cada acceso de Node al sistema de archivos (fs, fs/promises)
-// que caiga bajo el HOME de verdad (el de /etc/passwd, no `$HOME`), fuera del checkout y de lo que la prueba
-// declara suyo (`HILOS_AISLAR_PERMITE`, carpetas separadas por ":"), y cada proceso hijo que se lance fuera del checkout
-// o de /tmp, se anota (`HILOS_AISLAR_LOG`, y stderr) y la app sale con 97. No corta nada: el dato igual se vería,
+// que caiga bajo el HOME de verdad (el de `os.userInfo()`, no `%USERPROFILE%`), fuera del checkout y de lo que la prueba
+// declara suyo (`HILOS_AISLAR_PERMITE`, carpetas separadas por ";"), y cada proceso hijo que se lance fuera del checkout
+// o del tmp, se anota (`HILOS_AISLAR_LOG`, y stderr) y la app sale con 97. No corta nada: el dato igual se vería,
 // pero la corrida no puede dar verde. Lo que lee Chromium por su cuenta (fuentes, perfil) no pasa por acá: eso lo
-// aíslan los scripts con `HOME`/`XDG_*` propios (scripts/visual.mjs) y `userData` (main.ts).
+// aíslan los scripts con `USERPROFILE`/`APPDATA` propios (scripts/visual.mjs) y `userData` (main.ts).
 //
 // Va primero en main.ts y motor.ts: parchea `fs` antes de que los demás módulos lo usen.
 import childProcess from "node:child_process";
@@ -34,7 +34,7 @@ export function crearAislamiento(opts: { home: string[]; permitidas: string[]; t
       if (!opts.home.some((h) => abs !== h && dentro(abs, h))) return false;
       return !opts.permitidas.some((x) => dentro(abs, x));
     },
-    /** ¿`bin` (un comando) sale del checkout o de /tmp? Un nombre suelto se resuelve por el PATH: cuenta sólo si alguna de sus carpetas es del home. */
+    /** ¿`bin` (un comando) sale del checkout o del tmp? Un nombre suelto se resuelve por el PATH: cuenta sólo si alguna de sus carpetas es del home. */
     binarioAjeno(bin: string): boolean {
       if (!path.isAbsolute(bin)) return !bin.includes("/") && !bin.includes(path.sep) ? (opts.camino?.() ?? "").split(separador()).some((d) => !!d && this.ajeno(d)) || !opts.camino : this.ajeno(bin);
       return !opts.permitidas.some((x) => dentro(bin, x)) && !opts.temporales.some((x) => dentro(bin, x)) && this.ajeno(bin);
@@ -77,20 +77,16 @@ export function armarAislamiento(raiz: string) {
   const permitidas = new Set<string>([raiz, real(raiz), real(path.join(raiz, "node_modules")), path.dirname(process.execPath), real(path.dirname(process.execPath))]);
   for (const p of (e.HILOS_AISLAR_PERMITE ?? "").split(separador()).filter(Boolean)) permitidas.add(path.resolve(p));
   // Lo ambiental, de entrada: sin directorios del home en el PATH (ahí viven el `pa`, el `tablero` y el `claude` del usuario: el
-  // resolvedor de binarios los buscaría) y, si `HOME` es el de verdad, uno vacío y temporal (`os.homedir()` y los XDG).
+  // resolvedor de binarios los buscaría) y, si `HOME` es el de verdad, uno vacío y temporal (`os.homedir()` y las carpetas de la app).
   const bajoHome = (p: string) => [...homes].some((h) => p === h || p.startsWith(`${h}${path.sep}`));
   if (e.PATH) e.PATH = e.PATH.split(separador()).filter((d) => d && !bajoHome(path.resolve(d))).join(separador());
   if (e.HOME && bajoHome(path.resolve(e.HOME)) && !permitidas.has(path.resolve(e.HOME))) {
     const casa = fs.mkdtempSync(path.join(os.tmpdir(), "hilos-casa-"));
     e.HOME = casa;
-    // Windows: `os.homedir()` sale de USERPROFILE y las apps de APPDATA/LOCALAPPDATA.
-    if (process.platform === "win32") {
-      e.USERPROFILE = casa;
-      e.APPDATA = path.join(casa, "AppData", "Roaming");
-      e.LOCALAPPDATA = path.join(casa, "AppData", "Local");
-    }
-    for (const [k, sub] of [["XDG_CONFIG_HOME", ".config"], ["XDG_DATA_HOME", ".local/share"], ["XDG_CACHE_HOME", ".cache"], ["XDG_STATE_HOME", ".local/state"]] as const)
-      if (!e[k] || bajoHome(path.resolve(e[k]))) e[k] = path.join(casa, sub);
+    // `os.homedir()` sale de USERPROFILE y las apps de APPDATA/LOCALAPPDATA.
+    e.USERPROFILE = casa;
+    e.APPDATA = path.join(casa, "AppData", "Roaming");
+    e.LOCALAPPDATA = path.join(casa, "AppData", "Local");
     process.on("exit", () => fs.rmSync(casa, { recursive: true, force: true }));
   }
   const archivo = e.HILOS_AISLAR_LOG;

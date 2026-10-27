@@ -1,10 +1,10 @@
-// El socket local del motor (electron/motor.ts): `$XDG_RUNTIME_DIR/trama/motor.sock`, en una carpeta
-// 0700 de este usuario. Los mismos pedidos y eventos que trama por red (`crearCanal`, remoto.ts), sin
+// El socket local del motor (electron/motor.ts): `%TEMP%\trama-<usuario>\trama\motor.sock`, en una carpeta
+// de este usuario. Los mismos pedidos y eventos que trama por red (`crearCanal`, remoto.ts), sin
 // los chequeos de Host, Origin ni Tailscale: llegar al socket ya dice que es esta máquina y este usuario.
 // Nunca TCP (ni loopback): cualquier proceso de la máquina podría conectarse.
 // El socket es también el candado: si conectar anda, ya hay un motor y el nuevo no arranca.
 // Sin `electron`: lo prueba tests/local.test.ts.
-import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -12,31 +12,27 @@ import path from "node:path";
 import { inicioDeProcesoSync } from "./procesos.js";
 import { crearCanal, negar, type OpcionesCanal } from "./remoto.js";
 
-/** Algo estable de este usuario para el nombre de la carpeta: el uid; en Windows `uid` es -1 y se usa el nombre. */
+/** Algo estable de este usuario para el nombre de la carpeta: el nombre de usuario. */
 function idUsuario(): string {
-  const u = os.userInfo();
-  if (process.platform !== "win32" && u.uid >= 0) return String(u.uid);
-  return u.username.replace(/[^A-Za-z0-9._-]/g, "_") || "usuario";
+  return os.userInfo().username.replace(/[^A-Za-z0-9._-]/g, "_") || "usuario";
 }
 
 /**
- * La carpeta del socket: la de `XDG_RUNTIME_DIR` (de este usuario, se borra al apagar); sin ella, una en el tmp.
+ * La carpeta del socket: una en el tmp de este usuario.
  * `HILOS_LOCAL` la cambia (las pruebas: el motor y la ventana de prueba no ven al motor del usuario).
  */
 export function carpetaLocal(env: NodeJS.ProcessEnv = process.env): string {
   if (env.HILOS_LOCAL) return env.HILOS_LOCAL;
-  const base = env.XDG_RUNTIME_DIR || path.join(os.tmpdir(), `trama-${idUsuario()}`);
+  const base = path.join(os.tmpdir(), `trama-${idUsuario()}`);
   return path.join(base, "trama");
 }
 export const socketDe = (carpeta: string) => path.join(carpeta, "motor.sock");
 
-/** La carpeta, 0700 y de este usuario; si es de otro o es un enlace, no se usa. */
+/** La carpeta; si es un enlace, no se usa. */
 export function prepararCarpeta(carpeta: string) {
-  mkdirSync(carpeta, { recursive: true, mode: 0o700 });
+  mkdirSync(carpeta, { recursive: true });
   const st = lstatSync(carpeta);
   if (!st.isDirectory() || st.isSymbolicLink()) throw new Error(`${carpeta} no es una carpeta`);
-  if (typeof process.getuid === "function" && st.uid !== process.getuid()) throw new Error(`${carpeta} es de otro usuario`);
-  if ((st.mode & 0o777) !== 0o700) chmodSync(carpeta, 0o700);
 }
 
 /** ¿Hay alguien escuchando en ese socket? Un archivo que quedó de un motor que murió no contesta. */
@@ -84,7 +80,7 @@ export type Local = {
 
 /**
  * Abre el socket. `null`: ya hay un motor escuchando (quien llama sale con 3). Si quedó el archivo de
- * uno que murió (SIGKILL no lo borra), se lo quita y se escucha.
+ * uno que murió (matarlo no lo borra), se lo quita y se escucha.
  */
 export async function abrirLocal(o: Omit<OpcionesCanal, "conOrigen"> & { carpeta?: string }): Promise<Local | null> {
   const carpeta = o.carpeta ?? carpetaLocal();
@@ -118,8 +114,6 @@ export async function abrirLocal(o: Omit<OpcionesCanal, "conOrigen"> & { carpeta
     rmSync(ruta, { force: true });
     await escuchar();
   }
-  // La carpeta ya es 0700; el socket, por las dudas, también sólo del dueño.
-  chmodSync(ruta, 0o600);
   return {
     ruta,
     difundir: canal.difundir,

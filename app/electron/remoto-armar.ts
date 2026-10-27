@@ -1,11 +1,10 @@
 // Prende trama por la tailnet (remoto.ts) y la mantiene prendida: sólo si existe `remoto.json` en el
 // estado propio. Escucha en las IPs de Tailscale de esta máquina y en ninguna otra; si cambian (Tailscale
 // se levantó después, `tailscale down`/`up`, otra IP), cierra lo que tenía y vuelve a escuchar.
-// El cambio lo avisa `ip -o monitor address dev tailscale0` (un proceso hijo que espera sin gastar nada);
-// de respaldo, cada 5 min se le pregunta a Tailscale. Lo usan main.ts (todo en uno) y motor.ts.
+// El cambio se detecta preguntándole a Tailscale (rápido al arrancar, después cada 5 min). Lo usan main.ts
+// (todo en uno) y motor.ts.
 // `remoto.json` se vuelve a leer con cada revisión y cuando Ajustes lo cambia (`recargar`, por el enlace de
 // nucleo.ts): prender, apagar, otro puerto o quitar un dispositivo (se cortan sus conexiones) no piden reiniciar.
-import { spawn, type ChildProcess } from "node:child_process";
 import type http from "node:http";
 import path from "node:path";
 import { CHANGELOG } from "./actualizacion.js";
@@ -20,8 +19,6 @@ import { crearRemotoLocal, IP_LOCAL, modoLocal, puertoLocal } from "./modo-local
 
 /** Cada cuánto se le pregunta a Tailscale por las dudas (y se reintenta escuchar). */
 const RESPALDO_MS = 5 * 60_000;
-/** Un cambio de dirección trae varias líneas seguidas: se espera a que se calme. */
-const CALMA_MS = 1500;
 
 export type OpcionesArmar = {
   /** La carpeta del frontend compilado (`dist/`) y el preload compilado. */
@@ -151,32 +148,6 @@ export function armarRemoto(o: OpcionesArmar) {
     return vuelta;
   }
 
-  // El aviso del kernel: cada dirección que entra o sale de tailscale0 es una línea.
-  let hijo: ChildProcess | null = null;
-  let calma: NodeJS.Timeout | null = null;
-  function monitor() {
-    if (hijo) return;
-    // Windows no tiene `ip` (ni `ip monitor`): queda el respaldo periódico. `HILOS_IP` (las pruebas) lo fuerza.
-    if (process.platform === "win32" && !process.env.HILOS_IP) return;
-    let p: ChildProcess;
-    try {
-      p = spawn(process.env.HILOS_IP || "ip", ["-o", "monitor", "address", "dev", "tailscale0"], { stdio: ["ignore", "pipe", "ignore"] });
-    } catch {
-      return;
-    }
-    hijo = p;
-    p.stdout?.on("data", () => {
-      if (calma) clearTimeout(calma);
-      calma = setTimeout(() => void revisar(), CALMA_MS);
-    });
-    // Sin `ip` o sin tailscale0 (Tailscale apagado): queda el respaldo, que lo vuelve a lanzar.
-    p.once("error", () => {});
-    p.once("exit", () => {
-      if (hijo === p) hijo = null;
-    });
-  }
-  process.once("exit", () => hijo?.kill());
-
   // Al arrancar, Tailscale puede no estar listo: se insiste rápido; después, el respaldo cada 5 min.
   const ESPERAS = [0, 5, 15, 60];
   let proximo: NodeJS.Timeout | null = null;
@@ -184,13 +155,8 @@ export function armarRemoto(o: OpcionesArmar) {
     if (proximo) clearTimeout(proximo);
     proximo = null;
     await revisar();
-    // Apagado: ni reloj ni `ip monitor`; vuelve cuando Ajustes lo prenda (`recargar`).
-    if (!cfg) {
-      hijo?.kill();
-      hijo = null;
-      return;
-    }
-    monitor();
+    // Apagado: ni reloj; vuelve cuando Ajustes lo prenda (`recargar`).
+    if (!cfg) return;
     const espera = actual ? RESPALDO_MS : (ESPERAS[intentos] ?? RESPALDO_MS / 1000) * 1000;
     proximo = setTimeout(() => void ciclo(), espera);
     proximo.unref();
