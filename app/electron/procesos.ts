@@ -1,20 +1,12 @@
-// Procesos, igual en Linux y en Windows: cuándo arrancó un pid (para descartar un pid reusado), matar un proceso con todo
-// lo que lanzó, y el shell para un comando suelto. En Linux es lo de siempre (`/proc`, grupos de procesos, `bash -c`);
-// en Windows, PowerShell para el arranque, `taskkill /T` para el árbol y `cmd /d /s /c`. Todo recibe la plataforma y
-// los efectos por `Deps`, así se prueba cada rama sin salir de Linux.
+// Procesos de Windows: cuándo arrancó un pid (para descartar un pid reusado), matar un proceso con todo lo que lanzó,
+// y el shell para un comando suelto. PowerShell para el arranque, `taskkill /T` para el árbol y `cmd /d /s /c`.
+// Los efectos entran por `Deps`, así se prueba sin lanzar nada.
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess, type ExecFileException, type ExecFileOptions, type ExecFileSyncOptions, type SpawnOptions, type SpawnSyncOptions, type SpawnSyncReturns } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 
 export type Deps = {
   plataforma: NodeJS.Platform;
-  /** `process.kill`. */
-  kill: (pid: number, senal: NodeJS.Signals) => unknown;
   /** Lanza si el pid no existe (`process.kill(pid, 0)`; EPERM es que existe y no es nuestro: no cuenta como falta). */
   existe: (pid: number) => void;
-  /** Lee un archivo de texto (`/proc/<pid>/stat`). */
-  leer: (ruta: string) => Promise<string>;
-  leerSync: (ruta: string) => string;
   /** Corre un programa y devuelve su salida; rechaza si falla o pasa el tiempo. */
   correr: (bin: string, args: string[], opciones: { timeout: number; windowsHide: true }) => Promise<string>;
   correrSync: (bin: string, args: string[], opciones: { timeout: number; windowsHide: true }) => string;
@@ -22,7 +14,6 @@ export type Deps = {
 
 const REALES: Deps = {
   plataforma: process.platform,
-  kill: (pid, senal) => process.kill(pid, senal),
   existe: (pid) => {
     try {
       process.kill(pid, 0);
@@ -30,23 +21,21 @@ const REALES: Deps = {
       if ((e as NodeJS.ErrnoException).code !== "EPERM") throw e;
     }
   },
-  leer: (ruta) => readFile(ruta, "utf8"),
-  leerSync: (ruta) => readFileSync(ruta, "utf8"),
   correr: (bin, args, o) => new Promise((ok, mal) => execFile(bin, args, { ...o, encoding: "utf8" }, (e, out) => (e ? mal(e) : ok(String(out))))),
   correrSync: (bin, args, o) => execFileSync(bin, args, { ...o, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
 };
 
 const con = (d?: Partial<Deps>): Deps => ({ ...REALES, ...d });
 
-/** ¿Es Windows? (`plataforma` inyectable para probar). */
-export const esWindows = (plataforma: NodeJS.Platform = process.platform) => plataforma === "win32";
+/** Trama es sólo de Windows: siempre `true` (el parámetro queda por los llamadores). */
+export const esWindows = (_plataforma: NodeJS.Platform = process.platform) => true;
 
-/** Opciones de `spawn` para que lo que se lance se pueda cortar entero: su propio grupo en Linux (`setsid`); en Windows, `taskkill /T` alcanza y sin ventana de consola. */
-export const grupoPropio = (plataforma: NodeJS.Platform = process.platform) => ({ detached: !esWindows(plataforma), windowsHide: true as const });
+/** Opciones de `spawn` para lo que se lance: `taskkill /T` corta el árbol, así que sólo hace falta sin ventana de consola. */
+export const grupoPropio = (_plataforma: NodeJS.Platform = process.platform) => ({ detached: false, windowsHide: true as const });
 
 export type EstadoProceso = { estado: string; arranque: string | null; ppid: number | null };
 
-/** De `/proc/<pid>/stat`: estado (campo 3), ppid (4) y arranque (22). */
+/** Parsea un `stat` en formato `<pid> (nombre) estado ppid …` (lo siguen leyendo `contexto.ts`, `pa-esperar.ts` y `parar.ts`): estado (campo 3), ppid (4) y arranque (22). */
 export function deStat(texto: string): EstadoProceso {
   const c = texto.slice(texto.lastIndexOf(")") + 2).split(" ");
   const ppid = Number(c[1]);
@@ -71,18 +60,17 @@ const pidValido = (pid: number) => Number.isInteger(pid) && pid > 0;
 
 /**
  * Cuándo arrancó el proceso, como texto opaco: con el pid dice que es éste y no otro que reusó el número.
- * `null`: no existe o no se pudo leer. Linux: campo 22 de `/proc/<pid>/stat`. Windows: `StartTime` de PowerShell.
+ * `null`: no existe o no se pudo leer. Sale del `StartTime` de PowerShell.
  */
 export async function inicioDeProceso(pid: number, d?: Partial<Deps>): Promise<string | null> {
   return (await estadoDeProceso(pid, d))?.arranque ?? null;
 }
 
-/** Como `inicioDeProceso`, pero bloquea (en Windows tarda lo que tarde PowerShell): para quien no puede ser async. */
+/** Como `inicioDeProceso`, pero bloquea (tarda lo que tarde PowerShell): para quien no puede ser async. */
 export function inicioDeProcesoSync(pid: number, d?: Partial<Deps>): string | null {
   const x = con(d);
   if (!pidValido(pid)) return null;
   try {
-    if (!esWindows(x.plataforma)) return deStat(x.leerSync(`/proc/${pid}/stat`)).arranque;
     x.existe(pid);
     return ticks(x.correrSync("powershell", PS_ARGS(pid), { timeout: TOPE_PS_MS, windowsHide: true }));
   } catch {
@@ -90,12 +78,11 @@ export function inicioDeProcesoSync(pid: number, d?: Partial<Deps>): string | nu
   }
 }
 
-/** Estado y arranque del proceso; `null` si no existe o no se pudo leer. En Windows no hay zombis: `estado` es `""`. */
+/** Estado y arranque del proceso; `null` si no existe o no se pudo leer. No hay zombis: `estado` es `""`. */
 export async function estadoDeProceso(pid: number, d?: Partial<Deps>): Promise<EstadoProceso | null> {
   const x = con(d);
   if (!pidValido(pid)) return null;
   try {
-    if (!esWindows(x.plataforma)) return deStat(await x.leer(`/proc/${pid}/stat`));
     x.existe(pid);
     const salida = await x.correr("powershell", PS_ARGS(pid), { timeout: TOPE_PS_MS, windowsHide: true });
     return { estado: "", arranque: ticks(salida), ppid: ppidDe(salida) };
@@ -105,21 +92,12 @@ export async function estadoDeProceso(pid: number, d?: Partial<Deps>): Promise<E
 }
 
 /**
- * Corta un proceso y todo lo que lanzó. Linux: señal al grupo (`kill(-pid)`, el proceso tiene que ser líder de
- * grupo: `detached`). Windows: `taskkill /PID n /T` (`/F` con `forzar`). No rechaza ni lanza: un proceso que ya no
- * está no es un error. Devuelve si se pudo mandar.
+ * Corta un proceso y todo lo que lanzó: `taskkill /PID n /T` (`/F` con `forzar`). No rechaza ni lanza: un proceso que
+ * ya no está no es un error. Devuelve si se pudo mandar.
  */
 export function matarArbol(pid: number | undefined, forzar: boolean, d?: Partial<Deps>): boolean {
   if (!pid || !pidValido(pid) || pid <= 1) return false;
   const x = con(d);
-  if (!esWindows(x.plataforma)) {
-    try {
-      x.kill(-pid, forzar ? "SIGKILL" : "SIGTERM");
-      return true;
-    } catch {
-      return false;
-    }
-  }
   try {
     void x.correr("taskkill", ["/PID", String(pid), "/T", ...(forzar ? ["/F"] : [])], { timeout: TOPE_PS_MS, windowsHide: true }).catch(() => {});
     return true;
@@ -131,18 +109,17 @@ export function matarArbol(pid: number | undefined, forzar: boolean, d?: Partial
 export type ComandoShell = { bin: string; args: string[]; opciones: { windowsVerbatimArguments?: true } };
 
 /**
- * Cómo correr un comando suelto: `bash -c` en Linux; `cmd /d /s /c "…"` en Windows (con `/s` cmd saca el par de
- * comillas de afuera, y los argumentos van tal cual para que Node no re-escape las de adentro).
+ * Cómo correr un comando suelto: `cmd /d /s /c "…"` (con `/s` cmd saca el par de comillas de afuera, y los argumentos
+ * van tal cual para que Node no re-escape las de adentro).
  */
-export function shellDe(cmd: string, plataforma: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): ComandoShell {
-  if (!esWindows(plataforma)) return { bin: "bash", args: ["-c", cmd], opciones: {} };
+export function shellDe(cmd: string, _plataforma: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env): ComandoShell {
   return { bin: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `"${cmd}"`], opciones: { windowsVerbatimArguments: true } };
 }
 
 const comillasCmd = (a: string) => `"${a.replace(/%/g, "%%").replace(/"/g, '""')}"`;
 
 /**
- * El guion `.cmd` que corre una terminal de Windows para `enTerminal` (el equivalente del envoltorio `sh -c`): corre `argv`, anota su
+ * El guion `.cmd` que corre una terminal de Windows para `enTerminal`: corre `argv`, anota su
  * código en `marca` (por un `.tmp` y un `move`, para que nadie lea a medias) y, si falló, deja la ventana esperando una tecla.
  */
 export function guionTerminalWindows(argv: string[], marca: string): string {
@@ -160,8 +137,8 @@ export function guionTerminalWindows(argv: string[], marca: string): string {
 const METACARACTERES_CMD = /([()\][%!^"`<>&|;, *?])/g;
 const ES_BATCH = /\.(cmd|bat)$/i;
 
-/** ¿Es un `.cmd`/`.bat` de Windows? Desde Node 18.20/20.12 (CVE-2024-27980) `spawn`/`execFile` los rechazan con EINVAL si no pasan por un shell. */
-export const esBatch = (bin: string, plataforma: NodeJS.Platform = process.platform) => esWindows(plataforma) && ES_BATCH.test(bin);
+/** ¿Es un `.cmd`/`.bat`? Desde Node 18.20/20.12 (CVE-2024-27980) `spawn`/`execFile` los rechazan con EINVAL si no pasan por un shell. */
+export const esBatch = (bin: string, _plataforma: NodeJS.Platform = process.platform) => ES_BATCH.test(bin);
 
 /**
  * Un argumento para la línea de `cmd /d /s /c "…"` de un `.cmd`: primero como lo lee el runtime de C (barras antes de las
@@ -177,7 +154,7 @@ function argumentoCmd(a: string): string {
 export type ComandoEjecutable = { file: string; args: string[]; opciones: { windowsVerbatimArguments?: true } };
 
 /**
- * Cómo lanzar `bin args` sin shell: igual, salvo un `.cmd`/`.bat` en Windows, que va por `cmd /d /s /c "<línea>"` con la línea ya
+ * Cómo lanzar `bin args` sin shell: igual, salvo un `.cmd`/`.bat`, que va por `cmd /d /s /c "<línea>"` con la línea ya
  * armada (`windowsVerbatimArguments`) y cada argumento escapado, porque llevan texto libre del usuario (las tareas). `plataforma`
  * y `env` son inyectables para probar. Sin `shell: true`: la línea sólo la interpreta cmd con todo lo peligroso escapado.
  */
@@ -187,25 +164,25 @@ export function comandoEjecutable(bin: string, args: readonly string[], platafor
   return { file: env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `"${linea}"`], opciones: { windowsVerbatimArguments: true } };
 }
 
-/** `execFile` que acepta un `.cmd`/`.bat` en Windows (ver `comandoEjecutable`). */
+/** `execFile` que acepta un `.cmd`/`.bat` (ver `comandoEjecutable`). */
 export function execFileCmd(bin: string, args: readonly string[], opciones: ExecFileOptions, cb: (e: ExecFileException | null, stdout: string, stderr: string) => void): ChildProcess {
   const c = comandoEjecutable(bin, args);
   return execFile(c.file, c.args, { ...opciones, ...c.opciones, encoding: "utf8" } as ExecFileOptions & { encoding: "utf8" }, cb as never);
 }
 
-/** `execFileSync` que acepta un `.cmd`/`.bat` en Windows. */
+/** `execFileSync` que acepta un `.cmd`/`.bat`. */
 export function execFileSyncCmd(bin: string, args: readonly string[], opciones: ExecFileSyncOptions & { encoding: BufferEncoding }): string {
   const c = comandoEjecutable(bin, args);
   return execFileSync(c.file, c.args, { ...opciones, ...c.opciones });
 }
 
-/** `spawn` que acepta un `.cmd`/`.bat` en Windows. */
+/** `spawn` que acepta un `.cmd`/`.bat`. */
 export function spawnCmd(bin: string, args: readonly string[], opciones: SpawnOptions = {}): ChildProcess {
   const c = comandoEjecutable(bin, args);
   return spawn(c.file, c.args, { ...opciones, ...c.opciones });
 }
 
-/** `spawnSync` que acepta un `.cmd`/`.bat` en Windows. */
+/** `spawnSync` que acepta un `.cmd`/`.bat`. */
 export function spawnSyncCmd(bin: string, args: readonly string[], opciones: SpawnSyncOptions = {}): SpawnSyncReturns<string | Buffer> {
   const c = comandoEjecutable(bin, args);
   return spawnSync(c.file, c.args, { ...opciones, ...c.opciones });

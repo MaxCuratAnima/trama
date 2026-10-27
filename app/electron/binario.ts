@@ -1,5 +1,5 @@
-// Dónde está `pa` y con qué PATH correrlo. Abierta desde el menú de apps, la
-// sesión gráfica no trae ~/.local/bin en el PATH: `pa` daba "spawn pa ENOENT"
+// Dónde está `pa` y con qué PATH correrlo. Abierta desde el menú de inicio, la
+// app no trae %USERPROFILE%\.local\bin en el PATH: `pa` daba "spawn pa ENOENT"
 // (2026-10-03), y aunque se encuentre, `pa` necesita `claude` y `proyecto-ruta`,
 // que viven ahí. Puro (sin `electron` ni imports locales): lo prueba
 // `tests/binario.test.ts` con `node --test`.
@@ -10,7 +10,6 @@ import {
   dirBinLocal,
   entornoConLocal,
   esEjecutable,
-  esWindows,
   separadorPath,
   pathConLocal as pathConLocalDe,
   type Env,
@@ -26,7 +25,7 @@ export const entornoPa = (env: Env, home: string, plataforma: Plataforma = proce
 /**
  * El entorno para correr `agy` (y las herramientas de comandos que él lanza, donde el líder de Gemini llama a `pa`): `~/.local/bin`
  * adelante y la carpeta del `pa` encontrado (`HILOS_PA`, o el del PATH de la app) justo después, para que `pa` no quede en
- * "command not found" aunque viva fuera del PATH que hereda el proceso (unidad de systemd, menú de apps, WSL).
+ * "command not found" aunque viva fuera del PATH que hereda el proceso (menú de inicio).
  */
 export function entornoAgy(env: Env, home: string, existe: (f: string) => boolean = (f) => esEjecutable(f), plataforma: Plataforma = process.platform): Env {
   const c = caminos(plataforma);
@@ -35,7 +34,7 @@ export function entornoAgy(env: Env, home: string, existe: (f: string) => boolea
   const sep = separadorPath(plataforma);
   const [local, ...resto] = pathConLocal(env, home, plataforma).split(sep);
   const dirs = [local, ...(dirPa && dirPa !== local ? [dirPa] : []), ...resto.filter((d) => d !== dirPa)];
-  const clave = Object.keys(entornoConLocal(plataforma, env, home)).find((k) => (plataforma === "win32" ? k.toLowerCase() === "path" : k === "PATH")) ?? "PATH";
+  const clave = Object.keys(entornoConLocal(plataforma, env, home)).find((k) => k.toLowerCase() === "path") ?? "Path";
   return { ...env, [clave]: dirs.join(sep) };
 }
 
@@ -62,17 +61,14 @@ export function resolverPa(env: Env, home: string, existe: (f: string) => boolea
 }
 
 /**
- * `agy` (Antigravity CLI): lo de `resolverBinario` y, si no aparece, las carpetas donde sus instaladores lo dejan fuera del PATH de una
- * unidad de systemd o de WSL (`/usr/local/bin`, `/usr/bin`, `~/.antigravity/bin`…). Si no está en ningún lado queda `agy` pelado.
+ * `agy` (Antigravity CLI): lo de `resolverBinario` y, si no aparece, las carpetas donde sus instaladores lo dejan fuera del PATH
+ * (`~/.antigravity/bin`…, con `PATHEXT`: `agy.exe`). Si no está en ningún lado queda `agy` pelado.
  */
 export function resolverAgy(env: Env, home: string, existe: (f: string) => boolean = (f) => esEjecutable(f), plataforma: Plataforma = process.platform): string {
   const r = resolverBinario("agy", "HILOS_AGY", env, home, existe, plataforma);
   if (r !== "agy") return r;
   const c = caminos(plataforma);
-  const donde = esWindows(plataforma)
-    ? [c.join(home, ".antigravity", "bin"), c.join(home, ".antigravity-cli", "bin"), c.join(home, ".gemini", "antigravity-cli", "bin")]
-    : ["/usr/local/bin", "/usr/bin", c.join(home, ".antigravity", "bin"), c.join(home, ".antigravity-cli", "bin"), c.join(home, ".gemini", "antigravity-cli", "bin")];
-  const nombre = esWindows(plataforma) ? "agy.exe" : "agy";
-  for (const d of donde) if (existe(c.join(d, nombre))) return c.join(d, nombre);
-  return r;
+  const donde = [c.join(home, ".antigravity", "bin"), c.join(home, ".antigravity-cli", "bin"), c.join(home, ".gemini", "antigravity-cli", "bin")];
+  const hallado = buscarEjecutable(plataforma, env, "agy", donde, existe);
+  return hallado ?? r;
 }

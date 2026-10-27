@@ -1,5 +1,5 @@
-// electron/procesos.ts: arranque de un pid, matar un árbol y el shell de un comando, en las dos plataformas.
-// Cada rama se prueba con la plataforma y los efectos inyectados; lo que necesita Windows de verdad se saltea si no lo es.
+﻿// electron/procesos.ts: arranque de un pid, matar un árbol y el shell de un comando.
+// Los efectos se inyectan; los casos "real" corren contra este Windows.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -9,14 +9,6 @@ const STAT = "123 (mi (proc) raro) S 1 123 123 0 -1 4194560 100 0 0 0 1 2 0 0 20
 
 test("deStat: estado, ppid y arranque aunque el nombre tenga paréntesis", () => {
   assert.deepEqual(deStat(STAT), { estado: "S", ppid: 1, arranque: "987654" });
-});
-
-test("Linux: el arranque sale de /proc/<pid>/stat", async () => {
-  const leer = async (r: string) => (r === "/proc/123/stat" ? STAT : Promise.reject(new Error("ENOENT")));
-  assert.equal(await inicioDeProceso(123, { plataforma: "linux", leer }), "987654");
-  assert.equal(await inicioDeProceso(124, { plataforma: "linux", leer }), null);
-  assert.equal(inicioDeProcesoSync(123, { plataforma: "linux", leerSync: () => STAT }), "987654");
-  assert.equal(await inicioDeProceso(0, { plataforma: "linux", leer }), null);
 });
 
 test("Windows: existe el pid y PowerShell da el StartTime; un pid reusado da otro arranque", async () => {
@@ -49,17 +41,6 @@ test("Windows: pid inexistente, PowerShell que falla o salida rara dan null", as
   assert.equal(inicioDeProcesoSync(9, { ...base, existe: () => {}, correrSync: () => { throw new Error("x"); } }), null);
 });
 
-test("matarArbol en Linux: señal al grupo (-pid), TERM o KILL; ESRCH no lanza", () => {
-  const vistas: [number, string][] = [];
-  const kill = (p: number, s: string) => void vistas.push([p, s]);
-  assert.equal(matarArbol(500, false, { plataforma: "linux", kill }), true);
-  assert.equal(matarArbol(500, true, { plataforma: "linux", kill }), true);
-  assert.deepEqual(vistas, [[-500, "SIGTERM"], [-500, "SIGKILL"]]);
-  assert.equal(matarArbol(500, true, { plataforma: "linux", kill: () => { throw new Error("ESRCH"); } }), false);
-  assert.equal(matarArbol(undefined, true, { plataforma: "linux", kill }), false);
-  assert.equal(matarArbol(1, true, { plataforma: "linux", kill }), false);
-});
-
 test("matarArbol en Windows: taskkill /PID n /T, con /F si se fuerza, sin ventana", () => {
   const llamadas: { bin: string; args: string[]; o: any }[] = [];
   const correr = async (bin: string, args: string[], o: unknown) => (llamadas.push({ bin, args, o }), "");
@@ -71,8 +52,7 @@ test("matarArbol en Windows: taskkill /PID n /T, con /F si se fuerza, sin ventan
   assert.equal(llamadas[0].o.windowsHide, true);
 });
 
-test("shellDe: bash -c en Linux, cmd /d /s /c con comillas y argumentos literales en Windows", () => {
-  assert.deepEqual(shellDe("npm test", "linux"), { bin: "bash", args: ["-c", "npm test"], opciones: {} });
+test("shellDe: cmd /d /s /c con comillas y argumentos literales", () => {
   const w = shellDe('echo "hola" && dir', "win32", {});
   assert.equal(w.bin, "cmd.exe");
   assert.deepEqual(w.args, ["/d", "/s", "/c", '"echo "hola" && dir"']);
@@ -80,24 +60,12 @@ test("shellDe: bash -c en Linux, cmd /d /s /c con comillas y argumentos literale
   assert.equal(shellDe("x", "win32", { ComSpec: "C:\\Windows\\System32\\cmd.exe" }).bin, "C:\\Windows\\System32\\cmd.exe");
 });
 
-test("grupoPropio: detached sólo fuera de Windows, siempre sin ventana", () => {
-  assert.deepEqual(grupoPropio("linux"), { detached: true, windowsHide: true });
+test("grupoPropio: nunca detached, siempre sin ventana", () => {
   assert.deepEqual(grupoPropio("win32"), { detached: false, windowsHide: true });
   assert.equal(esWindows("win32"), true);
-  assert.equal(esWindows("linux"), false);
 });
 
-test("real, Linux: el arranque de este proceso es estable y matarArbol corta un grupo de verdad", { skip: process.platform === "win32" }, async () => {
-  const a = await inicioDeProceso(process.pid);
-  assert.ok(a && /^\d+$/.test(a));
-  assert.equal(inicioDeProcesoSync(process.pid), a);
-  const h = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
-  const cierre = new Promise((ok) => h.once("exit", (_c, s) => ok(s)));
-  assert.equal(matarArbol(h.pid, false), true);
-  assert.equal(await cierre, "SIGTERM");
-});
-
-test("real, Windows: el arranque de este proceso es un número estable y un pid que no existe da null", { skip: process.platform !== "win32" }, async () => {
+test("real: el arranque de este proceso es un número estable y un pid que no existe da null", async () => {
   const a = await inicioDeProceso(process.pid);
   assert.ok(a && /^\d+$/.test(a));
   assert.equal(await inicioDeProceso(process.pid), a);
@@ -125,11 +93,9 @@ test("comandoEjecutable: en Windows un .cmd/.bat va por cmd /d /s /c con la lín
   assert.equal(c.args[3], '""C:\\Program Files\\Trama\\bin\\pa.cmd" ^^^"--hilos^^^" ^^^"--json^^^""');
   assert.deepEqual(c.opciones, { windowsVerbatimArguments: true });
   assert.equal(comandoEjecutable("x.BAT", [], "win32", {}).file, "cmd.exe");
-  // .exe, sin extensión y cualquier cosa en Linux: tal cual
+  // .exe y sin extensión: tal cual
   assert.deepEqual(comandoEjecutable("C:\\bin\\agy.exe", ["a b"], "win32", env), { file: "C:\\bin\\agy.exe", args: ["a b"], opciones: {} });
   assert.deepEqual(comandoEjecutable("git", ["log"], "win32", env), { file: "git", args: ["log"], opciones: {} });
-  assert.deepEqual(comandoEjecutable("/home/x/pa.cmd", ["a b"], "linux", env), { file: "/home/x/pa.cmd", args: ["a b"], opciones: {} });
-  assert.equal(esBatch("pa.cmd", "linux"), false);
   assert.equal(esBatch("pa.cmd", "win32"), true);
 });
 

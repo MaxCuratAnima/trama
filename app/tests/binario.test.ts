@@ -1,64 +1,61 @@
 // node --test tests/  (Node corre el TypeScript directo, sin compilar)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { entornoAgy, entornoPa, pathConLocal, resolverBinario, resolverPa } from "../electron/binario.ts";
+import { entornoAgy, entornoPa, pathConLocal, resolverAgy, resolverBinario, resolverPa } from "../electron/binario.ts";
 
-const HOME = "/home/ana";
+const HOME = "C:\\Users\\Ana";
+const LOCAL = "C:\\Users\\Ana\\.local\\bin";
 const hay = (...fs: string[]) => (f: string) => fs.includes(f);
 
 test("HILOS_PA gana siempre", () => {
-  assert.equal(resolverPa({ HILOS_PA: "/tmp/pa-falso.sh", PATH: "/usr/bin" }, HOME, hay("/usr/bin/pa")), "/tmp/pa-falso.sh");
+  assert.equal(resolverPa({ HILOS_PA: "D:\\pa-falso.cmd", Path: "C:\\bin" }, HOME, hay("C:\\bin\\pa.exe"), "win32"), "D:\\pa-falso.cmd");
 });
 
-test("pa del PATH si está", () => {
-  assert.equal(resolverPa({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa", "/home/ana/.local/bin/pa"), "linux"), "/opt/bin/pa");
+test("pa.exe del PATH (con ; y PATHEXT) si está", () => {
+  assert.equal(resolverPa({ Path: "C:\\Windows;C:\\bin" }, HOME, hay("C:\\bin\\pa.exe", `${LOCAL}\\pa.exe`), "win32"), "C:\\bin\\pa.exe");
 });
 
-test("sin pa en el PATH (sesión gráfica): ~/.local/bin/pa", () => {
-  assert.equal(resolverPa({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa"), "linux"), "/home/ana/.local/bin/pa");
-  assert.equal(resolverPa({}, HOME, hay("/home/ana/.local/bin/pa"), "linux"), "/home/ana/.local/bin/pa");
+test("sin pa en el PATH (menú de inicio): %USERPROFILE%\\.local\\bin\\pa", () => {
+  assert.equal(resolverPa({ Path: "C:\\Windows" }, HOME, hay(`${LOCAL}\\pa.cmd`), "win32"), `${LOCAL}\\pa.cmd`);
+  assert.equal(resolverPa({}, HOME, hay(`${LOCAL}\\pa.cmd`), "win32"), `${LOCAL}\\pa.cmd`);
 });
 
 test("en ningún lado: pa pelado (el error de spawn lo dice)", () => {
-  assert.equal(resolverPa({ PATH: "/usr/bin" }, HOME, hay()), "pa");
+  assert.equal(resolverPa({ Path: "C:\\Windows" }, HOME, hay(), "win32"), "pa");
 });
 
-test("el PATH de pa lleva ~/.local/bin adelante, una sola vez", () => {
-  assert.equal(pathConLocal({ PATH: "/usr/bin:/bin" }, HOME, "linux"), "/home/ana/.local/bin:/usr/bin:/bin");
-  assert.equal(pathConLocal({ PATH: "/usr/bin:/home/ana/.local/bin" }, HOME, "linux"), "/home/ana/.local/bin:/usr/bin");
-  assert.equal(pathConLocal({}, HOME, "linux"), "/home/ana/.local/bin");
-  const env = entornoPa({ PATH: "/usr/bin", OTRA: "1" }, HOME, "linux");
+test("claude.exe en %USERPROFILE%\\.local\\bin", () => {
+  assert.equal(resolverBinario("claude", "HILOS_CLAUDE", { Path: "C:\\Windows" }, HOME, hay(`${LOCAL}\\claude.exe`), "win32"), `${LOCAL}\\claude.exe`);
+});
+
+test("el PATH de pa lleva .local\\bin adelante, una sola vez, y respeta la clave Path", () => {
+  assert.equal(pathConLocal({ Path: "C:\\Windows;C:\\bin" }, HOME, "win32"), `${LOCAL};C:\\Windows;C:\\bin`);
+  assert.equal(pathConLocal({ Path: `C:\\Windows;${LOCAL.toLowerCase()}` }, HOME, "win32"), `${LOCAL};C:\\Windows`);
+  assert.equal(pathConLocal({}, HOME, "win32"), LOCAL);
+  const env = entornoPa({ Path: "C:\\Windows", OTRA: "1" }, HOME, "win32");
   assert.equal(env.OTRA, "1");
-  assert.equal(env.PATH, "/home/ana/.local/bin:/usr/bin");
+  assert.equal(env.Path, `${LOCAL};C:\\Windows`);
+  assert.equal(env.PATH, undefined);
 });
 
-test("el entorno de agy trae la carpeta del pa encontrado, tras ~/.local/bin y sin repetirla", () => {
+test("el entorno de agy trae la carpeta del pa encontrado, tras .local\\bin y sin repetirla", () => {
   // pa en una carpeta que el PATH de la app no tiene (HILOS_PA): se agrega para que el líder de Gemini lo llame.
-  assert.equal(entornoAgy({ HILOS_PA: "/opt/trama/pa", PATH: "/usr/bin" }, HOME, hay(), "linux").PATH, "/home/ana/.local/bin:/opt/trama:/usr/bin");
-  // pa en ~/.local/bin: nada de más.
-  assert.equal(entornoAgy({ PATH: "/usr/bin" }, HOME, hay("/home/ana/.local/bin/pa"), "linux").PATH, "/home/ana/.local/bin:/usr/bin");
+  assert.equal(entornoAgy({ HILOS_PA: "D:\\trama\\pa.exe", Path: "C:\\Windows" }, HOME, hay(), "win32").Path, `${LOCAL};D:\\trama;C:\\Windows`);
+  // pa en .local\bin: nada de más.
+  assert.equal(entornoAgy({ Path: "C:\\Windows" }, HOME, hay(`${LOCAL}\\pa.exe`), "win32").Path, `${LOCAL};C:\\Windows`);
   // pa en una carpeta que ya estaba en el PATH: pasa adelante, una sola vez.
-  assert.equal(entornoAgy({ PATH: "/usr/bin:/opt/bin" }, HOME, hay("/opt/bin/pa"), "linux").PATH, "/home/ana/.local/bin:/opt/bin:/usr/bin");
-  // sin pa en ningún lado: como pathConLocal, y el resto del entorno intacto.
-  const e = entornoAgy({ PATH: "/usr/bin", OTRA: "1" }, HOME, hay(), "linux");
-  assert.equal(e.PATH, "/home/ana/.local/bin:/usr/bin");
-  assert.equal(e.OTRA, "1");
-});
-
-test("Windows: pa.exe del PATH con ; y PATHEXT, o claude.exe en %USERPROFILE%\\.local\\bin", () => {
-  const WH = "C:\\Users\\Ana";
-  assert.equal(resolverPa({ Path: "C:\\Windows;C:\\bin" }, WH, hay("C:\\bin\\pa.exe"), "win32"), "C:\\bin\\pa.exe");
-  assert.equal(resolverPa({ Path: "C:\\Windows" }, WH, hay("C:\\Users\\Ana\\.local\\bin\\pa.cmd"), "win32"), "C:\\Users\\Ana\\.local\\bin\\pa.cmd");
-  assert.equal(resolverBinario("claude", "HILOS_CLAUDE", { Path: "C:\\Windows" }, WH, hay("C:\\Users\\Ana\\.local\\bin\\claude.exe"), "win32"), "C:\\Users\\Ana\\.local\\bin\\claude.exe");
-  assert.equal(resolverPa({ Path: "C:\\Windows" }, WH, hay(), "win32"), "pa");
-  assert.equal(resolverPa({ HILOS_PA: "D:\\pa-falso.cmd" }, WH, hay(), "win32"), "D:\\pa-falso.cmd");
-  assert.equal(pathConLocal({ Path: "C:\\Windows" }, WH, "win32"), "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
-  assert.equal(entornoPa({ Path: "C:\\Windows" }, WH, "win32").Path, "C:\\Users\\Ana\\.local\\bin;C:\\Windows");
-});
-
-test("Windows: entornoAgy deja ~\\.local\\bin y la carpeta de pa.exe adelante, con ; y la clave Path", () => {
-  const WH = "C:\\Users\\Ana";
-  const e = entornoAgy({ Path: "C:\\Windows;D:\\bin" }, WH, hay("D:\\bin\\pa.exe"), "win32");
-  assert.equal(e.Path, "C:\\Users\\Ana\\.local\\bin;D:\\bin;C:\\Windows");
+  const e = entornoAgy({ Path: "C:\\Windows;D:\\bin" }, HOME, hay("D:\\bin\\pa.exe"), "win32");
+  assert.equal(e.Path, `${LOCAL};D:\\bin;C:\\Windows`);
   assert.equal(e.PATH, undefined);
+  // sin pa en ningún lado: como pathConLocal, y el resto del entorno intacto.
+  const s = entornoAgy({ Path: "C:\\Windows", OTRA: "1" }, HOME, hay(), "win32");
+  assert.equal(s.Path, `${LOCAL};C:\\Windows`);
+  assert.equal(s.OTRA, "1");
+});
+
+test("resolverAgy: agy.exe del PATH, de las carpetas de sus instaladores o pelado", () => {
+  assert.equal(resolverAgy({ Path: "C:\\bin" }, HOME, hay("C:\\bin\\agy.exe"), "win32"), "C:\\bin\\agy.exe");
+  assert.equal(resolverAgy({ Path: "C:\\bin" }, HOME, hay("C:\\Users\\Ana\\.antigravity\\bin\\agy.exe"), "win32"), "C:\\Users\\Ana\\.antigravity\\bin\\agy.exe");
+  assert.equal(resolverAgy({ Path: "C:\\bin" }, HOME, hay(), "win32"), "agy");
+  assert.equal(resolverAgy({ HILOS_AGY: "D:\\agy.exe" }, HOME, hay(), "win32"), "D:\\agy.exe");
 });

@@ -1,23 +1,22 @@
-// Rutas y PATH por plataforma, en un solo lugar. Funciones puras que reciben (plataforma, env, home) para probar
-// Windows desde Linux (`tests/plataforma.test.ts`); al final, los helpers que miran `process.platform`/`process.env`.
-// Linux devuelve lo de siempre (`~/.config/trama`, `~/.local/state/hilos`…); Windows usa %APPDATA% y %LOCALAPPDATA%.
-// Sin `electron` ni imports locales.
-import { accessSync, constants, statSync } from "node:fs";
+// Rutas y PATH de Windows, en un solo lugar. Funciones puras que reciben (plataforma, env, home) para probarlas con
+// entornos armados (`tests/plataforma.test.ts`); al final, los helpers que miran `process.platform`/`process.env`.
+// Usa %APPDATA% y %LOCALAPPDATA%. Sin `electron` ni imports locales.
+import { statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 export type Env = Record<string, string | undefined>;
 export type Plataforma = NodeJS.Platform;
 
-export const esWindows = (p: Plataforma) => p === "win32";
+/** Trama es sólo de Windows: siempre `true` (el parámetro queda por los llamadores). */
+export const esWindows = (_p: Plataforma) => true;
 
-/** `path.win32` o `path.posix`: las rutas de Windows se arman bien aunque corra en Linux (las pruebas). */
-export const caminos = (p: Plataforma) => (esWindows(p) ? path.win32 : path.posix);
+/** `path.win32`. */
+export const caminos = (_p: Plataforma) => path.win32;
 
-/** La ruta como clave de comparación: normalizada y, en Windows, sin distinguir mayúsculas ni `/` de `\` (git informa `C:/Users/.../trama`; nosotros armamos `C:\Users\...\Trama`). */
+/** La ruta como clave de comparación: normalizada y sin distinguir mayúsculas ni `/` de `\` (git informa `C:/Users/.../trama`; nosotros armamos `C:\Users\...\Trama`). */
 export function claveRuta(p: Plataforma, ruta: string): string {
-  const n = caminos(p).normalize(ruta).replace(/[\\/]+$/, "");
-  return esWindows(p) ? n.toLowerCase() : n;
+  return caminos(p).normalize(ruta).replace(/[\\/]+$/, "").toLowerCase();
 }
 export const mismaRuta = (p: Plataforma, a: string, b: string) => claveRuta(p, a) === claveRuta(p, b);
 /** Lo que sigue de `base` en `ruta` si `ruta` está adentro de `base` (`""` si es la misma), o `null` si no. Conserva las mayúsculas de `ruta`. */
@@ -29,8 +28,8 @@ export function restoDeRuta(p: Plataforma, ruta: string, base: string): string |
   return caminos(p).normalize(ruta).replace(/[\\/]+$/, "").slice(b.length + 1);
 }
 
-/** `;` en Windows, `:` en el resto. */
-export const separadorPath = (p: Plataforma) => (esWindows(p) ? ";" : ":");
+/** El separador del PATH: `;`. */
+export const separadorPath = (_p: Plataforma) => ";";
 
 /** El `PATH` del entorno. En Windows la variable se llama `Path` y las claves no distinguen mayúsculas. */
 export function leerPath(p: Plataforma, env: Env): string {
@@ -38,65 +37,60 @@ export function leerPath(p: Plataforma, env: Env): string {
   return (k && env[k]) || "";
 }
 
-function clavePath(p: Plataforma, env: Env): string | undefined {
-  if (!esWindows(p)) return "PATH";
+function clavePath(_p: Plataforma, env: Env): string | undefined {
   return Object.keys(env).find((k) => k.toLowerCase() === "path");
 }
 
 /** Las carpetas del PATH, sin vacías. */
 export const carpetasPath = (p: Plataforma, env: Env): string[] => leerPath(p, env).split(separadorPath(p)).filter(Boolean);
 
-/** `~/.local/bin` (en Windows `%USERPROFILE%\.local\bin`, donde vive `claude.exe`): ahí se instalan `pa`, `tablero`, `claude`. */
+/** `%USERPROFILE%\.local\bin`, donde vive `claude.exe`: ahí se instalan `pa`, `tablero`, `claude`. */
 export const dirBinLocal = (p: Plataforma, home: string) => caminos(p).join(home, ".local", "bin");
 
 /** El PATH con `~/.local/bin` adelante (sin repetirlo). */
 export function pathConLocal(p: Plataforma, env: Env, home: string): string {
   const local = dirBinLocal(p, home);
-  const igual = (d: string) => (esWindows(p) ? d.toLowerCase() === local.toLowerCase() : d === local);
+  const igual = (d: string) => d.toLowerCase() === local.toLowerCase();
   return [local, ...carpetasPath(p, env).filter((d) => !igual(d))].join(separadorPath(p));
 }
 
-/** El entorno con `~/.local/bin` adelante en el PATH (en Windows, sobre la clave que ya tenía, para no duplicarla). */
+/** El entorno con `~/.local/bin` adelante en el PATH (sobre la clave que ya tenía, para no duplicarla). */
 export function entornoConLocal(p: Plataforma, env: Env, home: string): Env {
-  const clave = clavePath(p, env) ?? (esWindows(p) ? "Path" : "PATH");
+  const clave = clavePath(p, env) ?? "Path";
   return { ...env, [clave]: pathConLocal(p, env, home) };
 }
 
-/** El entorno con `dir` adelante en el PATH (sin repetirlo; en Windows, sobre la clave que ya tenía, para no duplicarla). */
+/** El entorno con `dir` adelante en el PATH (sin repetirlo; sobre la clave que ya tenía, para no duplicarla). */
 export function entornoConDir(p: Plataforma, env: Env, dir: string): Env {
-  const clave = clavePath(p, env) ?? (esWindows(p) ? "Path" : "PATH");
-  const igual = (d: string) => (esWindows(p) ? d.toLowerCase() === dir.toLowerCase() : d === dir);
+  const clave = clavePath(p, env) ?? "Path";
+  const igual = (d: string) => d.toLowerCase() === dir.toLowerCase();
   return { ...env, [clave]: [dir, ...carpetasPath(p, env).filter((d) => !igual(d))].join(separadorPath(p)) };
 }
 
-/** Las extensiones con que se prueba un nombre: ninguna en Linux; en Windows las de `PATHEXT` (con el nombre pelado primero). */
-export function extensionesEjecutable(p: Plataforma, env: Env): string[] {
-  if (!esWindows(p)) return [""];
+/** Las extensiones con que se prueba un nombre: las de `PATHEXT` (con el nombre pelado primero). */
+export function extensionesEjecutable(_p: Plataforma, env: Env): string[] {
   const k = Object.keys(env).find((x) => x.toLowerCase() === "pathext");
   const ext = ((k && env[k]) || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean).map((e) => e.toLowerCase());
   return ["", ...ext];
 }
 
-/** Los nombres de archivo a probar para `nombre`: tal cual, y en Windows con cada extensión de `PATHEXT` si no trae una. */
+/** Los nombres de archivo a probar para `nombre`: tal cual, o con cada extensión de `PATHEXT` si no trae una. */
 export function candidatosEjecutable(p: Plataforma, env: Env, nombre: string): string[] {
   const exts = extensionesEjecutable(p, env);
-  if (!esWindows(p)) return [nombre];
   const trae = exts.some((e) => e && nombre.toLowerCase().endsWith(e));
   return trae ? [nombre] : exts.map((e) => nombre + e);
 }
 
-/** ¿Es un archivo ejecutable? Linux: bit X. Windows no tiene bit X: alcanza con que sea un archivo. */
-export function esEjecutable(f: string, p: Plataforma = process.platform): boolean {
+/** ¿Es un archivo ejecutable? Windows no tiene bit X: alcanza con que sea un archivo. */
+export function esEjecutable(f: string, _p: Plataforma = process.platform): boolean {
   try {
-    if (esWindows(p)) return statSync(f).isFile();
-    accessSync(f, constants.X_OK);
-    return true;
+    return statSync(f).isFile();
   } catch {
     return false;
   }
 }
 
-/** Busca `nombre` en `dirs` (con `PATHEXT` en Windows); la ruta del primero que `existe`, o `null`. */
+/** Busca `nombre` en `dirs` (con `PATHEXT`); la ruta del primero que `existe`, o `null`. */
 export function buscarEjecutable(p: Plataforma, env: Env, nombre: string, dirs: string[], existe: (f: string) => boolean): string | null {
   const j = caminos(p);
   for (const d of dirs) for (const n of candidatosEjecutable(p, env, nombre)) if (existe(j.join(d, n))) return j.join(d, n);
@@ -107,50 +101,44 @@ export function buscarEjecutable(p: Plataforma, env: Env, nombre: string, dirs: 
 const appData = (env: Env, home: string) => env.APPDATA || path.win32.join(home, "AppData", "Roaming");
 const localAppData = (env: Env, home: string) => env.LOCALAPPDATA || path.win32.join(home, "AppData", "Local");
 
-/** La config de Trama: `~/.config/trama` · `%APPDATA%\Trama`. */
-export function dirConfigTrama(p: Plataforma, env: Env, home: string): string {
-  return esWindows(p) ? path.win32.join(appData(env, home), "Trama") : path.posix.join(home, ".config", "trama");
+/** La config de Trama: `%APPDATA%\Trama`. */
+export function dirConfigTrama(_p: Plataforma, env: Env, home: string): string {
+  return path.win32.join(appData(env, home), "Trama");
 }
 
 /** `perfil.json` (`TRAMA_PERFIL`). */
 export const rutaPerfil = (p: Plataforma, env: Env, home: string) => env.TRAMA_PERFIL ?? caminos(p).join(dirConfigTrama(p, env, home), "perfil.json");
 
-/** `modelos.json` (`TRAMA_MODELOS`, `HILOS_MODELOS`; en Linux también `XDG_CONFIG_HOME`). */
+/** `modelos.json` (`TRAMA_MODELOS`, `HILOS_MODELOS`). */
 export function rutaModelos(p: Plataforma, env: Env, home: string): string {
-  const fijo = env.TRAMA_MODELOS ?? env.HILOS_MODELOS;
-  if (fijo !== undefined) return fijo;
-  if (esWindows(p)) return path.win32.join(dirConfigTrama(p, env, home), "modelos.json");
-  return path.posix.join(env.XDG_CONFIG_HOME ?? path.posix.join(home, ".config"), "trama", "modelos.json");
+  return env.TRAMA_MODELOS ?? env.HILOS_MODELOS ?? path.win32.join(dirConfigTrama(p, env, home), "modelos.json");
 }
 
-/** El registry de proyectos (`PROYECTOS_REGISTRY`): `~/.config/proyectos/registry.json` · `%APPDATA%\Trama\proyectos\registry.json`. */
+/** El registry de proyectos (`PROYECTOS_REGISTRY`): `%APPDATA%\Trama\proyectos\registry.json`. */
 export function rutaRegistry(p: Plataforma, env: Env, home: string): string {
-  return (
-    env.PROYECTOS_REGISTRY ??
-    (esWindows(p) ? path.win32.join(dirConfigTrama(p, env, home), "proyectos", "registry.json") : path.posix.join(home, ".config", "proyectos", "registry.json"))
-  );
+  return env.PROYECTOS_REGISTRY ?? path.win32.join(dirConfigTrama(p, env, home), "proyectos", "registry.json");
 }
 
-/** Raíz del estado en Windows: `%LOCALAPPDATA%\Trama\state`. En Linux no hay raíz de Trama: cada uno cuelga de `~/.local/state`. */
+/** Raíz del estado: `%LOCALAPPDATA%\Trama\state`. */
 const estadoWin = (env: Env, home: string) => path.win32.join(localAppData(env, home), "Trama", "state");
 
-/** El estado propio de la app (`HILOS_STATE`): `~/.local/state/hilos` · `%LOCALAPPDATA%\Trama\state\hilos`. */
-export function dirEstadoApp(p: Plataforma, env: Env, home: string): string {
-  return env.HILOS_STATE ?? (esWindows(p) ? path.win32.join(estadoWin(env, home), "hilos") : path.posix.join(home, ".local", "state", "hilos"));
+/** El estado propio de la app (`HILOS_STATE`): `%LOCALAPPDATA%\Trama\state\hilos`. */
+export function dirEstadoApp(_p: Plataforma, env: Env, home: string): string {
+  return env.HILOS_STATE ?? path.win32.join(estadoWin(env, home), "hilos");
 }
 
-/** El estado de `pa` (`PA_STATE`): `~/.local/state/pa` · `%LOCALAPPDATA%\Trama\state\pa`. */
-export function dirEstadoPa(p: Plataforma, env: Env, home: string): string {
-  return env.PA_STATE ?? (esWindows(p) ? path.win32.join(estadoWin(env, home), "pa") : path.posix.join(home, ".local", "state", "pa"));
+/** El estado de `pa` (`PA_STATE`): `%LOCALAPPDATA%\Trama\state\pa`. */
+export function dirEstadoPa(_p: Plataforma, env: Env, home: string): string {
+  return env.PA_STATE ?? path.win32.join(estadoWin(env, home), "pa");
 }
 
-/** El tablero (`TABLERO_DIR`): `~/.local/state/tablero` · `%LOCALAPPDATA%\Trama\tablero`. */
-export function dirTablero(p: Plataforma, env: Env, home: string): string {
+/** El tablero (`TABLERO_DIR`): `%LOCALAPPDATA%\Trama\tablero`. */
+export function dirTablero(_p: Plataforma, env: Env, home: string): string {
   if (env.TABLERO_DIR) return env.TABLERO_DIR;
-  return esWindows(p) ? path.win32.join(localAppData(env, home), "Trama", "tablero") : path.posix.join(home, ".local", "state", "tablero");
+  return path.win32.join(localAppData(env, home), "Trama", "tablero");
 }
 
-/** La config de Claude Code: `~/.claude` en las dos (en Windows, `%USERPROFILE%\.claude`). */
+/** La config de Claude Code: `%USERPROFILE%\.claude`. */
 export const dirClaudeConfig = (p: Plataforma, home: string) => caminos(p).join(home, ".claude");
 
 // --- Con la plataforma y el entorno de este proceso ---
@@ -158,7 +146,7 @@ export const dirClaudeConfig = (p: Plataforma, home: string) => caminos(p).join(
 const aqui = () => process.platform;
 const entorno = () => process.env as Env;
 
-export const hayWindows = () => esWindows(aqui());
+export const hayWindows = () => true;
 export const separador = () => separadorPath(aqui());
 export const esteConfigTrama = () => dirConfigTrama(aqui(), entorno(), os.homedir());
 export const estePerfil = () => rutaPerfil(aqui(), entorno(), os.homedir());
