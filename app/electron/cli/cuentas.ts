@@ -60,12 +60,11 @@ class ErrorUso extends Error {
 
 // ---- dónde vive todo ----
 
-/** cuentas.json: `TRAMA_CUENTAS`; si no, `TRAMA_CUENTAS_HOME/.config/trama` (como `pa`) o la config de Trama (`~/.config/trama` · `%APPDATA%\Trama`). */
+/** cuentas.json: `TRAMA_CUENTAS`; si no, la config de Trama (`%APPDATA%\Trama`), con `TRAMA_CUENTAS_HOME` en lugar del home (como `pa`). */
 export function rutaCuentas(p: Plataforma, env: Env, home: string): string {
   if (env.TRAMA_CUENTAS) return env.TRAMA_CUENTAS;
   const j = caminos(p);
-  if (env.TRAMA_CUENTAS_HOME) return j.join(env.TRAMA_CUENTAS_HOME, ".config", "trama", "cuentas.json");
-  return j.join(dirConfigTrama(p, env, home), "cuentas.json");
+  return j.join(dirConfigTrama(p, env, env.TRAMA_CUENTAS_HOME || home), "cuentas.json");
 }
 
 const dirCuentas = (p: Plataforma, ruta: string) => caminos(p).join(caminos(p).dirname(ruta), "cuentas");

@@ -1,4 +1,4 @@
-// node --test tests/cli-cuentas.test.ts — el CLI `cuentas` (electron/cli/cuentas.ts) contra el contrato de cuentas-varias.ts y de motor/bin/pa
+﻿// node --test tests/cli-cuentas.test.ts — el CLI `cuentas` (electron/cli/cuentas.ts) contra el contrato de cuentas-varias.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -14,14 +14,14 @@ const hayJq = spawnSync("jq", ["--version"]).status === 0;
 
 function entorno() {
   const home = mkdtempSync(path.join(os.tmpdir(), "cuentas-"));
-  const env = { PATH: process.env.PATH, HOME: home, ANTHROPIC_API_KEY: "sk-x" };
+  const env = { PATH: process.env.PATH, APPDATA: path.join(home, "AppData", "Roaming"), ANTHROPIC_API_KEY: "sk-x" };
   const logins: { bin: string; args: string[]; env: Record<string, string | undefined> }[] = [];
   const deps: Deps = {
-    plataforma: "linux", env, home,
+    plataforma: "win32", env, home,
     verificar: async (c: Perfil) => c.id === "claude",
     login: (bin, args, e) => (logins.push({ bin, args, env: e }), 0),
   };
-  const json = path.join(home, ".config/trama/cuentas.json");
+  const json = path.join(home, "AppData", "Roaming", "Trama", "cuentas.json");
   return { home, env, deps, json, logins };
 }
 
@@ -81,25 +81,6 @@ test("env --json: lo que pa espera ({proveedor, sacar, poner}); Claude con su CL
   assert.deepEqual(JSON.parse((await ejecutar(["env", "claude", "--json"], deps)).out), { id: "claude", proveedor: "claude", sacar: [], poner: {} });
 });
 
-test("pa arma `env -u … VAR=valor` con el json de env (la expresión jq de cuenta_preparar)", { skip: !hayJq }, async () => {
-  const { deps } = entorno();
-  await ejecutar(["agregar", "claude", "Trabajo"], deps);
-  const j = (await ejecutar(["env", "trabajo", "--json"], deps)).out;
-  const r = spawnSync("jq", ["-r", '(.sacar // [] | map("-u", .)) + (.poner // {} | to_entries | map("\\(.key)=\\(.value)")) | if length > 0 then ["env"] + . else . end | .[]'], { input: j, encoding: "utf8" });
-  const l = r.stdout.trim().split("\n");
-  assert.deepEqual(l.slice(0, 3), ["env", "-u", "ANTHROPIC_API_KEY"]);
-  assert.match(l.at(-1)!, /^CLAUDE_CONFIG_DIR=.*trabajo$/);
-});
-
-test("pa puede leer el proveedor y buscar otras cuentas en cuentas.json con sus jq", { skip: !hayJq }, async () => {
-  const { deps, json } = entorno();
-  await ejecutar(["agregar", "claude", "Trabajo"], deps);
-  const jq = (f: string, ...a: string[]) => spawnSync("jq", [...a, f, json], { encoding: "utf8" });
-  assert.equal(jq('first(.cuentas[]? | select(.id == $i) | .proveedor) // empty', "-r", "--arg", "i", "trabajo").stdout.trim(), "claude");
-  assert.equal(jq('any(.cuentas[]?; .proveedor == $p and .id != $p)', "-e", "--arg", "p", "claude").status, 0);
-  assert.equal(jq('any(.cuentas[]?; .proveedor == $p and .id != $p)', "-e", "--arg", "p", "google").status, 1);
-});
-
 test("renombrar y quitar (con y sin --borrar-credenciales); la de siempre no se renombra ni se quita", async () => {
   const { deps, json } = entorno();
   await ejecutar(["agregar", "claude", "Trabajo"], deps);
@@ -145,25 +126,24 @@ test("un cuentas.json roto no se pisa", async () => {
   assert.equal(readFileSync(json, "utf8"), "{ roto");
 });
 
-test("rutas y entorno por plataforma (Windows se prueba desde Linux)", () => {
-  assert.equal(rutaCuentas("linux", {}, "/casa"), "/casa/.config/trama/cuentas.json");
-  assert.equal(rutaCuentas("linux", { TRAMA_CUENTAS: "/x/c.json" }, "/casa"), "/x/c.json");
-  assert.equal(rutaCuentas("linux", { TRAMA_CUENTAS_HOME: "/otra" }, "/casa"), "/otra/.config/trama/cuentas.json");
+test("rutas y entorno", () => {
   assert.equal(rutaCuentas("win32", { APPDATA: "C:\\U\\A\\Roaming" }, "C:\\U\\A"), "C:\\U\\A\\Roaming\\Trama\\cuentas.json");
+  assert.equal(rutaCuentas("win32", { TRAMA_CUENTAS: "C:\\x\\c.json" }, "C:\\U\\A"), "C:\\x\\c.json");
+  assert.equal(rutaCuentas("win32", { TRAMA_CUENTAS_HOME: "C:\\otra", APPDATA: "C:\\otra\\AppData\\Roaming" }, "C:\\U\\A"), "C:\\otra\\AppData\\Roaming\\Trama\\cuentas.json");
   const c = (proveedor: Perfil["proveedor"]): Perfil => ({ id: "x", proveedor, motor: "", nombre: "X", dir: "D", defecto: false, logueado: null });
   assert.deepEqual(entornoDe("win32", c("google")).poner, { HOME: "D", USERPROFILE: "D" });
-  assert.deepEqual(entornoDe("linux", c("chatgpt")).poner, { CODEX_HOME: "D" });
+  assert.deepEqual(entornoDe("win32", c("chatgpt")).poner, { CODEX_HOME: "D" });
   assert.equal(idDeNombre("  ¡Hola, Mundo!  "), "hola-mundo");
 });
 
-test("el wrapper de motor/bin/cuentas y el .ts andan por línea de comandos con un HOME temporal", () => {
+test("el .ts anda por línea de comandos con un cuentas.json temporal", () => {
   const { home } = entorno();
-  const env = { PATH: process.env.PATH, HOME: home, TRAMA_CUENTAS: path.join(home, "c.json") };
-  const r = spawnSync("node", [TS, "agregar", "claude", "Viaje"], { env, encoding: "utf8" });
+  const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, USERPROFILE: home, TRAMA_CUENTAS: path.join(home, "c.json") };
+  const r = spawnSync(process.execPath, [TS, "agregar", "claude", "Viaje"], { env, encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, "viaje\n");
-  const w = spawnSync("sh", [BIN, "env", "viaje", "--json"], { env, encoding: "utf8" });
+  const w = spawnSync(process.execPath, [TS, "env", "viaje", "--json"], { env, encoding: "utf8" });
   assert.equal(w.status, 0, w.stderr);
   assert.equal(JSON.parse(w.stdout).poner.CLAUDE_CONFIG_DIR, path.join(home, "cuentas", "viaje"));
-  assert.equal(spawnSync("sh", [BIN, "env", "no", "--json"], { env, encoding: "utf8" }).status, 2);
+  assert.equal(spawnSync(process.execPath, [TS, "env", "no", "--json"], { env, encoding: "utf8" }).status, 2);
 });
