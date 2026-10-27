@@ -199,9 +199,6 @@ function crearVentana() {
   // El ✕ (y Alt+F4) llegan acá: la ventana se esconde y trama sigue viva, con su ícono en la bandeja.
   if (residente) ventana.on("close", esconderAlCerrar(ventana, () => saliendo));
 
-  // Una página que carga con el motor caído se entera ya (el aviso de la caída le llegó a la anterior).
-  if (cliente) ventana.webContents.on("did-finish-load", () => void (cliente?.caida() && ventana.webContents.send("remoto:conexion", false)));
-
   marcar("ventana", "ventana-creada");
   ventana.webContents.once("did-finish-load", () => void marcar("ventana", "pagina-cargada"));
   cargar(ventana, llegaDeReinicio ? { actualizando: "1" } : {});
