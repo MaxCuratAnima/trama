@@ -65,7 +65,7 @@ export function carpetasDe(home: string, cwd: string): string[] {
 
 const MAX_HOOK_BYTES = 200_000;
 
-/** Corre un comando de hook como Claude Code (por `sh -c` o `cmd /c` en Windows, el JSON del evento por stdin); nunca falla ni pasa de `timeout`. */
+/** Corre un comando de hook como Claude Code (por `cmd /c`, el JSON del evento por stdin); nunca falla ni pasa de `timeout`. */
 function correrHook(comando: string, cwd: string, home: string, env: Record<string, string | undefined>, timeoutMs: number): Promise<string> {
   return new Promise((ok) => {
     const entrada = JSON.stringify({ hook_event_name: "SessionStart", source: "startup", cwd });

@@ -35,7 +35,7 @@ import {
 } from "../electron/lider-arma.ts";
 
 const SID = "36ac312b-6241-4230-b3b3-c3decacc39c0";
-const HOME = "/home/ana";
+const HOME = "C:\\Users\\ana";
 const FALSO = path.join(import.meta.dirname, "..", "scripts", "claude-falso.mjs");
 
 test("argv nuevo: stream-json, permisos salteados, modelo, effort, session-id y nombre", () => {
@@ -58,7 +58,8 @@ test("argv nuevo: stream-json, permisos salteados, modelo, effort, session-id y 
     "claude-sonnet-5-5",
     "--effort",
     "high",
-    ...(process.platform === "win32" ? ["--disallowedTools", "Bash"] : []),
+    "--disallowedTools",
+    "Bash",
     "--session-id",
     SID,
     "--name",
@@ -94,7 +95,7 @@ test("argv rechaza lo que sería un flag o tiene espacios", () => {
 test("entorno: sin CLAUDE*, CLAUDECODE, ANTHROPIC_* ni PA_* (salvo PA_STATE); ~/.local/bin adelante", () => {
   const env = entornoLider(
     {
-      PATH: "/usr/bin:/home/ana/.local/bin",
+      PATH: "C:\\Windows;C:\\Users\\ana\\.local\\bin",
       HOME,
       CLAUDECODE: "1",
       CLAUDE_CODE_CHILD_SESSION: "1",
@@ -105,30 +106,30 @@ test("entorno: sin CLAUDE*, CLAUDECODE, ANTHROPIC_* ni PA_* (salvo PA_STATE); ~/
       PA_WORKER: "1",
       PA_JEFE: "ana-e4",
       PA_JEFE_ID: "z",
-      PA_STATE: "/tmp/pa",
-      WAYLAND_DISPLAY: "wayland-1",
+      PA_STATE: "C:\\Temp\\pa",
+      USERNAME: "ana",
     },
     HOME,
   );
-  assert.deepEqual(Object.keys(env).sort(), ["HOME", "PATH", "PA_STATE", "WAYLAND_DISPLAY"]);
-  assert.equal(env.PATH, "/home/ana/.local/bin:/usr/bin");
-  assert.equal(entornoLider({}, HOME).PATH, "/home/ana/.local/bin");
+  assert.deepEqual(Object.keys(env).sort(), ["HOME", "PATH", "PA_STATE", "USERNAME"]);
+  assert.equal(env.PATH, "C:\\Users\\ana\\.local\\bin;C:\\Windows");
+  assert.equal(entornoLider({}, HOME).Path, "C:\\Users\\ana\\.local\\bin");
 });
 
 test("líder nuevo: corre en el home, sin proyecto que elegir (como abrir Claude Code en ~)", () => {
-  const o = opcionesLider({ PATH: "/usr/bin", HOME, PWD: "/home/ana/Proyectos/hilos" }, HOME);
+  const o = opcionesLider({ PATH: "C:\\Windows", HOME, PWD: "C:\\Users\\ana\\Proyectos\\hilos" }, HOME);
   assert.equal(o.cwd, HOME);
-  assert.equal(o.env.PATH, "/home/ana/.local/bin:/usr/bin");
+  assert.equal(o.env.PATH, "C:\\Users\\ana\\.local\\bin;C:\\Windows");
   // Ni el argv lleva carpeta: lo que ve es el home.
   const a = argvLider({ modelo: "claude-opus-5-5", effort: "high", sid: SID, nombre: "trama-a1b2", resume: false });
   assert.ok(!a.includes("--add-dir") && !a.some((x) => x.includes("Proyectos")));
 });
 
 test("líder retomado: corre donde vivía la sesión (ahí busca claude su transcript)", () => {
-  assert.equal(opcionesLider({ PATH: "/usr/bin", HOME }, HOME, "/home/ana/Proyectos/atlas").cwd, "/home/ana/Proyectos/atlas");
-  assert.equal(opcionesLider({ PATH: "/usr/bin", HOME }, HOME, undefined).cwd, HOME);
-  const jsonl = ['{"type":"summary"}', "basura", '{"type":"user","cwd":"relativa"}', '{"type":"user","cwd":"/home/ana/Proyectos/atlas"}', '{"cwd":"/otra"}'].join("\n");
-  assert.equal(cwdDeTranscript(jsonl), "/home/ana/Proyectos/atlas");
+  assert.equal(opcionesLider({ PATH: "C:\\Windows", HOME }, HOME, "C:\\Users\\ana\\Proyectos\\atlas").cwd, "C:\\Users\\ana\\Proyectos\\atlas");
+  assert.equal(opcionesLider({ PATH: "C:\\Windows", HOME }, HOME, undefined).cwd, HOME);
+  const jsonl = ['{"type":"summary"}', "basura", '{"type":"user","cwd":"relativa"}', '{"type":"user","cwd":"C:\\\\Users\\\\ana\\\\Proyectos\\\\atlas"}', '{"cwd":"D:\\\\otra"}'].join("\n");
+  assert.equal(cwdDeTranscript(jsonl), "C:\\Users\\ana\\Proyectos\\atlas");
   assert.equal(cwdDeTranscript('{"type":"user"}\n'), null);
   // El nombre de la sesión se conserva si sirve de argumento; si no, uno interno.
   assert.equal(nombreRetomado("ana-d2"), "ana-d2");
@@ -333,7 +334,7 @@ test("claude falso: un turno por stdin sale como deltas, mensaje y fin; el inter
   const arranque = JSON.parse(readFileSync(log, "utf8").trim());
   assert.deepEqual(arranque.args, argv);
   assert.ok(!arranque.env.some((k: string) => k.startsWith("CLAUDE")));
-  assert.ok(arranque.path.startsWith(path.join(os.homedir(), ".local", "bin") + ":"));
+  assert.ok(arranque.path.startsWith(path.join(os.homedir(), ".local", "bin") + ";"));
 });
 
 // --- B13: modos, permisos y comandos -------------------------------------------

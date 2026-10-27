@@ -57,11 +57,11 @@ test("recortar y tokens: corta en una línea y dice dónde está el archivo ente
 });
 
 test("carpetasDe y memoriaDe: de ~ hacia el cwd, y la memoria con la regla de Claude Code", () => {
-  assert.deepEqual(carpetasDe("/h", "/h"), ["/h"]);
-  assert.deepEqual(carpetasDe("/h", "/h/a/b"), ["/h", "/h/a", "/h/a/b"]);
-  assert.deepEqual(carpetasDe("/h", "/otro/lado"), ["/otro/lado"]);
-  assert.equal(memoriaDe("/home/ana", "/home/ana"), "/home/ana/.claude/projects/-home-ana/memory/MEMORY.md");
-  assert.equal(memoriaDe("/home/ana", "/home/ana/.local/x"), "/home/ana/.claude/projects/-home-ana--local-x/memory/MEMORY.md");
+  assert.deepEqual(carpetasDe("C:\\h", "C:\\h"), ["C:\\h"]);
+  assert.deepEqual(carpetasDe("C:\\h", "C:\\h\\a\\b"), ["C:\\h", "C:\\h\\a", "C:\\h\\a\\b"]);
+  assert.deepEqual(carpetasDe("C:\\h", "D:\\otro\\lado"), ["D:\\otro\\lado"]);
+  assert.equal(memoriaDe("C:\\Users\\ana", "C:\\Users\\ana"), "C:\\Users\\ana\\.claude\\projects\\C--Users-ana\\memory\\MEMORY.md");
+  assert.equal(memoriaDe("C:\\Users\\ana", "C:\\Users\\ana\\.local\\x"), "C:\\Users\\ana\\.claude\\projects\\C--Users-ana--local-x\\memory\\MEMORY.md");
 });
 
 test("hooksDeArranque y textoDeHook: sólo SessionStart, con su matcher; JSON o texto", async () => {
@@ -89,7 +89,7 @@ async function casa() {
   await writeFile(path.join(home, "CLAUDE.md"), MD);
   await writeFile(
     path.join(home, ".claude", "settings.json"),
-    JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: `printf 'Tablero en %s:\\n' "$(basename "$PWD")"; cat >/dev/null; echo "PA_WORKER=[$PA_WORKER]"` }] }] } }),
+    JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: "for %I in (.) do @echo Tablero en %~nxI:& if defined PA_WORKER (echo PA_WORKER=[%PA_WORKER%]) else (echo PA_WORKER=[])" }] }] } }),
   );
   return home;
 }

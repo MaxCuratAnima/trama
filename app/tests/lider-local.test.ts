@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { argvLider, entornoLider, entornoLocal, esLoopback, HERRAMIENTAS_LOCAL, opcionesLider, PROMPT_LOCAL } from "../electron/lider-arma.ts";
+import { NOTA_WINDOWS } from "../electron/nota-windows.ts";
 
 const SID = "36ac312b-6241-4230-b3b3-c3decacc39c0";
 const HOME = "/home/ana";
@@ -25,7 +26,7 @@ test("argv local: --bare con la clave de mentira, sólo Bash/Read/Edit, el promp
   assert.ok(!a.includes("--effort"), "el esfuerzo de un local va por el cuerpo del pedido");
   assert.equal(valor(a, "--model"), "modelo-local-ejemplo");
   assert.equal(valor(a, "--tools"), HERRAMIENTAS_LOCAL);
-  assert.equal(valor(a, "--system-prompt"), PROMPT_LOCAL);
+  assert.equal(valor(a, "--system-prompt"), `${PROMPT_LOCAL}\n\n${NOTA_WINDOWS}`);
   assert.equal(valor(a, "--system-prompt-snapshot"), "off");
   assert.ok(a.includes("--strict-mcp-config"));
   assert.deepEqual(JSON.parse(valor(a, "--settings")), { apiKeyHelper: "echo trama-local" });
