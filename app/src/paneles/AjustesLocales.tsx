@@ -48,7 +48,7 @@ function Comando({ texto, etiqueta }: { texto: string; etiqueta: string }) {
 
 /** «GeForce RTX 4070 · 12 GB» (o sólo lo que se sabe). */
 function textoGpu(g: NonNullable<EntornoOllama["gpu"]>): string {
-  const marca = g.nombre ?? { nvidia: "NVIDIA", amd: "AMD", intel: "Intel" }[g.fabricante];
+  const marca = g.nombre ?? "NVIDIA";
   return g.vramMiB !== null ? `${marca} · ${vramGb(g.vramMiB)} GB` : marca;
 }
 
@@ -74,7 +74,6 @@ export function GuiaOllama({ estado, entorno, alMirar }: { estado: Estado; entor
       <p className="ol-nota">{t("ajustes.mdlOllamaQue")}</p>
       {entorno ? (
         <div className="ol-chips">
-          <Chip>{entorno.distro.nombre}</Chip>
           <Chip tono={gpu ? undefined : "aviso"}>{gpu ? textoGpu(gpu) : t("ajustes.olSinGpu")}</Chip>
         </div>
       ) : null}
@@ -84,7 +83,7 @@ export function GuiaOllama({ estado, entorno, alMirar }: { estado: Estado; entor
             <span className="ol-paso-n">1</span>
             <div className="ol-paso-c">
               <div className="ol-paso-t">{t("ajustes.olPasoInstalar")}</div>
-              <p className="ol-nota">{t(entorno.instalar.via === "winget" ? "ajustes.olInstalaWinget" : entorno.instalar.via === "pacman" ? (gpu?.fabricante === "nvidia" ? "ajustes.olInstalaCuda" : gpu?.fabricante === "amd" ? "ajustes.olInstalaRocm" : "ajustes.olInstalaPacman") : "ajustes.olInstalaScript")}</p>
+              <p className="ol-nota">{t("ajustes.olInstalaWinget")}</p>
               <Comando texto={entorno.instalar.comando} etiqueta={t("ajustes.olPasoInstalar")} />
             </div>
           </div>
@@ -92,7 +91,7 @@ export function GuiaOllama({ estado, entorno, alMirar }: { estado: Estado; entor
             <span className="ol-paso-n">2</span>
             <div className="ol-paso-c">
               <div className="ol-paso-t">{t("ajustes.olPasoArrancar")}</div>
-              <p className="ol-nota">{t(entorno.arrancar.via === "systemd" ? "ajustes.olArrancaSystemd" : "ajustes.olArrancaServe")}</p>
+              <p className="ol-nota">{t("ajustes.olArrancaServe")}</p>
               <Comando texto={entorno.arrancar.comando} etiqueta={t("ajustes.olPasoArrancar")} />
             </div>
           </div>
@@ -104,7 +103,7 @@ export function GuiaOllama({ estado, entorno, alMirar }: { estado: Estado; entor
           <span className="ol-paso-n">1</span>
           <div className="ol-paso-c">
             <div className="ol-paso-t">{t("ajustes.olPasoArrancar")}</div>
-            <p className="ol-nota">{t(entorno.arrancar.via === "systemd" ? "ajustes.olArrancaSystemd" : "ajustes.olArrancaServe")}</p>
+            <p className="ol-nota">{t("ajustes.olArrancaServe")}</p>
             <Comando texto={entorno.arrancar.comando} etiqueta={t("ajustes.olPasoArrancar")} />
             <p className="ol-nota">{t("ajustes.olLuegoMirar")}</p>
           </div>

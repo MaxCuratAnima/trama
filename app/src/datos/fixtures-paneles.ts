@@ -84,27 +84,14 @@ export const OLLAMA_FALSO: { nombre: string; bytes: number | null }[] = [
   { nombre: "gemma3:12b", bytes: 8_100_000_000 },
 ];
 
-/** Lo que hay en la máquina de las capturas para Ollama: `mdl-sinollama` no lo tiene (Ubuntu, instalador oficial), `mdl-apagado` lo tiene sin arrancar (Arch con su servicio); el resto, andando. */
-export const ENTORNO_OLLAMA = (variante: string | null): EntornoOllama => {
-  const gpu = { fabricante: "nvidia" as const, nombre: "NVIDIA GeForce RTX 4070", vramMiB: 12282 };
-  if (variante === "mdl-sinollama")
-    return {
-      version: 1,
-      instalado: false,
-      distro: { id: "ubuntu", nombre: "Ubuntu 24.04.1 LTS", familia: "debian" },
-      gpu,
-      instalar: { via: "script", comando: "curl -fsSL https://ollama.com/install.sh | sh" },
-      arrancar: { via: "systemd", comando: "sudo systemctl enable --now ollama" },
-    };
-  return {
-    version: 1,
-    instalado: true,
-    distro: { id: "arch", nombre: "Arch Linux", familia: "arch" },
-    gpu,
-    instalar: { via: "pacman", comando: "sudo pacman -S ollama-cuda" },
-    arrancar: { via: "systemd", comando: "sudo systemctl enable --now ollama" },
-  };
-};
+/** Lo que hay en la máquina de las capturas para Ollama: `mdl-sinollama` no lo tiene; el resto, sí. */
+export const ENTORNO_OLLAMA = (variante: string | null): EntornoOllama => ({
+  version: 1,
+  instalado: variante !== "mdl-sinollama",
+  gpu: { nombre: "NVIDIA GeForce RTX 4070", vramMiB: 12282 },
+  instalar: { comando: "winget install --id Ollama.Ollama -e" },
+  arrancar: { comando: "ollama serve" },
+});
 
 /** El acceso desde el celular de los fixtures (se edita en Ajustes; vive mientras la página). */
 export const REMOTO = { activo: true, puerto: 8791, dispositivos: ["celu-de-prueba", "tablet-sala"] };
