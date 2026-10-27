@@ -1185,7 +1185,6 @@ export const es: { [K in keyof typeof en]: string } = {
   "lider.cerrarSeguro": "¿Cerrar este líder?",
   "lider.archivarSeguro": "¿Archivar este líder?",
   "menu.archivarLiderSeguro": "¿Archivar este líder? Otra vez para confirmar",
-  "main.localUnitFija": "{unit} carga siempre con -c {c}: no lee el contexto que guarda trama. Para cambiarlo hay que instalar la plantilla de trama (systemd/locales/)",
   "main.localNoEntra": "No entra: sólo los pesos ocupan {pesos} GB y en la GPU quedan {libre} GB libres ({otros} GB los usan otros). Cerrá algo que use la GPU o elegí un modelo más liviano",
   "main.localSinMemoria": "No entró en la GPU: a llama-server se le acabó la VRAM al cargar y se lo paró. Probá con menos contexto o cerrá algo que use la GPU",
   "ctxl.unitFija": "El servicio del modelo carga siempre con {k}K: este valor rige cuando se instale la plantilla de trama (systemd/locales/)",

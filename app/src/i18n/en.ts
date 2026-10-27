@@ -1197,7 +1197,6 @@ export const en = {
   "lider.cerrarSeguro": "Close this lead?",
   "lider.archivarSeguro": "Archive this lead?",
   "menu.archivarLiderSeguro": "Archive this lead? Again to confirm",
-  "main.localUnitFija": "{unit} always loads with -c {c}: it doesn't read the context trama saves. To change it, install trama's template (systemd/locales/)",
   "main.localNoEntra": "It doesn't fit: the weights alone take {pesos} GB and the GPU has {libre} GB free ({otros} GB in use by others). Close something that uses the GPU or pick a lighter model",
   "main.localSinMemoria": "It didn't fit in the GPU: llama-server ran out of VRAM while loading and was stopped. Try less context or close something that uses the GPU",
   "ctxl.unitFija": "The model's service always loads with {k}K: this value applies once trama's template (systemd/locales/) is installed",

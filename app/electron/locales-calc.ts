@@ -15,7 +15,7 @@ export const MULTIPLO_CTX = 256;
 
 /** Quién más usa la GPU y cuánto pide, con el proceso que lo delata (nombre de proceso o línea de comando). */
 export const CONSUMIDORES: readonly { nombre: string; nominalMiB: number; reconoce: (proceso: string, cmd: string) => boolean }[] = [
-  { nombre: "Handy", nominalMiB: Math.round(3.3 * 1024), reconoce: (p) => /(^|\/)handy$/i.test(p.trim()) },
+  { nombre: "Handy", nominalMiB: Math.round(3.3 * 1024), reconoce: (p) => /(^|[\\/])handy(\.exe)?$/i.test(p.trim()) },
   { nombre: "TTS", nominalMiB: Math.round(4.9 * 1024), reconoce: (_p, cmd) => cmd.includes("asistente-tts-qwen") },
 ];
 
@@ -51,7 +51,7 @@ export function clasificar(apps: readonly AppGpu[], cmdlineDe: (pid: number) => 
   let llamaMiB = 0;
   const actual = new Map<string, number>();
   for (const a of apps) {
-    if (/llama-server$/.test(a.proceso.trim())) {
+    if (/llama-server(\.exe)?$/i.test(a.proceso.trim())) {
       llamaMiB += a.miB;
       continue;
     }
@@ -182,13 +182,13 @@ export function contextWindowDe(yaml: string, dshId: string): number | null {
   return null;
 }
 
-/** El valor de `LLAMA_CTX` de un env file de la unit (o `null`). */
+/** El valor de `LLAMA_CTX` de un env file (o `null`). */
 export function ctxDeEnv(texto: string): number | null {
   const m = /^LLAMA_CTX=(\d+)\s*$/m.exec(texto);
   return m ? Number(m[1]) : null;
 }
 
-export const envDe = (ctx: number) => `# Lo escribe trama (Contexto del modelo local): lo lee la unit con EnvironmentFile.\nLLAMA_CTX=${ctx}\n`;
+export const envDe = (ctx: number) => `# Lo escribe trama (Contexto del modelo local): lo lee el conmutador.\nLLAMA_CTX=${ctx}\n`;
 
 /** El `n_ctx` que dice `/props` de llama-server (o `null` si no se entiende). */
 export function nCtxDe(props: unknown): number | null {
@@ -200,52 +200,18 @@ export function nCtxDe(props: unknown): number | null {
 /** Lo libre para el modelo con lo que corre ahora (sin contar a Handy/TTS por si cargan): total − los demás − margen. */
 export const libreMiB = (e: Pick<Estimacion, "presupuestoMiB" | "reservaMiB">) => e.presupuestoMiB + e.reservaMiB;
 
-/**
- * El `-c` fijo de una unit que NO lee `LLAMA_CTX` (la de antes de la plantilla de trama): el número de su `-c` /
- * `--ctx-size`. `null` si la unit lee `LLAMA_CTX` (el valor de trama rige) o si no se entiende.
- */
-export function ctxFijoDeUnit(texto: string): number | null {
-  const sinComentarios = texto
-    .split("\n")
-    .filter((l) => !/^\s*[#;]/.test(l))
-    .join("\n");
-  if (/\$\{?LLAMA_CTX\b/.test(sinComentarios)) return null;
-  const m = /(?:^|\s)(?:-c|--ctx-size)[ =]+(\d+)\b/m.exec(sinComentarios);
-  return m ? Number(m[1]) : null;
-}
-
-export type EstadoUnit = { activo: string; sub: string; reinicios: number };
-
-/** `systemctl show -p ActiveState -p SubState -p NRestarts` → sus valores. */
-export function estadoDeShow(texto: string): EstadoUnit {
-  const v = (k: string) => new RegExp(`^${k}=(.*)$`, "m").exec(texto)?.[1]?.trim() ?? "";
-  return { activo: v("ActiveState"), sub: v("SubState"), reinicios: Number(v("NRestarts")) || 0 };
-}
-
-/**
- * Si la carga se cayó: el proceso murió y systemd lo va a relanzar (`auto-restart`), ya se relanzó desde que empezó
- * (`NRestarts` subió; `reset-failed` lo puede bajar a 0, por eso "distinto y > 0") o la unit quedó `failed`.
- * Con `Restart=on-failure` cada relanzo vuelve a leer los pesos y vuelve a caerse: esperar no sirve.
- */
-export const seCayo = (s: EstadoUnit, reiniciosAntes: number) =>
-  s.sub === "auto-restart" || s.activo === "failed" || (s.reinicios > 0 && s.reinicios !== reiniciosAntes);
-
 /** Lo que dice llama-server (o CUDA) cuando no le alcanza la VRAM. */
 const SIN_MEMORIA = /out of memory|cudaMalloc failed|failed to allocate|unable to allocate|alloc(?:ate)?_buffer.*failed|\bOOM\b/i;
-/** Una línea que explica un fallo (no las de systemd diciendo que falló). */
+/** Una línea que explica un fallo. */
 const ERROR = /error|failed|fallo|cannot|unable|abort/i;
 
-/**
- * Por qué no cargó, de lo que dejó el conmutador (stderr) y el journal de la unit: `sinMemoria` si fue
- * la VRAM; si no, la última línea que suena a error (sin las de systemd), cortada.
- */
+/** Por qué no cargó, de lo que dejó el conmutador (stderr): `sinMemoria` si fue la VRAM; si no, la última línea que suena a error, cortada. */
 export function motivoDeLog(texto: string): { sinMemoria: boolean; linea: string | null } {
   const lineas = texto
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
   if (lineas.some((l) => SIN_MEMORIA.test(l))) return { sinMemoria: true, linea: lineas.find((l) => SIN_MEMORIA.test(l))!.slice(0, 200) };
-  const propias = lineas.filter((l) => !/systemd\[\d+\]|\.service:|^(?:Started|Stopped|Starting|Stopping) /.test(l));
-  const linea = [...propias].reverse().find((l) => ERROR.test(l)) ?? propias.at(-1) ?? lineas.at(-1) ?? null;
+  const linea = [...lineas].reverse().find((l) => ERROR.test(l)) ?? lineas.at(-1) ?? null;
   return { sinMemoria: false, linea: linea ? linea.slice(0, 200) : null };
 }

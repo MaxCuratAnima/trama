@@ -1,11 +1,11 @@
-// Los modelos locales de llama-server que el usuario declara en `~/.config/trama/locales.json` (`HILOS_LOCALES_JSON`). Sin ese
+﻿// Los modelos locales de llama-server que el usuario declara en `%APPDATA%\Trama\locales.json` (`HILOS_LOCALES_JSON`). Sin ese
 // archivo no hay locales de llama-server: ningún modelo viene fijo en el código. Sin `electron` y síncrono (lo lee también
 // `lider.ts` para saber si un modelo es local): el archivo es chico y se relee cada vez, así que editarlo rige sin reiniciar.
 //
 //   { "version": 1,
 //     "conmutador": "mi-conmutador",              // opcional: programa que se llama con la `clave` y vuelve cuando el modelo cargó
 //     "modelos": [ { "id": "modelo-local-ejemplo", "nombre": "Modelo local de ejemplo", "empresa": "Mi empresa",
-//                    "clave": "ejemplo", "unit": "llama-server-ejemplo.service", "alias": "ejemplo-27b",
+//                    "clave": "ejemplo", "alias": "ejemplo-27b",
 //                    "archivos": ["models/ejemplo/ejemplo.gguf"], "pesosMiB": 6000, "capasKv": 16, "ctxDefecto": 32768,
 //                    "url": "http://127.0.0.1:8080",  // opcional
 //                    "fijoMiB": 2048, "ctxMin": 4096, "ctxMax": 262144, "paso": 1024 } ] }
@@ -14,8 +14,9 @@
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { dirConfigTrama } from "./plataforma.ts";
 
-/** Una fila por modelo local: lo que hace falta saber de su unit y de su peso. */
+/** Una fila por modelo local: lo que hace falta saber de su carga y de su peso. */
 export type LocalDef = {
   /** El id con que viaja a `claude --model` y se guarda en `lideres.json`. */
   id: string;
@@ -23,9 +24,8 @@ export type LocalDef = {
   nombre: string;
   /** El divisor del menú (quién lo hace); un nombre propio, no se traduce. */
   empresa: string;
-  /** Lo que se le pasa al conmutador (qué unit carga). */
+  /** Lo que se le pasa al conmutador (qué modelo carga). */
   clave: string;
-  unit: string;
   /** El `--alias` con que llama-server lo sirve (y el `id` de su entrada en `~/.dsh/settings.yaml`). */
   dshId: string;
   /** Adónde escucha llama-server; sin dato, `HILOS_LLAMA_URL` o 127.0.0.1:8080. */
@@ -38,7 +38,7 @@ export type LocalDef = {
   fijoMiB: number;
   /** Capas con atención completa (las que guardan KV). */
   capasKv: number;
-  /** El `-c` de la unit original: con lo que arranca si nada se guardó. */
+  /** El `-c` con que arranca si nada se guardó. */
   ctxDefecto: number;
   ctxMin: number;
   /** Hasta donde entrena el modelo. */
@@ -51,7 +51,7 @@ export type ConfigLocales = { conmutador: string | null; modelos: LocalDef[] };
 const VACIO: ConfigLocales = { conmutador: null, modelos: [] };
 
 export const rutaLocales = (env: NodeJS.ProcessEnv = process.env, home = os.homedir()) =>
-  env.HILOS_LOCALES_JSON || path.join(env.XDG_CONFIG_HOME || path.join(home, ".config"), "trama", "locales.json");
+  env.HILOS_LOCALES_JSON || path.win32.join(dirConfigTrama(process.platform, env, home), "locales.json");
 
 const esObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 /** Un valor que va a una línea de comandos o a un archivo: sin espacios ni nulos y que no empiece con guion. */
@@ -61,7 +61,7 @@ const PREFIJOS_AJENOS = /^(?:claude-|gemini-|agy:|ollama:)/;
 
 function modeloDe(x: unknown): LocalDef | null {
   if (!esObj(x) || !sano(x.id) || PREFIJOS_AJENOS.test(x.id) || !/^[A-Za-z0-9][\w.-]*$/.test(x.id)) return null;
-  if (!sano(x.unit) || !Array.isArray(x.archivos) || !x.archivos.length) return null;
+  if (!Array.isArray(x.archivos) || !x.archivos.length) return null;
   const archivos = x.archivos.filter((a): a is string => typeof a === "string" && !!a && !path.isAbsolute(a) && !a.split(/[\\/]/).includes(".."));
   if (archivos.length !== x.archivos.length) return null;
   if (!entero(x.pesosMiB, 1) || !entero(x.capasKv, 1, 1000) || !entero(x.ctxDefecto, 1)) return null;
@@ -85,7 +85,7 @@ function modeloDe(x: unknown): LocalDef | null {
   }
   const nombre = typeof x.nombre === "string" && x.nombre.trim() ? x.nombre.trim().slice(0, 80) : x.id;
   const empresa = typeof x.empresa === "string" && x.empresa.trim() ? x.empresa.trim().slice(0, 40) : "Local";
-  return { id: x.id, nombre, empresa, clave, unit: x.unit, dshId, ...(url ? { url } : {}), archivos, pesosMiB: x.pesosMiB, fijoMiB, capasKv: x.capasKv, ctxDefecto: x.ctxDefecto, ctxMin, ctxMax, paso };
+  return { id: x.id, nombre, empresa, clave, dshId, ...(url ? { url } : {}), archivos, pesosMiB: x.pesosMiB, fijoMiB, capasKv: x.capasKv, ctxDefecto: x.ctxDefecto, ctxMin, ctxMax, paso };
 }
 
 /** El texto del archivo → lo que declara. `modelos` queda vacío si no es de esta versión, no se entiende o no hay nada. */
@@ -118,5 +118,5 @@ export const localesDeclarados = (env?: NodeJS.ProcessEnv, home?: string): reado
 
 export const localDe = (id: string, env?: NodeJS.ProcessEnv, home?: string): LocalDef | undefined => localesDeclarados(env, home).find((l) => l.id === id);
 
-/** Lo que sabe el renderer de cada uno: sólo para mostrarlo (ni unit, ni rutas, ni url). */
+/** Lo que sabe el renderer de cada uno: sólo para mostrarlo (ni rutas, ni url). */
 export const vistaLocales = (env?: NodeJS.ProcessEnv, home?: string) => localesDeclarados(env, home).map((l) => ({ id: l.id, nombre: l.nombre, empresa: l.empresa }));

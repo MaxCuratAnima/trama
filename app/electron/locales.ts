@@ -1,12 +1,12 @@
 // Los modelos locales (llama-server en la GPU de esta máquina): cuánto contexto (`-c`) se les da, cuánto entra en la
 // VRAM (estimado: electron/locales-calc.ts) y "Probar", que los carga de verdad con ese valor para confirmarlo.
-// Cuáles son: los declara el usuario en `~/.config/trama/locales.json` (electron/locales-config.ts); sin ese archivo no hay ninguno.
+// Cuáles son: los declara el usuario en `%APPDATA%\Trama\locales.json` (electron/locales-config.ts); sin ese archivo no hay ninguno.
 // Qué se escribe y adónde:
-//   - `$HILOS_LOCALES_DIR/<clave>.env` (default `~/.config/trama/locales/`) con `LLAMA_CTX=<n>`: lo lee la unit
+//   - `$HILOS_LOCALES_DIR/<clave>.env` (default `%APPDATA%\Trama\locales\`) con `LLAMA_CTX=<n>`: lo lee el conmutador
 //     (`EnvironmentFile=-…` y `-c ${LLAMA_CTX}`), así el valor llega al `-c` real;
 //   - `contextWindow` de ese modelo en `~/.dsh/settings.yaml` (`HILOS_DSH_SETTINGS`), que tiene que ser igual al `-c`.
 // Guardar NO carga nada: el valor rige en la próxima carga del modelo. Sólo Probar toca la GPU (la pide el usuario con un clic).
-// Sin `electron`: lo prueba tests/locales.test.ts con `Deps` falsos; nunca corre `nvidia-smi` ni `systemctl` de verdad.
+// Sin `electron`: lo prueba tests/locales.test.ts con `Deps` falsos; nunca corre `nvidia-smi` de verdad.
 import { execFile } from "node:child_process";
 import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
@@ -19,10 +19,10 @@ import {
   conContextWindow,
   contextWindowDe,
   ctxDeEnv,
-  ctxFijoDeUnit,
+
   ctxValido,
   envDe,
-  estadoDeShow,
+
   estimar,
   kvBytesPorToken,
   libreMiB,
@@ -31,26 +31,26 @@ import {
   nCtxDe,
   parsearApps,
   parsearMemoria,
-  seCayo,
+
   type CuentaModelo,
-  type EstadoUnit,
+
   type Estimacion,
 } from "./locales-calc.ts";
 import { escribirAtomico } from "./pa.ts";
-import { leerConfigLocales, localDe, localesDeclarados, type LocalDef } from "./locales-config.ts";
+import { dirConfigTrama } from "./plataforma.ts";, localDe, localesDeclarados, type LocalDef } from "./locales-config.ts";
 
 export { localDe, type LocalDef } from "./locales-config.ts";
 const defsDe = (d: Deps): readonly LocalDef[] => localesDeclarados(d.env, d.home);
 const defDe = (id: string, d: Deps) => localDe(id, d.env, d.home);
 
-/** El KV en q8_0 (las units pasan `--cache-type-k/v q8_0`): 4 cabezas KV de 256 de K y de V. */
+/** El KV en q8_0 (llama-server va con `--cache-type-k/v q8_0`): 4 cabezas KV de 256 de K y de V. */
 const KV = { kvHeads: 4, dimK: 256, dimV: 256, bytesPorElemento: BYTES_Q8_0 } as const;
 
 // ---------- lo que se ve desde la ventana ----------
 
 export type LocalInfo = {
   id: string;
-  /** El `-c` guardado (o el de la unit si nada se guardó). */
+  /** El `-c` guardado (o `ctxDefecto` si nada se guardó). */
   ctx: number;
   /** El `contextWindow` que tiene hoy `~/.dsh/settings.yaml` (null si no hay o no se lee). */
   dsh: number | null;
@@ -61,10 +61,7 @@ export type LocalInfo = {
   est: Estimacion | null;
   /** El tamaño de los pesos usado, y si se midió en disco. */
   pesosMiB: number;
-  /**
-   * El `-c` fijo de la unit instalada si NO lee `LLAMA_CTX`: carga siempre con
-   * ese, guarde trama lo que guarde. `null`: la unit lee el valor de trama (o no se pudo leer).
-   */
+  /** Siempre `null`: el renderer todavía lo lee (ContextoLocal.tsx). */
   ctxFijo: number | null;
 };
 export type EstadoLocales = { modelos: LocalInfo[]; gpuMiB: number | null };
@@ -127,17 +124,13 @@ export function depsDeVerdad(env: NodeJS.ProcessEnv = process.env): Deps {
 
 // ---------- rutas ----------
 
-const carpetaEnv = (d: Deps) => d.env.HILOS_LOCALES_DIR || path.join(d.home, ".config", "trama", "locales");
+const carpetaEnv = (d: Deps) => d.env.HILOS_LOCALES_DIR || path.win32.join(dirConfigTrama(process.platform, d.env, d.home), "locales");
 export const archivoEnv = (d: Deps, l: LocalDef) => path.join(carpetaEnv(d), `${l.clave}.env`);
 export const archivoDsh = (d: Deps) => d.env.HILOS_DSH_SETTINGS || path.join(d.home, ".dsh", "settings.yaml");
 const urlLlama = (d: Deps, l?: LocalDef) => l?.url || d.env.HILOS_LLAMA_URL || "http://127.0.0.1:8080";
-/** Donde están las units de usuario (las de verdad: `~/.config/systemd/user/`). */
-const carpetaUnits = (d: Deps) => d.env.HILOS_UNITS_DIR || path.join(d.env.XDG_CONFIG_HOME || path.join(d.home, ".config"), "systemd", "user");
 const nvidiaSmi = (d: Deps) => resolverBinario("nvidia-smi", "HILOS_NVIDIA_SMI", d.env, d.home);
 /** Espera de Probar: 300 s de carga más lo que tarda en bajar el otro modelo. */
 export const PROBAR_ESPERA_MS = 330_000;
-/** Cada cuánto se mira la unit mientras carga (si se cayó, si llama-server ya avisó que no entra). */
-export const VIGILAR_MS = 2000;
 
 // ---------- leer ----------
 
@@ -162,9 +155,7 @@ async function leerGpu(d: Deps) {
       /* sin la lista de procesos queda la cuenta sin descontar a nadie */
     }
     const lista = parsearApps(apps);
-    const cmds = new Map<number, string>();
-    for (const a of lista) cmds.set(a.pid, ((await d.leer(`/proc/${a.pid}/cmdline`)) ?? "").replaceAll("\0", " "));
-    return { ...mem, ...clasificar(lista, (pid) => cmds.get(pid) ?? "") };
+    return { ...mem, ...clasificar(lista, () => "") };
   } catch {
     return null;
   }
@@ -185,14 +176,8 @@ async function infoDe(l: LocalDef, d: Deps, gpu: Awaited<ReturnType<typeof leerG
     paso: l.paso,
     est: gpu ? estimar({ totalMiB: gpu.totalMiB, usadoMiB: gpu.usadoMiB, llamaMiB: gpu.llamaMiB, consumidores: gpu.consumidores }, cuenta) : null,
     pesosMiB,
-    ctxFijo: await ctxFijo(l, d),
+    ctxFijo: null,
   };
-}
-
-/** El `-c` fijo de la unit instalada si no lee `LLAMA_CTX` (`ctxFijoDeUnit`); `null` si lo lee o no se encuentra. */
-async function ctxFijo(l: LocalDef, d: Deps): Promise<number | null> {
-  const texto = await d.leer(path.join(carpetaUnits(d), l.unit));
-  return texto == null ? null : ctxFijoDeUnit(texto);
 }
 
 export async function leerLocales(d: Deps = depsDeVerdad()): Promise<EstadoLocales> {
@@ -213,7 +198,7 @@ function pedido(x: unknown, d: Deps): { l: LocalDef; ctx: number } {
   return { l, ctx: c };
 }
 
-/** Escribe el `-c` en el env de la unit y el `contextWindow` en dsh. Lo segundo no es obligatorio: sin dsh sólo se salta. */
+/** Escribe el `-c` en el env del modelo y el `contextWindow` en dsh. Lo segundo no es obligatorio: sin dsh sólo se salta. */
 async function escribirCtx(l: LocalDef, ctx: number, d: Deps): Promise<void> {
   await d.escribir(archivoEnv(d, l), envDe(ctx));
   const yaml = await d.leer(archivoDsh(d));
@@ -235,77 +220,21 @@ let probando = false;
 
 const gb = (miB: number) => (miB / 1024).toFixed(1);
 
-// systemd es de Linux: en Windows no hay unit que mirar, ni journal, ni a quién parar.
-const sinSystemd = process.platform === "win32";
-
-async function estadoUnit(l: LocalDef, d: Deps): Promise<EstadoUnit | null> {
-  if (sinSystemd) return null;
-  try {
-    return estadoDeShow(await d.ejecutar("systemctl", ["--user", "show", l.unit, "-p", "ActiveState", "-p", "SubState", "-p", "NRestarts"], { timeout: 5000 }));
-  } catch {
-    return null;
-  }
-}
-
-/** Lo que dejó la unit en el journal desde `desde` (ms); "" si no se puede leer. */
-const journal = (l: LocalDef, d: Deps, desde: number) =>
-  sinSystemd ? Promise.resolve("") : d.ejecutar("journalctl", ["--user", "-u", l.unit, "-o", "cat", "--no-pager", "-n", "80", "--since", `@${Math.floor(desde / 1000)}`], { timeout: 5000 }).catch(() => "");
-
-const parar = (l: LocalDef, d: Deps) => (sinSystemd ? Promise.resolve("") : d.ejecutar("systemctl", ["--user", "stop", l.unit], { timeout: 60_000 }).catch(() => ""));
-
-/** Sin conmutador: arranca la unit y espera a que llama-server conteste `/health` sirviendo a este modelo. Rechaza si no llega a tiempo. */
-async function arrancarUnit(l: LocalDef, d: Deps): Promise<string> {
-  await d.ejecutar("systemctl", ["--user", "start", l.unit], { timeout: 60_000 });
-  const url = urlLlama(d, l);
-  const fin = d.ahora() + PROBAR_ESPERA_MS;
-  while (d.ahora() < fin) {
-    if ((await d.pedirJson(`${url}/health`, 3000)) != null && aliasDe(await d.pedirJson(`${url}/v1/models`, 3000)).includes(l.dshId)) return "";
-    await d.dormir(VIGILAR_MS);
-    const s = await estadoUnit(l, d);
-    if (s && (s.activo === "failed" || s.activo === "inactive")) throw new Error(`${l.unit}: ${s.activo}`);
-  }
-  throw new Error(`${l.unit}: no contestó en ${PROBAR_ESPERA_MS / 1000} s`);
-}
-
 /**
- * Arranca la unit con el conmutador del usuario (`conmutador` de locales.json: para la que esté en el puerto), o sin él con
- * `systemctl --user start`, y la vigila mientras carga: si se cae (con
- * `Restart=on-failure` systemd la relanzaría hasta 3 veces, ~45 s cada una, y el conmutador lo toma como "sigue
- * cargando"), la para y contesta enseguida. `null`: cargó; si no, por qué (texto `main.*`). Usa la GPU.
+ * Carga el modelo con el conmutador del usuario (`conmutador` de locales.json: vuelve cuando cargó).
+ * `null`: cargó; si no, por qué (texto `main.*`). Usa la GPU.
  */
 async function cargar(l: LocalDef, d: Deps): Promise<string | null> {
   const conmutador = leerConfigLocales(d.env, d.home).conmutador;
-  const conmutar = conmutador ? resolverBinario(conmutador, "HILOS_CONMUTADOR", d.env, d.home) : null;
-  const antes = (await estadoUnit(l, d))?.reinicios ?? 0;
-  const desde = d.ahora();
-  let termino = false;
-  const carga = Promise.resolve()
-    .then(() => (conmutar ? d.ejecutar(conmutar, [l.clave], { timeout: PROBAR_ESPERA_MS }) : arrancarUnit(l, d)))
-    .then(
-      () => null,
-      (e: unknown) => e,
-    )
-    .finally(() => (termino = true));
-  let cayo = false;
-  while (!termino) {
-    await Promise.race([carga, d.dormir(VIGILAR_MS)]);
-    if (termino) break;
-    const s = await estadoUnit(l, d);
-    // No se corta por el "failed to fit params" del primer segundo: llama.cpp lo dice si no le quedan 1024 MiB de margen
-    // (`--fit-target`), y en el borde el modelo igual carga. Se corta cuando la unit se cae de verdad (~45 s).
-    if (s && seCayo(s, antes)) {
-      cayo = true;
-      // Parada, el conmutador la ve inactive y sale solo (en ≤ 2 s).
-      await parar(l, d);
-      break;
-    }
+  if (!conmutador) return textoT("main.localNoCargo", { motivo: "falta el conmutador en locales.json" });
+  try {
+    await d.ejecutar(resolverBinario(conmutador, "HILOS_CONMUTADOR", d.env, d.home), [l.clave], { timeout: PROBAR_ESPERA_MS });
+    return null;
+  } catch (err) {
+    const stderr = String((err as { stderr?: string }).stderr ?? (err as Error).message ?? err);
+    const m = motivoDeLog(stderr);
+    return m.sinMemoria ? textoT("main.localSinMemoria") : textoT("main.localNoCargo", { motivo: m.linea ?? "?" });
   }
-  const err = await carga;
-  if (!cayo && err == null) return null;
-  await parar(l, d);
-  const stderr = err == null ? "" : String((err as { stderr?: string }).stderr ?? (err as Error).message ?? err);
-  const m = motivoDeLog(`${stderr}\n${await journal(l, d, desde)}`);
-  return m.sinMemoria ? textoT("main.localSinMemoria") : textoT("main.localNoCargo", { motivo: m.linea ?? "?" });
 }
 
 /** Si los pesos solos no entran en lo libre de la GPU (sin contar al llama-server que se va a reemplazar): el aviso; si entran (o no se sabe), `null`. */
@@ -321,9 +250,7 @@ async function noEntra(l: LocalDef, d: Deps): Promise<string | null> {
  * Carga el modelo con ese `-c` (para el que esté cargado y arranca el suyo con el conmutador), espera `/health`,
  * lee el `n_ctx` de `/props` y la memoria de la GPU. Si carga, queda guardado; si no, vuelve lo que había y se dice por qué.
  * SÓLO se llama con el clic del usuario: usa la GPU.
- * Falla rápido, sin cargar nada, si la unit instalada no lee el `-c` de trama o si sólo los pesos ya no entran en la VRAM
- * libre. Mientras carga mira la unit: si se cae (con `Restart=on-failure` systemd la relanzaría hasta 3 veces, ~45 s cada
- * una, y el conmutador lo toma como "sigue cargando") o llama-server avisa que no entra, la para y contesta enseguida.
+ * Falla rápido, sin cargar nada, si sólo los pesos ya no entran en la VRAM libre.
  */
 export async function probarLocal(x: unknown, d: Deps = depsDeVerdad()): Promise<ResultadoProbar> {
   const { l, ctx } = pedido(x, d);
@@ -331,9 +258,6 @@ export async function probarLocal(x: unknown, d: Deps = depsDeVerdad()): Promise
   probando = true;
   const fallo = (error: string, nCtx: number | null = null): ResultadoProbar => ({ ok: false, nCtx, usadoMiB: null, total: null, error });
   try {
-    // Una unit que no lee LLAMA_CTX carga siempre con su `-c`: probar otro sería cargar 45 s para nada.
-    const fijo = await ctxFijo(l, d);
-    if (fijo != null && fijo !== ctx) return fallo(textoT("main.localUnitFija", { unit: l.unit, c: fijo }));
     // Si los pesos solos ya no entran en lo libre (sin contar al llama-server que se va a parar), no carga seguro.
     const lleno = await noEntra(l, d);
     if (lleno) return fallo(lleno);
@@ -342,8 +266,6 @@ export async function probarLocal(x: unknown, d: Deps = depsDeVerdad()): Promise
     const yamlAntes = await d.leer(archivoDsh(d));
     const dshAntes = yamlAntes == null ? null : contextWindowDe(yamlAntes, l.dshId);
     await escribirCtx(l, ctx, d);
-    // Si ya está activa, el conmutador no la reinicia: se la para para que la próxima carga lea el `-c` nuevo.
-    await parar(l, d);
     const caida = await cargar(l, d);
 
     let error: string | null = null;
@@ -376,7 +298,7 @@ export async function probarLocal(x: unknown, d: Deps = depsDeVerdad()): Promise
 /** Lo que necesita un líder local para hablarle a llama-server: adónde y cuánto contexto tiene cargado. */
 export type Servido = { url: string; ctx: number };
 
-/** Los alias que sirve llama-server ahora (`/v1/models`; el `--alias` de la unit es el id de dsh). */
+/** Los alias que sirve llama-server ahora (`/v1/models`; su `--alias` es el id de dsh). */
 function aliasDe(j: unknown): string[] {
   const o = j as { data?: { id?: unknown }[]; models?: { name?: unknown; model?: unknown }[] } | null;
   return [...(o?.data ?? []).map((m) => m?.id), ...(o?.models ?? []).flatMap((m) => [m?.name, m?.model])].filter((x): x is string => typeof x === "string");
