@@ -10,7 +10,7 @@ import os from "node:os";
 import { resolverBinario } from "./binario.ts";
 import { hayAgy, hayClaude } from "./capacidades.ts";
 import { hayHandy } from "./dictado-windows.ts";
-import { buscarEjecutable, carpetasPath, esEjecutable, esWindows, type Env, type Plataforma } from "./plataforma.ts";
+import { buscarEjecutable, carpetasPath, esEjecutable, type Env, type Plataforma } from "./plataforma.ts";
 import { modoLocal } from "./modo-local.ts";
 import { sondearOllama } from "./modelos-config.ts";
 import { URL_OLLAMA } from "./modelos-tipos.ts";
@@ -94,9 +94,8 @@ export function carpetasGit(env: Env, home: string): string[] {
   return [...pf.map((d) => j.join(d, "Git", "cmd")), ...pf.map((d) => j.join(d, "Git", "bin")), j.join(env.LOCALAPPDATA ?? j.join(home, "AppData", "Local"), "Programs", "Git", "cmd")];
 }
 
-/** ¿Hay Git for Windows? `git.exe` en el PATH o en una carpeta de instalación conocida. Fuera de Windows no se pide (`true`). */
+/** ¿Hay Git for Windows? `git.exe` en el PATH o en una carpeta de instalación conocida. */
 export function hayGit(p: Plataforma = process.platform, env: Env = process.env, home = os.homedir(), existe: (f: string) => boolean = (f) => esEjecutable(f, p)): boolean {
-  if (!esWindows(p)) return true;
   return buscarEjecutable(p, env, "git", [...carpetasPath(p, env), ...carpetasGit(env, home)], existe) !== null;
 }
 
