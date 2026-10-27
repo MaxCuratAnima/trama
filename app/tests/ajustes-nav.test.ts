@@ -4,20 +4,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-registerHooks({
-  resolve(spec, ctx, next) {
-    // src/ importa sin extensión: el test lo lleva al .ts.
-    if (spec.startsWith(".") && !path.extname(spec) && ctx.parentURL?.startsWith("file:")) {
-      const ts = path.join(path.dirname(fileURLToPath(ctx.parentURL)), spec + ".ts");
-      if (existsSync(ts)) return next(ts, ctx);
-    }
-    return next(spec, ctx);
-  },
-});
 
 const nav = await import("../src/paneles/ajustes-nav.ts");
 const { cambiarIdioma, t } = await import("../src/i18n/index.ts");

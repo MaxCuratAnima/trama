@@ -1,4 +1,4 @@
-// npm test: corre tests/*.test.ts (o los archivos que se le pasen) con node --test. En Windows `node --test tests/` no
+﻿// npm test: corre tests/*.test.ts (o los archivos que se le pasen) con node --test. En Windows `node --test tests/` no
 // anda y PowerShell no expande globs, así que la lista se arma acá.
 // uso: node scripts/tests.mjs [tests/x.test.ts …]
 import { spawnSync } from "node:child_process";
@@ -15,5 +15,5 @@ const archivos = pedidos.length
       .sort()
       .map((f) => path.join("tests", f));
 
-const r = spawnSync(process.execPath, ["--test", "--test-timeout=120000", "--experimental-strip-types", ...archivos], { cwd: raiz, stdio: "inherit" });
+const r = spawnSync(process.execPath, ["--import", "./scripts/resolver-ts.mjs", "--test", "--test-timeout=120000", "--experimental-strip-types", ...archivos], { cwd: raiz, stdio: "inherit" });
 process.exit(r.status ?? 1);

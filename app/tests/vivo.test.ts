@@ -6,27 +6,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { EventoLider, Mensaje } from "../src/datos/contrato.ts";
 import { conversacionDe, parsearLinea } from "../electron/lider-arma.ts";
-
-registerHooks({
-  resolve(spec, ctx, next) {
-    if (spec.startsWith(".") && ctx.parentURL) {
-      const dir = path.dirname(fileURLToPath(ctx.parentURL));
-      if (!path.extname(spec) && ctx.parentURL.includes("/src/")) {
-        const base = path.join(dir, spec);
-        for (const f of [base + ".ts", base + ".tsx", path.join(base, "index.ts")])
-          if (existsSync(f)) return next(path.relative(dir, f).replace(/^(?!\.)/, "./"), ctx);
-      }
-      if (spec.endsWith(".js") && ctx.parentURL.includes("/electron/") && existsSync(path.join(dir, spec.slice(0, -3) + ".ts")))
-        return next(spec.slice(0, -3) + ".ts", ctx);
-    }
-    return next(spec, ctx);
-  },
-});
 
 let emitir: (x: { sid: string; e: EventoLider }) => void = () => {};
 const sinSoltar = () => () => {};

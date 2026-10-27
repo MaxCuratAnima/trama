@@ -3,21 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { registerHooks } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Consulta, PiezaConsulta } from "../src/datos/paneles.ts";
 
-registerHooks({
-  resolve(spec, ctx, next) {
-    if (spec.startsWith(".") && !path.extname(spec) && ctx.parentURL?.includes("/src/")) {
-      const base = path.join(path.dirname(fileURLToPath(ctx.parentURL)), spec);
-      for (const f of [base + ".ts", base + ".tsx", path.join(base, "index.ts")])
-        if (existsSync(f)) return next(path.relative(path.dirname(fileURLToPath(ctx.parentURL)), f).replace(/^(?!\.)/, "./"), ctx);
-    }
-    return next(spec, ctx);
-  },
-});
 Object.assign(globalThis, { location: { search: "?fixtures=0" }, window: {} });
 
 const { arranque, cargadas, porFamilia, total, usadas } = await import("../src/paneles/historial-datos.ts");

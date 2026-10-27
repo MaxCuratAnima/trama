@@ -4,7 +4,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,16 +13,6 @@ import { PREFIJOS_ADJUNTO, separarAdjuntos } from "../electron/adjunto.ts";
 import { en } from "../src/i18n/en.ts";
 import { es } from "../src/i18n/es.ts";
 
-registerHooks({
-  resolve(spec, ctx, next) {
-    if (spec.startsWith(".") && !path.extname(spec) && ctx.parentURL?.includes("/src/")) {
-      const base = path.join(path.dirname(fileURLToPath(ctx.parentURL)), spec);
-      for (const f of [base + ".ts", base + ".tsx", path.join(base, "index.ts")])
-        if (existsSync(f)) return next(path.relative(path.dirname(fileURLToPath(ctx.parentURL)), f).replace(/^(?!\.)/, "./"), ctx);
-    }
-    return next(spec, ctx);
-  },
-});
 const { agregarAdjuntos, archivosDe, imagenesDe, leerAdjuntos, prepararAdjunto, textoConArchivos } = await import("../src/hilo/adjuntos.ts");
 
 const clave = (f: () => unknown) => {
