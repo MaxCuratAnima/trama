@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Comparación visual: saca la captura offscreen (fixtures) de cada estado de `Captura` (src/modo.ts)
 // a ancho de escritorio y a 360 px, y la compara con la referencia guardada en referencias/visual/.
 // Sale 1 y lista qué estados difieren (y cuánto, en % de píxeles). Requiere el build (`npm run build`).
@@ -190,20 +189,19 @@ function comparar(a, b) {
 function entornoLimpio(tmp) {
   const env = { ...process.env };
   for (const k of Object.keys(env)) if (k.startsWith("HILOS_") || k.startsWith("TRAMA_") || k.startsWith("PA_")) delete env[k];
-  // Perfil y estado propios: ni el candado ni los archivos de la Trama de Ana. Y un HOME vacío con sus XDG: nada de
-  // ~/.claude, ~/.config, ~/tablero ni las fuentes de usuario de la máquina (que también cambian el render).
+  // Perfil y estado propios: ni el candado ni los archivos de la Trama de Ana. Y un HOME vacío: nada de ~/.claude,
+  // ~/tablero ni los datos de usuario de la máquina (que también cambian el render).
   const casa = path.join(tmp, "casa");
   mkdirSync(casa, { recursive: true });
-  for (const k of ["XDG_CONFIG_DIRS", "XDG_DATA_DIRS", "CLAUDE_CONFIG_DIR"]) delete env[k];
+  delete env.CLAUDE_CONFIG_DIR;
   return {
     ...env,
     TZ: "UTC",
     LANG: "C.UTF-8",
     HOME: casa,
-    XDG_CONFIG_HOME: path.join(casa, ".config"),
-    XDG_DATA_HOME: path.join(casa, ".local", "share"),
-    XDG_CACHE_HOME: path.join(casa, ".cache"),
-    XDG_STATE_HOME: path.join(casa, ".local", "state"),
+    USERPROFILE: casa,
+    APPDATA: path.join(casa, "AppData", "Roaming"),
+    LOCALAPPDATA: path.join(casa, "AppData", "Local"),
     HILOS_AHORA: String(AHORA),
     HILOS_STATE: path.join(tmp, "estado"),
     HILOS_PERFIL: path.join(tmp, "perfil"),

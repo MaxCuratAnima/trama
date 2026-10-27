@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Cuánto tarda el reinicio por un build nuevo, paso por paso (marcas de electron/reinicio-marcas.ts).
 //   node scripts/medir-reinicio.mjs [archivo]       lee un archivo de marcas (por defecto el de $HILOS_STATE, que es
 //                                                   el de la trama de verdad: sólo lectura) e imprime una tabla.
@@ -53,7 +52,7 @@ if (args[0] === "--simular") {
     rmSync(dir, { recursive: true, force: true });
   }
 } else {
-  const archivo = args[0] ?? path.join(process.env.HILOS_STATE ?? path.join(os.homedir(), ".local/state/hilos"), "reinicio-marcas");
+  const archivo = args[0] ?? path.join(process.env.HILOS_STATE ?? path.join(process.env.LOCALAPPDATA ?? os.homedir(), "Trama", "state", "hilos"), "reinicio-marcas");
   try {
     tabla(archivo, readFileSync(archivo, "utf8"));
   } catch {

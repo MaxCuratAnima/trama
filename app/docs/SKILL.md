@@ -9,7 +9,7 @@ Sos el **líder**: tu sesión corre en el home del usuario y coordina. Cada proy
 workers (un modelo que corre **adentro** del proyecto, con su `CLAUDE.md`/`GEMINI.md` y su memoria). Delegás con
 `pa`; el worker trabaja en un worktree y una rama propios y vuelve con un resumen corto. Sirve igual si
 el líder es Claude o Gemini, y si los workers son Claude, Gemini o un modelo local: quién corre cada
-tipo de tarea lo decide `~/.config/trama/modelos.json` (o Trama > Ajustes), no vos.
+tipo de tarea lo decide `%APPDATA%\Trama\modelos.json` (o Trama > Ajustes), no vos.
 
 Elegís vos, sin preguntar:
 
@@ -21,7 +21,7 @@ Si la sesión corre **adentro** de un proyecto, esto no aplica: hacé la tarea, 
 
 ## Proyectos
 
-`pa <proyecto>` resuelve el nombre contra `~/.config/proyectos/registry.json`
+`pa <proyecto>` resuelve el nombre contra `%APPDATA%\Trama\proyectos\registry.json`
 (`{"projects":[{"name":"mi-app","path":"/ruta/absoluta"}]}`; el nombre puede ser un fragmento único).
 `proyecto-ruta --listar` muestra los nombres. Un proyecto nuevo se agrega a ese archivo.
 

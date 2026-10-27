@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Cuánto cuesta abrir una conversación y procesar un mensaje nuevo, y cuántos bytes pesa cada cambio de la lista de
 // hilos, antes (se relee todo) y después (sólo lo nuevo / sólo las diferencias). Todo inventado, en una carpeta
 // temporal que se borra: un transcript falso de ~20 MB y una lista de ~780 hilos. Sin Electron ni build.
@@ -39,7 +38,7 @@ try {
     const i = ++k;
     return (
       l({ type: "user", timestamp: "2026-10-14T10:00:00Z", message: { content: `pedido ${i}: ${relleno.slice(0, 400)}` } }) +
-      l({ type: "assistant", timestamp: "2026-10-14T10:00:01Z", message: { id: "m" + i, model: "claude-opus-5-5", content: [{ type: "text", text: relleno }, { type: "tool_use", id: "t" + i, name: "Bash", input: { command: "ls -la /tmp" } }], usage: { input_tokens: 10, output_tokens: 20 } } }) +
+      l({ type: "assistant", timestamp: "2026-10-14T10:00:01Z", message: { id: "m" + i, model: "claude-opus-5-5", content: [{ type: "text", text: relleno }, { type: "tool_use", id: "t" + i, name: "Bash", input: { command: "dir C:\\\\Temp" } }], usage: { input_tokens: 10, output_tokens: 20 } } }) +
       l({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t" + i, content: relleno.repeat(2) }] } }) +
       l({ type: "assistant", timestamp: "2026-10-14T10:00:02Z", message: { id: "m" + i + "b", model: "claude-opus-5-5", content: [{ type: "text", text: "Listo " + i }], usage: { input_tokens: 11, output_tokens: 3 } } })
     );

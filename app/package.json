@@ -8,10 +8,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "tsc && vite build && tsc -p tsconfig.electron.json && node scripts/build-listo.mjs",
     "start": "electron .",
-    "bench": "bash scripts/bench.sh",
     "postinstall": "node node_modules/electron/install.js",
-    "test": "node --test tests/",
-    "prueba": "node scripts/prueba-todas.mjs",
+    "test": "node scripts/tests.mjs",
     "visual": "node scripts/visual.mjs",
     "build:win": "npm run build && electron-builder --win nsis --x64 --publish never",
     "probar:win": "node scripts/probar-windows.mjs"

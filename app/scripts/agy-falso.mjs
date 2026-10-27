@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Un `agy -p … --output-format stream-json` falso (HILOS_AGY=scripts/agy-falso.mjs) para probar los líderes de
 // Gemini sin gastar nada. Habla como el de verdad (init, step_update de user_input / agent_response con
 // `text_delta` / tool con ACTIVE y DONE, result); lo que el prompt trae después de "Mensaje de <dueño>:" (o todo)
@@ -21,6 +20,7 @@
 // turnos lleva ("turno N").
 //   TRAMA_FALSO_LOG=<archivo>   agrega una línea JSON por arranque ({ args, cwd, claves del entorno, prompt }).
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -59,7 +59,7 @@ if (args[0] === "models") {
 const prompt = valor("-p") ?? "";
 const modelo = valor("--model") ?? "gemini-3.8-flash-low";
 const pedida = valor("--conversation");
-const dir = path.join(process.env.HILOS_STATE ?? "/tmp", "agy-falso");
+const dir = path.join(process.env.HILOS_STATE ?? os.tmpdir(), "agy-falso");
 mkdirSync(dir, { recursive: true });
 
 if (process.env.TRAMA_FALSO_LOG)
@@ -132,7 +132,7 @@ if (/herramienta/i.test(texto)) {
     await herramienta("run_command", { CommandLine: "ls /no/existe" }, "Command exited with code 2.\n\nCommand output:\nls: no se puede acceder a '/no/existe': No existe el archivo o el directorio\r\n");
   }
   if (piensa) await pensar("El primero salió bien. Leo el archivo y contesto.");
-  await herramienta("view_file", { AbsolutePath: "/tmp/x.txt" }, "contenido de x");
+  await herramienta("view_file", { AbsolutePath: "C:\\x.txt" }, "contenido de x");
 } else if (piensa) await pensar("El mensaje es corto: contesto directo, sin herramientas.");
 
 const trabado = /Te trabaste/.test(texto);

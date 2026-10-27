@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, lstatSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -17,14 +17,14 @@ const registrar = (ruta: string) => execFileSync(process.execPath, [REGISTRAR, r
 const leer = (ruta: string) => JSON.parse(readFileSync(ruta, "utf8"));
 /** Cuántas veces aparece el hook de compactando en un evento (cualquier grupo). */
 const cuantos = (ajustes: any, evento: string) =>
-  (ajustes.hooks?.[evento] ?? []).flatMap((g: any) => g.hooks ?? []).filter((h: any) => /hook-compactando\.(sh|cmd)/.test(h.command)).length;
+  (ajustes.hooks?.[evento] ?? []).flatMap((g: any) => g.hooks ?? []).filter((h: any) => /hook-compactando\.cmd/.test(h.command)).length;
 
 test("registrar-hook: dos corridas dejan el hook una sola vez y los otros hooks intactos", () => {
   const dir = temporal();
   const settings = path.join(dir, "settings.json");
   const otrosHooks = {
-    PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "/usr/bin/otro-hook.sh" }] }],
-    PreCompact: [{ matcher: "manual", hooks: [{ type: "command", command: "/usr/bin/mi-otro-precompact.sh" }] }],
+    PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "C:\\bin\\otro-hook.cmd" }] }],
+    PreCompact: [{ matcher: "manual", hooks: [{ type: "command", command: "C:\\bin\\mi-otro-precompact.cmd" }] }],
     PostCompact: [],
   };
   writeFileSync(settings, JSON.stringify({ model: "opus", permissions: { allow: ["Bash(ls:*)"] }, hooks: otrosHooks }, null, 2));
@@ -63,12 +63,12 @@ test("registrar-hook: crea el settings si no existe, con los dos eventos", () =>
 test("registrar-hook: un hook de este script con otra ruta (checkout viejo) o repetido queda uno, con la ruta nueva", () => {
   const dir = temporal();
   const settings = path.join(dir, "settings.json");
-  const viejo = { type: "command", command: "/home/ana/hilos-viejo/scripts/hook-compactando.sh" };
+  const viejo = { type: "command", command: "C:/viejo/motor/bin-win/hook-compactando.cmd" };
   writeFileSync(
     settings,
     JSON.stringify({
       hooks: {
-        PreCompact: [{ hooks: [viejo, { type: "command", command: "/usr/bin/otro.sh" }] }, { hooks: [viejo] }],
+        PreCompact: [{ hooks: [viejo, { type: "command", command: "C:\\bin\\otro.cmd" }] }, { hooks: [viejo] }],
         PostCompact: [{ hooks: [viejo] }],
       },
     }),
@@ -79,7 +79,7 @@ test("registrar-hook: un hook de este script con otra ruta (checkout viejo) o re
   assert.equal(cuantos(ajustes, "PostCompact"), 1);
   // La primera aparición se actualiza en su lugar; las repetidas salen, y el grupo que quedó vacío se saca.
   assert.deepEqual(ajustes.hooks.PreCompact, [
-    { hooks: [{ type: "command", command: HOOK }, { type: "command", command: "/usr/bin/otro.sh" }] },
+    { hooks: [{ type: "command", command: HOOK }, { type: "command", command: "C:\\bin\\otro.cmd" }] },
   ]);
   assert.deepEqual(ajustes.hooks.PostCompact, [{ hooks: [{ type: "command", command: HOOK }] }]);
   rmSync(dir, { recursive: true });
@@ -96,21 +96,7 @@ test("registrar-hook: JSON roto no se toca y sale con error", () => {
   rmSync(dir, { recursive: true });
 });
 
-test("registrar-hook: un settings con modo 0640 conserva el modo y un enlace se sigue, no se reemplaza", { skip: WIN }, () => {
-  const dir = temporal();
-  const real = path.join(dir, "dotfiles-settings.json");
-  const enlace = path.join(dir, "settings.json");
-  writeFileSync(real, "{}");
-  chmodSync(real, 0o640);
-  symlinkSync(real, enlace);
-  registrar(enlace);
-  assert.equal(lstatSync(enlace).isSymbolicLink(), true, "el enlace sigue siendo enlace");
-  assert.equal(statSync(real).mode & 0o777, 0o640);
-  assert.equal(cuantos(leer(real), "PreCompact"), 1);
-  rmSync(dir, { recursive: true });
-});
-
-test("registrar-hook: statusLine se pone si no hay, queda igual en la segunda corrida y el shim es el de hook-statusline", { skip: !WIN }, () => {
+test("registrar-hook: statusLine se pone si no hay, queda igual en la segunda corrida y el shim es el de hook-statusline", () => {
   const dir = temporal();
   const settings = path.join(dir, "settings.json");
   writeFileSync(settings, JSON.stringify({ model: "opus" }));
@@ -123,7 +109,7 @@ test("registrar-hook: statusLine se pone si no hay, queda igual en la segunda co
   rmSync(dir, { recursive: true });
 });
 
-test("registrar-hook: un statusLine ajeno no se pisa (y se avisa); uno nuestro con otra ruta se actualiza", { skip: !WIN }, () => {
+test("registrar-hook: un statusLine ajeno no se pisa (y se avisa); uno nuestro con otra ruta se actualiza", () => {
   const dir = temporal();
   const settings = path.join(dir, "settings.json");
   const ajeno = { type: "command", command: "C:\\Python314\\pythonw.exe -S C:\\x\\linea.py" };

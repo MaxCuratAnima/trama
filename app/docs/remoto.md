@@ -8,7 +8,7 @@ al main de Electron que ya está corriendo. Código: `electron/remoto.ts` (servi
 ## Prenderlo
 
 Apagado por default. Se prende desde **Ajustes → Acceso desde el celular** (Dejar entrar al celular: Prendido / Apagado,
-puerto y lista de dispositivos, con Guardar y Cancelar), o a mano en `~/.local/state/hilos/remoto.json`. Al guardar,
+puerto y lista de dispositivos, con Guardar y Cancelar), o a mano en `%LOCALAPPDATA%\Trama\state\hilos\remoto.json`. Al guardar,
 trama relee el archivo y vuelve a armar los servidores sin reiniciar: un dispositivo quitado se corta en el acto.
 
 ```json
@@ -131,9 +131,9 @@ navegador de la PC no puede (pasos 2 y 3).
 
 - **Sin el proceso que sirve no hay nada**: el servidor vive en el motor (`electron/motor.ts`,
   `docs/estado/motor.md`) o, si no hay motor, en la ventana (todo en uno). Cerrar la ventana no lo toca. Por eso corre siempre,
-  como unidad de systemd (`docs/estado/siempre-viva.md`): arranca con la sesión gráfica y vuelve
-  sola si muere (el motor a los 0,5 s) o al reiniciarlo por un build nuevo (el celular dice "Reconectando" y se pone al día). Sin sesión gráfica abierta (la PC en la
-  pantalla de inicio de sesión) no hay trama. Lo escrito en la caja del celular sin mandar sobrevive a una recarga, pero
+  mientras la app esté abierta, y vuelve
+  sola si muere (el motor a los 0,5 s) o al reiniciarlo por un build nuevo (el celular dice "Reconectando" y se pone al día). Sin sesión de Windows iniciada (la PC en la
+  pantalla de bloqueo o de inicio de sesión) no hay trama. Lo escrito en la caja del celular sin mandar sobrevive a una recarga, pero
   no a cerrar la pestaña, y las imágenes adjuntas no se guardan.
 - Lo que se le escribe a un líder desde un dispositivo aparece en el otro cuando termina el turno
   (la respuesta sí se ve en vivo en los dos). La cola de mensajes mientras responde es de cada dispositivo.

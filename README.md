@@ -25,7 +25,7 @@ Tiene dos partes:
 ## Modelos
 
 Sin configurar nada, los workers usan Claude Sonnet con effort `high` (y `--tipo mecanico` va a Haiku). Para elegir modelo por tipo de
-tarea, o para usar modelos locales de Ollama, escribí `~/.config/trama/modelos.json`:
+tarea, o para usar modelos locales de Ollama, escribí `%APPDATA%\Trama\modelos.json`:
 
 ```json
 {

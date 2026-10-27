@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Cuánto tarda y cuánto ocupa indexar los transcripts (electron/historial.ts), sin tocar el estado
 // de trama: el registro va a una carpeta temporal que se borra al terminar. Imprime sólo números.
 //
@@ -14,7 +13,7 @@ import { diaDe } from "../electron/historial-parser.ts";
 
 const proyectos = process.argv[2] ?? path.join(process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"), "projects");
 const dias = Number(process.argv[3] ?? 30);
-const paState = process.env.PA_STATE ?? path.join(os.homedir(), ".local", "state", "pa");
+const paState = process.env.PA_STATE ?? path.join(process.env.LOCALAPPDATA ?? os.homedir(), "Trama", "state", "pa");
 const tmp = mkdtempSync(path.join(os.tmpdir(), "hilos-medir-historial-"));
 const carpeta = path.join(tmp, "historial");
 const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;

@@ -1,11 +1,8 @@
-#!/usr/bin/env node
-// Registra `scripts/hook-compactando.sh` en `~/.claude/settings.json` (PreCompact y PostCompact, con el mismo
-// comando): sin eso trama no ve quién compacta (electron/compactando.ts). Lo llama `scripts/instalar.sh`; también
-// se puede correr a mano. Idempotente: el hook queda una sola vez por evento, con la ruta de este checkout (si
+// Registra el shim `motor/bin-win/hook-compactando.cmd` en `~/.claude/settings.json` (PreCompact y PostCompact, con el
+// mismo comando): sin eso trama no ve quién compacta (electron/compactando.ts). Se puede correr a mano. Idempotente: el hook queda una sola vez por evento, con la ruta de este checkout (si
 // había otra, de un checkout viejo, la reemplaza). Los otros hooks y el resto del settings no se tocan. Si el
 // archivo no es JSON válido no se lo toca y sale con 1. Si no cambia nada, no lo reescribe.
-// En Windows el comando es el shim `motor/bin-win/hook-compactando.cmd` (ruta con / y entre comillas) en vez del .sh, y
-// además se registra `statusLine` con `motor/bin-win/hook-statusline.cmd`: sólo si no hay uno (uno ajeno no se pisa: se
+// El comando lleva la ruta con / y entre comillas; además se registra `statusLine` con `motor/bin-win/hook-statusline.cmd`: sólo si no hay uno (uno ajeno no se pisa: se
 // avisa y queda como estaba) o si el que hay ya es el nuestro (se actualiza la ruta).
 // uso: node scripts/registrar-hook.mjs [settings.json]   (default: $CLAUDE_CONFIG_DIR o ~/.claude, settings.json)
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
@@ -15,21 +12,15 @@ import { fileURLToPath } from "node:url";
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const EVENTOS = ["PreCompact", "PostCompact"];
-const MARCA = /hook-compactando\.(sh|cmd)/;
+const MARCA = /hook-compactando\.cmd/;
 const MARCA_STATUSLINE = /hook-statusline\.cmd/;
 
-// Comillas simples si la ruta tiene algo que el shell de Claude Code podría partir (espacios, etc.).
-const shq = (s) => (/^[\w./@+-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
-/** Qué se registra en esta plataforma: archivo a comprobar, comando del hook y (sólo Windows) el de statusLine. En Windows
- *  el shim va entre comillas y con `/`: así lo entienden bash, cmd y PowerShell. */
-function hookDe(plataforma) {
-  if (plataforma === "win32") {
-    const bin = path.resolve(raiz, "..", "motor", "bin-win");
-    const q = (f) => `"${path.join(bin, f).replace(/\\/g, "/")}"`;
-    return { ruta: path.join(bin, "hook-compactando.cmd"), command: q("hook-compactando.cmd"), statusline: q("hook-statusline.cmd") };
-  }
-  const ruta = path.join(raiz, "scripts", "hook-compactando.sh");
-  return { ruta, command: shq(ruta), statusline: null };
+/** Qué se registra: archivo a comprobar, comando del hook y el de statusLine. El shim va entre comillas y con `/`: así lo
+ *  entienden cmd y PowerShell. */
+function hookDe() {
+  const bin = path.resolve(raiz, "..", "motor", "bin-win");
+  const q = (f) => `"${path.join(bin, f).replace(/\\/g, "/")}"`;
+  return { ruta: path.join(bin, "hook-compactando.cmd"), command: q("hook-compactando.cmd"), statusline: q("hook-statusline.cmd") };
 }
 
 const esNuestro = (h) => !!h && typeof h === "object" && typeof h.command === "string" && MARCA.test(h.command);
@@ -106,7 +97,7 @@ function registrar(ajustes, command) {
 function main() {
   const destino =
     process.argv[2] ?? path.join(process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), ".claude"), "settings.json");
-  const hook = hookDe(process.platform);
+  const hook = hookDe();
   if (!existsSync(hook.ruta)) fail(`no existe ${hook.ruta}`);
 
   // Si el settings es un enlace (dotfiles), se escribe el archivo real: no se reemplaza el enlace.
@@ -129,10 +120,8 @@ function main() {
   let estado = "igual";
   try {
     cambio = registrar(ajustes, hook.command);
-    if (hook.statusline) {
-      estado = registrarStatusline(ajustes, hook.statusline);
-      if (estado === "cambio") cambio = true;
-    }
+    estado = registrarStatusline(ajustes, hook.statusline);
+    if (estado === "cambio") cambio = true;
   } catch (e) {
     fail(`${destino}: ${e.message}; no lo toqué`);
   }

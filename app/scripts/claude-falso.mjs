@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Un `claude -p --input-format stream-json --output-format stream-json` falso
 // para probar los líderes de la app sin gastar nada (HILOS_CLAUDE=scripts/claude-falso.mjs).
 // Por cada línea de usuario contesta "eco: <texto>" en tres deltas, con un
@@ -67,7 +66,7 @@ if (args[0] === "--version") {
 if (args[0] === "update") {
   await new Promise((r) => setTimeout(r, 400));
   if (process.env.TRAMA_FALSO_UPDATE_FALLA) {
-    process.stderr.write("Error: EACCES: permission denied, rename '/usr/lib/node_modules/@anthropic-ai/claude-code'\nTry running with sudo or fix your npm prefix\n");
+    process.stderr.write("Error: EACCES: permission denied, rename 'C:\\Program Files\\nodejs\\node_modules\\@anthropic-ai\\claude-code'\nTry running as administrator or fix your npm prefix\n");
     process.exit(1);
   }
   const nueva = process.env.TRAMA_FALSO_NUEVA ?? "2.1.300";
@@ -275,7 +274,7 @@ async function turno(texto) {
   }
   if (modo === "plan") {
     const plan = `# Plan falso\n\n1. Leer: ${texto}\n2. Hacerlo.`;
-    const input = { plan, planFilePath: "/tmp/plan-falso.md" };
+    const input = { plan, planFilePath: "C:\\plan-falso.md" };
     out({
       type: "assistant",
       parent_tool_use_id: null,
