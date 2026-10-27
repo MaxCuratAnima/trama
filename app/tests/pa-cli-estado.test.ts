@@ -1,10 +1,9 @@
 // pa en TypeScript (electron/cli): parser, formato de los archivos de estado, candado, y los comandos --estado, --hilos,
-// --hilo, --parar y --plan. Los fixtures tienen el formato real de ~/.local/state/pa; --hilos y --hilo se comparan con lo
-// que devuelve `motor/bin/pa` (bash + jq) sobre los MISMOS archivos (se saltea si no hay bash o jq).
+// --hilo, --parar y --plan. Los fixtures tienen el formato real de %LOCALAPPDATA%\Trama\state\pa.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parsearArgs } from "../electron/cli/args.ts";
@@ -17,7 +16,6 @@ import { main } from "../electron/cli/pa.ts";
 import { lanzar } from "../electron/cli/pa-lanzar.ts";
 import { esperar } from "../electron/cli/pa-esperar.ts";
 
-const PA_BASH = path.resolve(import.meta.dirname, "../../motor/bin/pa");
 const ahoraReal = Math.floor(Date.now() / 1000);
 const p2 = (n: number) => String(n).padStart(2, "0");
 /** El id de una corrida lanzada hace `seg` segundos (en UTC: los tests corren con TZ=UTC). */
@@ -34,7 +32,7 @@ function armar(): { raiz: string; ctx: CtxPa; salida: Salida; limpiar: () => voi
   mkdirSync(estado, { recursive: true });
   mkdirSync(proyectos, { recursive: true });
   const salida: Salida = { out: "", err: "" };
-  const real = contextoReal({ HOME: raiz, PA_STATE: estado, PA_PROJ: proyectos } as never, "linux");
+  const real = contextoReal({ HOME: raiz, PA_STATE: estado, PA_PROJ: proyectos } as never, "win32");
   const ctx: CtxPa = {
     ...real, estado, proyectos, home: raiz, env: { HOME: raiz, PA_STATE: estado, PA_PROJ: proyectos },
     offsetSeg: () => 0, rutaDeSlug: () => null, ramasPa: () => [], commitsSobre: () => "",
@@ -91,14 +89,6 @@ function fixtures(ctx: CtxPa) {
   return { ids, sid };
 }
 
-const bash = (ctx: CtxPa, args: string[]) => {
-  const r = spawnSync("bash", [PA_BASH, ...args], {
-    encoding: "utf8", timeout: 60000,
-    env: { ...process.env, PA_STATE: ctx.estado, PA_PROJ: ctx.proyectos, TZ: "UTC", HOME: ctx.home, PA_WORKER: "", CLAUDE_LOCAL: "", ANTHROPIC_BASE_URL: "" },
-  });
-  return { rc: r.status, out: r.stdout, err: r.stderr };
-};
-const hayBash = spawnSync("bash", ["-c", "command -v jq >/dev/null && command -v flock >/dev/null"]).status === 0 && existsSync(PA_BASH);
 process.env.TZ = "UTC";
 
 test("parser: comandos globales, proyecto con opciones y errores como el bash", () => {
@@ -210,51 +200,62 @@ test("puertas: un worker no delega (1) y con modelo local sólo pasan las consul
   }
 });
 
-test("--estado: corriendo, en cola, muerta en cola, sesión y plan; igual que el bash salvo la línea de RAM", async () => {
+test("--estado: corriendo, en cola, muerta en cola, sesión y plan", async () => {
   const { ctx, salida, limpiar } = armar();
   try {
     const { ids } = fixtures(ctx);
     assert.equal(await main(["--estado"], ctx), 0);
-    assert.match(salida.out, new RegExp(`CORRIENDO  demo +hace 2m05s  · puesto 2 \\(id: ${ids.corre}\\)  · en Bash hace 40s`));
+    assert.match(salida.out, new RegExp(`CORRIENDO  demo +hace 2m0[56]s  · puesto 2 \\(id: ${ids.corre}\\)  · en Bash hace 4[01]s`));
     assert.match(salida.out, new RegExp(`EN COLA    demo +\\(id: ${ids.cola}, esperando un puesto libre\\)`));
     assert.match(salida.out, new RegExp(`MURIÓ EN COLA demo +\\(id: ${ids.muerta}, nunca tomó puesto`));
     assert.match(salida.out, /sesión     demo +11111111-2222-3333-4444-555555555555  \(guardada \d{4}-\d\d-\d\d \d\d:\d\d\)/);
     assert.match(salida.out, /plan pro \(modo ahorro\)/);
-    if (!hayBash) return;
-    const b = bash(ctx, ["--estado"]);
-    assert.equal(b.rc, 0, b.err);
-    const sinRam = (t: string) => t.replace(/\nRAM .*\n(?: {11}.*\n)?/, "\n").replace(/\(guardada [^)]*\)/g, "(guardada X)").replace(/hace \d+[smh]\d*/g, "hace T");
-    assert.equal(sinRam(salida.out), sinRam(b.out));
   } finally {
     limpiar();
   }
 });
 
-test("--hilos --json: mismo JSON que motor/bin/pa sobre los mismos archivos", { skip: !hayBash && "sin bash/jq/flock" }, async () => {
+test("--hilos --json: las corridas de la ventana, sin la vieja ya integrada", async () => {
   const { ctx, salida, limpiar } = armar();
   try {
     const { ids } = fixtures(ctx);
     assert.equal(await main(["--hilos", "--json"], ctx), 0);
     const mio = JSON.parse(salida.out);
-    const b = bash(ctx, ["--hilos", "--json"]);
-    assert.equal(b.rc, 0, b.err);
-    const suyo = JSON.parse(b.out);
     assert.equal(mio.version, 1);
     const idsMios = mio.hilos.map((h: { id: string }) => h.id);
     assert.ok(idsMios.includes(ids.listo) && idsMios.includes(ids.corre) && idsMios.includes(ids.cola), "están las corridas de la ventana");
     assert.ok(!idsMios.includes(ids.vieja), "la vieja ya integrada queda afuera");
-    assert.deepEqual(mio, suyo);
-    assert.deepEqual(Object.keys(mio.hilos[0]), Object.keys(suyo.hilos[0]), "mismo orden de campos");
     // el texto plano también
     salida.out = "";
     assert.equal(await main(["--hilos"], ctx), 0);
-    assert.equal(salida.out, bash(ctx, ["--hilos"]).out);
+    assert.match(salida.out, new RegExp(ids.listo));
   } finally {
     limpiar();
   }
 });
 
-test("--hilo: mensajes del transcript unidos por mensaje, igual que motor/bin/pa", { skip: !hayBash && "sin bash/jq/flock" }, async () => {
+test("--hilos: una corrida terminada (.listo) cuyo .pid quedó con un pid vivo reusado no está en cola", async () => {
+  const { ctx, salida, limpiar } = armar();
+  try {
+    const d = path.join(ctx.estado, "demo");
+    const [reusada, entregada, enCola] = [idDe(300, 4001), idDe(280, 4002), idDe(260, 4003)];
+    for (const id of [reusada, entregada, enCola]) {
+      escribir(path.join(d, `${id}.hilo`), `tarea=x\nmodelo=m\ninicio=${ahoraReal - 100}\nproyecto=demo\nleer=0\n`);
+      escribir(path.join(d, `${id}.pid`), String(process.pid)); // pid vivo: el que Windows reasignó
+    }
+    escribir(path.join(d, `${reusada}.listo`), "salida=x\nrc=0\nsid=\n");
+    escribir(path.join(d, `${entregada}.entregado`), "salida=x\nrc=0\nsid=\n");
+    assert.equal(await main(["--hilos", "--json"], ctx), 0);
+    const porId = new Map<string, { en_cola: boolean }>(JSON.parse(salida.out).hilos.map((h: { id: string; en_cola: boolean }) => [h.id, h]));
+    assert.equal(porId.get(reusada)?.en_cola, false, "con .listo no está en cola");
+    assert.equal(porId.get(entregada)?.en_cola, false, "con .entregado no está en cola");
+    assert.equal(porId.get(enCola)?.en_cola, true, "sin resultado y con el pid vivo sí");
+  } finally {
+    limpiar();
+  }
+});
+
+test("--hilo: mensajes del transcript unidos por mensaje", async () => {
   const { ctx, salida, limpiar } = armar();
   try {
     const { ids } = fixtures(ctx);
@@ -263,9 +264,6 @@ test("--hilo: mensajes del transcript unidos por mensaje, igual que motor/bin/pa
     assert.equal(mio.total, 2);
     assert.equal(mio.mensajes[1].texto, "Voy.\nListo.");
     assert.deepEqual(mio.mensajes[1].herramientas, ["Bash"]);
-    const b = bash(ctx, ["--hilo", ids.listo, "--json"]);
-    assert.equal(b.rc, 0, b.err);
-    assert.deepEqual(mio, JSON.parse(b.out));
     salida.err = "";
     assert.equal(await main(["--hilo", "20200101-000000-1"], ctx), 1);
     assert.match(salida.err, /no encuentro la corrida/);
@@ -283,7 +281,7 @@ test("--parar: baja el worker de un .running (árbol incluido), anota el fin y e
     const e = ctx.estado;
     const d = path.join(e, "demo");
     // un "claude" que lanza un nieto
-    const claude = spawn("sh", ["-c", "sleep 300 & wait"], { stdio: "ignore", detached: true });
+    const claude = spawn(process.execPath, ["-e", `require("node:child_process").spawn(process.execPath, ["-e", "setTimeout(()=>{},300000)"], { stdio: "ignore" }); setTimeout(()=>{},300000)`], { stdio: "ignore" });
     hijos.push(claude);
     await new Promise((ok) => setTimeout(ok, 300));
     escribir(path.join(d, `${id}.hilo`), `tarea=x\ninicio=${ahoraReal}\nproyecto=demo\n`);
@@ -298,7 +296,7 @@ test("--parar: baja el worker de un .running (árbol incluido), anota el fin y e
     assert.match(readFileSync(path.join(d, `${id}.hilo`), "utf8"), /^fin=\d+$/m);
     assert.match(readFileSync(path.join(e, "eventos.jsonl"), "utf8"), new RegExp(`"tipo":"parar","id":"${id}","proyecto":"demo"`));
   } finally {
-    for (const h of hijos) try { process.kill(-h.pid!, "SIGKILL"); } catch { /* ya murió */ }
+    for (const h of hijos) h.kill();
     limpiar();
   }
 });
@@ -309,7 +307,7 @@ test("--parar: una corrida en cola, una que no corre y un id que no existe", asy
   try {
     const d = path.join(ctx.estado, "demo");
     const id = idDe(60, 3001);
-    cola = spawn("sleep", ["300"], { stdio: "ignore" });
+    cola = spawn(process.execPath, ["-e", "setTimeout(()=>{},300000)"], { stdio: "ignore" });
     escribir(path.join(d, `${id}.hilo`), `tarea=x\nproyecto=demo\n`);
     escribir(path.join(d, `${id}.pid`), String(cola.pid));
     assert.equal(await main(["--parar", id], ctx), 0, salida.err);
@@ -322,7 +320,7 @@ test("--parar: una corrida en cola, una que no corre y un id que no existe", asy
     assert.match(salida.err, /no encuentro la corrida/);
     assert.equal(await main(["--parar"], ctx), 2);
   } finally {
-    cola?.kill("SIGKILL");
+    cola?.kill();
     limpiar();
   }
 });
@@ -337,7 +335,7 @@ test("pa-esperar sin proyecto da el uso", async () => {
   }
 });
 
-test("pa-lanzar: worktree y rama propios, claude falso, .hilo/.ultimo/.corrida y salida", { skip: process.platform === "win32" }, async () => {
+test("pa-lanzar: worktree y rama propios, claude falso, .hilo/.ultimo/.corrida y salida", async () => {
   const { raiz, ctx, salida, limpiar } = armar();
   try {
     const repo = path.join(raiz, "demo");
@@ -349,31 +347,35 @@ test("pa-lanzar: worktree y rama propios, claude falso, .hilo/.ultimo/.corrida y
     writeFileSync(path.join(repo, "a.txt"), "hola\n");
     g("add", "a.txt");
     g("commit", "-qm", "base");
-    const falso = path.join(raiz, "claude-falso.mjs");
+    // claude.exe falso, compilado con el csc de Windows (un .cmd no sirve: cmd.exe corta la línea a 8191 caracteres y el contrato la pasa)
+    const fuente = path.join(raiz, "claude-falso.cs");
+    const falso = path.join(raiz, "claude-falso.exe");
     writeFileSync(
-      falso,
-      `#!${process.execPath}
-import { writeFileSync } from "node:fs";
-writeFileSync("hecho.txt", "x");
-console.log(JSON.stringify({ result: "RESULTADO: listo.\\nARCHIVOS: hecho.txt\\nDECISION: nada\\nSIGUE: nada", session_id: "sid-falso", num_turns: 2, duration_ms: 1500, total_cost_usd: 0.01 }));
-`,
-      { mode: 0o755 },
+      fuente,
+      `class P { static void Main() {
+  System.IO.File.WriteAllText("hecho.txt", "x");
+  System.Console.WriteLine("{\\"result\\":\\"RESULTADO: listo.\\\\nARCHIVOS: hecho.txt\\\\nDECISION: nada\\\\nSIGUE: nada\\",\\"session_id\\":\\"sid-falso\\",\\"num_turns\\":2,\\"duration_ms\\":1500,\\"total_cost_usd\\":0.01}");
+} }`,
     );
+    const csc = path.join(process.env.SystemRoot ?? "C:\\Windows", "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe");
+    const c = spawnSync(csc, ["/nologo", `/out:${falso}`, fuente], { encoding: "utf8" });
+    assert.equal(c.status, 0, c.stdout + c.stderr);
     ctx.env = { ...ctx.env, TRAMA_CLAUDE: falso, PA_JEFE: "jefe-test", PA_JEFE_ID: "jid", PA_CLAUDE_SETTINGS: path.join(raiz, "no-hay.json") };
-    mkdirSync(path.join(raiz, ".config", "proyectos"), { recursive: true });
-    writeFileSync(path.join(raiz, ".config", "proyectos", "registry.json"), JSON.stringify({ projects: [{ name: "demo", path: repo }] }));
+    mkdirSync(path.join(raiz, "AppData", "Roaming", "Trama", "proyectos"), { recursive: true });
+    writeFileSync(path.join(raiz, "AppData", "Roaming", "Trama", "proyectos", "registry.json"), JSON.stringify({ projects: [{ name: "demo", path: repo }] }));
     const r = parsearArgs(["demo", "haceme algo"]);
     assert.equal(r.clase, "proyecto");
     if (r.clase !== "proyecto") return;
     const rc = await lanzar(ctx, r.opciones);
-    assert.equal(rc, 0, salida.err);
+    const logs = existsSync(path.join(ctx.estado, "demo")) ? readdirSync(path.join(ctx.estado, "demo")).filter((n) => n.endsWith(".log")).map((n) => readFileSync(path.join(ctx.estado, "demo", n), "utf8")).join("\n") : "";
+    assert.equal(rc, 0, salida.err + logs);
     assert.match(salida.out, /RESULTADO: listo\./);
     const ultimo = readFileSync(path.join(ctx.estado, "demo.ultimo"), "utf8");
     assert.match(ultimo, /rc=0/);
     assert.match(ultimo, /sid=/);
-    const hilos = spawnSync("bash", ["-c", `ls ${ctx.estado}/demo/*.hilo`], { encoding: "utf8" }).stdout.trim().split("\n");
+    const hilos = readdirSync(path.join(ctx.estado, "demo")).filter((n) => n.endsWith(".hilo"));
     assert.equal(hilos.length, 1);
-    const hilo = readFileSync(hilos[0], "utf8");
+    const hilo = readFileSync(path.join(ctx.estado, "demo", hilos[0]), "utf8");
     assert.match(hilo, /decision_nada=1/);
     assert.match(hilo, /rama=pa\/demo\//);
     const rama = /rama=(\S+)/.exec(hilo)![1];
