@@ -4,7 +4,7 @@
 //   proyecto-ruta cartera    -> $HOME/cartera-usd   (match por substring)
 //   proyecto-ruta --listar   -> nombres, uno por línea
 //
-// Misma salida y mismos códigos que el script de bash: 0 ok, 1 no se pudo resolver, 2 uso. Se resuelve a la ruta real y
+// Códigos de salida: 0 ok, 1 no se pudo resolver, 2 uso. Se resuelve a la ruta real y
 // no al symlink de ~/Proyectos porque el cwd es la clave con la que Claude indexa la memoria de la sesión.
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import os from "node:os";

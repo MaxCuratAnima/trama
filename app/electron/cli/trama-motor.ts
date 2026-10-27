@@ -1,4 +1,4 @@
-// trama-motor — el motor de Trama (dist-electron/motor.js) sin ventana (port de motor/bin/trama-motor; sin systemd: suelto).
+// trama-motor — el motor de Trama (dist-electron/motor.js) sin ventana (suelto, sin supervisor).
 //
 //   trama-motor [run]                 en primer plano
 //   trama-motor start|stop|restart    lo lanza suelto (pid en <PA_STATE>/trama-motor.pid, log en trama-motor.log) / lo baja
@@ -12,7 +12,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statS
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { caminos, dirEstadoPa, entornoConLocal, esWindows, type Env, type Plataforma } from "../plataforma.ts";
+import { caminos, dirEstadoPa, entornoConLocal, type Env, type Plataforma } from "../plataforma.ts";
 import { grupoPropio, matarArbol } from "../procesos.ts";
 import { enPalabras, estado } from "./trama-estado.ts";
 
@@ -23,11 +23,10 @@ export const rutaMotor = ({ env }: Entorno, cli = path.dirname(fileURLToPath(imp
 export const rutaPid = (e: Entorno) => caminos(e.plataforma).join(dirEstadoPa(e.plataforma, e.env, e.home), "trama-motor.pid");
 export const rutaLog = (e: Entorno) => caminos(e.plataforma).join(dirEstadoPa(e.plataforma, e.env, e.home), "trama-motor.log");
 
-/** El entorno del motor: el de quien lo lanza, con `~/.local/bin` en el PATH y los tres avisos que lo ponen en modo producto. */
+/** El entorno del motor: el de quien lo lanza, con la carpeta local en el PATH y los avisos que lo ponen en modo producto. No hay supervisor: el motor se relanza solo. */
 export function entornoMotor(e: Entorno): Env {
   const env = entornoConLocal(e.plataforma, e.env, e.home);
-  // TRAMA_UNIDAD=1 dice "me supervisa systemd: para reiniciarme alcanza con salir". En Windows no hay supervisor: el motor se relanza solo.
-  return { ...env, HILOS_MOTOR: "1", ...(e.plataforma === "win32" ? {} : { TRAMA_UNIDAD: "1" }), TRAMA_LOCAL: "1", ELECTRON_RUN_AS_NODE: "1" };
+  return { ...env, HILOS_MOTOR: "1", TRAMA_LOCAL: "1", ELECTRON_RUN_AS_NODE: "1" };
 }
 
 export function vivo(pid: number): boolean {
@@ -89,12 +88,8 @@ export async function detener(e: Entorno): Promise<number> {
   const pid = pidVivo(e);
   if (!pid) return 0;
   // Windows no tiene SIGTERM para un proceso sin ventana: `taskkill` sin /F no lo baja, así que va directo con /F.
-  matarArbol(pid, esWindows(e.plataforma));
+  matarArbol(pid, true);
   for (let i = 0; i < 40 && vivo(pid); i++) await dormir(250);
-  if (vivo(pid)) {
-    matarArbol(pid, true);
-    for (let i = 0; i < 20 && vivo(pid); i++) await dormir(250);
-  }
   rmSync(rutaPid(e), { force: true });
   console.log("trama-motor: detenido");
   return 0;

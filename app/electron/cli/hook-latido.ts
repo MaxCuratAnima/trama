@@ -8,7 +8,7 @@
 import { readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { pathToFileURL } from "node:url";
-import { caminos, esWindows, rutaPerfil, type Env, type Plataforma } from "../plataforma.ts";
+import { caminos, rutaPerfil, type Env, type Plataforma } from "../plataforma.ts";
 
 export type ContextoLatido = {
   plataforma: Plataforma;
@@ -23,7 +23,7 @@ export type ResultadoLatido = { codigo: 0 | 2; stderr: string; stdout: string };
 
 type Entrada = { tool_name?: unknown; tool_input?: Record<string, unknown> | null; tool_response?: unknown };
 
-/** Una de las herramientas de shell: en Windows la sesión puede traer `PowerShell` además de `Bash`. */
+/** Una de las herramientas de shell: `PowerShell` (o `Bash`, si la sesión lo trae). */
 const esShell = (h: string) => h === "Bash" || h === "PowerShell";
 
 /** Como `jq -r '.x // empty'`: null/false/ausente = ""; texto tal cual; el resto, su JSON. */
@@ -143,8 +143,6 @@ const sigue = (stdout = ""): ResultadoLatido => ({ codigo: 0, stderr: "", stdout
 
 const LARGOS =
   String.raw`(?:cargo\s+(?:test|build|clippy|check|bench)|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:build|test|typecheck)|npx\s+tsc|(?:go|pytest|make|gradle|mvn|tsc|vitest|jest)(?:[\s;&|)]|$))`;
-const RECORTABLES =
-  String.raw`^\s*(?:cargo\s+(?:test|nextest)|(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test|npx\s+(?:vitest|jest)|vitest|jest|pytest|python[0-9.]*\s+-m\s+pytest|go\s+test|make\s+test|(?:\./)?tests/run\.sh)(?:[\s;&|)]|$)`;
 
 /** Los bloqueos de git y de comandos largos de un worker (sólo `pre` y sólo shell). `null` si el comando pasa. */
 function bloqueoDeWorker(cmd: string, hb: string, timeout: string, ctx: ContextoLatido): string | null {
@@ -237,15 +235,6 @@ export function procesarLatido(argumentos: string[], entrada: string, ctx: Conte
     }
     const b = bloqueoDeWorker(cmd, hb, texto(ti.timeout), ctx);
     if (b) return bloqueo(b);
-
-    // Recorte de la salida de los TESTS (plan pro): sólo comandos que EMPIEZAN con un runner conocido y no traen ya pipe,
-    // redirección ni encadenado. Deja las últimas N líneas con un aviso; el exit code se conserva (pipefail). Necesita bash+awk:
-    // en Windows no se recorta.
-    const recorte = ctx.env.PA_RECORTE ?? "0";
-    if (!esWindows(ctx.plataforma) && herramienta === "Bash" && modo !== "leer" && /^[1-9][0-9]*$/.test(recorte) && new RegExp(RECORTABLES).test(cmd) && !/[|><;&`]|\$\(|\n/.test(cmd)) {
-      const nuevo = `set -o pipefail; ( ${cmd} ) 2>&1 | awk -v n=${recorte} '{a[NR%n]=$0} END{if(NR>n) print "[recortado por el hook: se omitieron las primeras " NR-n " líneas; si te falta algo, volvé a correr filtrando con grep]"; s=(NR>n)?NR-n+1:1; for(i=s;i<=NR;i++) print a[i%n]}'`;
-      return sigue(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", updatedInput: { ...ti, command: nuevo } } }));
-    }
   }
 
   // --- aviso de turnos y de "se fue a background" (PostToolUse) ---

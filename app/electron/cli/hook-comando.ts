@@ -1,9 +1,8 @@
 // El comando que Claude Code ejecuta para cada hook de un worker (`--settings`), según la plataforma y el shell que lo corre.
 // Antes `pa` armaba `bash <latido.sh> <hb> pre`; ahora es el ejecutable de node (o el de Electron en modo node) con el script
 // compilado. Claude Code en Windows corre los hooks con Git Bash salvo que se le pida PowerShell: de ahí tres formas de
-// citar. Funciones puras; las rutas de Windows se citan bien aunque corra en Linux (las pruebas).
+// citar. Funciones puras.
 import type { Env, Plataforma } from "../plataforma.ts";
-import { esWindows } from "../plataforma.ts";
 
 export type ShellHook = "bash" | "powershell" | "cmd";
 
@@ -19,7 +18,7 @@ export type OpcionesComando = {
   shell?: ShellHook;
 };
 
-/** Qué shell corre los hooks: `PA_HOOK_SHELL` (bash|powershell|cmd) si está; si no, Git Bash en Windows y bash en el resto. */
+/** Qué shell corre los hooks: `PA_HOOK_SHELL` (bash|powershell|cmd) si está; si no, Git Bash. */
 export function shellDeHooks(_plataforma: Plataforma, env: Env): ShellHook {
   const v = (env.PA_HOOK_SHELL ?? "").toLowerCase();
   return v === "powershell" || v === "cmd" || v === "bash" ? v : "bash";
@@ -28,7 +27,7 @@ export function shellDeHooks(_plataforma: Plataforma, env: Env): ShellHook {
 const SEGURO = /^[A-Za-z0-9_@%+=:,./-]+$/;
 
 /** Git Bash entiende `C:/x/y` y se come las barras invertidas sin comillas: en Windows las rutas van con `/`. */
-const haciaBash = (p: Plataforma, s: string) => (esWindows(p) ? s.replace(/\\/g, "/") : s);
+const haciaBash = (s: string) => s.replace(/\\/g, "/");
 
 function citarBash(s: string): string {
   return s !== "" && SEGURO.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
@@ -50,7 +49,7 @@ export function comandoHook(o: OpcionesComando): string {
     return env + todo.map(citarCmd).join(" ");
   }
   const env = o.electron ? "ELECTRON_RUN_AS_NODE=1 " : "";
-  return env + todo.map((x) => citarBash(haciaBash(o.plataforma, x))).join(" ");
+  return env + todo.map((x) => citarBash(haciaBash(x))).join(" ");
 }
 
 export type EntradaHooks = {

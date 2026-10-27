@@ -19,7 +19,7 @@ import { pathToFileURL } from "node:url";
 import { resolverAgy, resolverBinario } from "../binario.ts";
 import { correrReal, sondearAgy, sondearClaude, sondearCodex, type Cuenta } from "../cuentas.ts";
 import { comandoEjecutable } from "../procesos.ts";
-import { caminos, dirConfigTrama, esWindows, pathConLocal, type Env, type Plataforma } from "../plataforma.ts";
+import { caminos, dirConfigTrama, pathConLocal, type Env, type Plataforma } from "../plataforma.ts";
 import { conCandado } from "./candado.ts";
 
 export type Proveedor = "claude" | "google" | "chatgpt";
@@ -158,12 +158,12 @@ function buscar(d: Deps, a: Archivo, id: string): Perfil {
 }
 
 /** El entorno con el que corre el CLI de esa cuenta: lo que se saca y lo que se pone (la de siempre no toca nada). */
-export function entornoDe(p: Plataforma, c: Perfil): { sacar: string[]; poner: Record<string, string> } {
+export function entornoDe(_p: Plataforma, c: Perfil): { sacar: string[]; poner: Record<string, string> } {
   if (c.defecto) return { sacar: [], poner: {} };
   const sacar = [...SACAR[c.proveedor]];
   if (c.proveedor === "claude") return { sacar, poner: { CLAUDE_CONFIG_DIR: c.dir } };
   if (c.proveedor === "chatgpt") return { sacar, poner: { CODEX_HOME: c.dir } };
-  return { sacar, poner: esWindows(p) ? { HOME: c.dir, USERPROFILE: c.dir } : { HOME: c.dir } };
+  return { sacar, poner: { HOME: c.dir, USERPROFILE: c.dir } };
 }
 
 /** El entorno completo de esa cuenta, para correr su CLI (verificar, login). */

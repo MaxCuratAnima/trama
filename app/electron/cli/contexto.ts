@@ -4,13 +4,12 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { deStat, esWindows } from "../procesos.ts";
 import { dirEstadoPa, rutaRegistry, type Env, type Plataforma } from "../plataforma.ts";
 import { slugDe } from "./estado-archivos.ts";
 import { resolver } from "./proyecto-ruta.ts";
 
 export type CtxPa = {
-  /** `PA_STATE`: `~/.local/state/pa` · `%LOCALAPPDATA%\Trama\state\pa`. */
+  /** `PA_STATE`: `%LOCALAPPDATA%\Trama\state\pa`. */
   estado: string;
   /** `PA_PROJ`: `~/.claude/projects` (los transcripts de Claude). */
   proyectos: string;
@@ -23,7 +22,7 @@ export type CtxPa = {
   offsetSeg: () => number;
   /** `kill -0`: ¿existe ese pid? */
   existePid: (pid: number) => boolean;
-  /** Un zombi contesta `kill -0` y no es un vivo. */
+  /** En Windows no hay zombis: siempre `false`. */
   esZombi: (pid: number) => boolean;
   /** La ruta del tree principal del proyecto con ese slug (registry), o `null`. */
   rutaDeSlug: (slug: string) => string | null;
@@ -45,7 +44,7 @@ const git = (ruta: string, args: string[]): string | null => {
 };
 
 /**
- * Slug de carpeta → ruta del tree principal, igual que `nombre_registry` + `proyecto-ruta` del bash: el nombre del primer
+ * Slug de carpeta → ruta del tree principal, el nombre del primer
  * proyecto cuya carpeta (en minúscula) se llama así, y después `resolver` de `proyecto-ruta.ts` con ese nombre.
  */
 export function rutaPorSlug(slug: string, env: Env, plataforma: Plataforma, home: string): string | null {
@@ -78,14 +77,7 @@ export function contextoReal(env: Env = process.env as Env, plataforma: NodeJS.P
         return (e as NodeJS.ErrnoException).code === "EPERM";
       }
     },
-    esZombi: (pid) => {
-      if (esWindows(plataforma)) return false;
-      try {
-        return deStat(readFileSync(`/proc/${pid}/stat`, "utf8")).estado.startsWith("Z");
-      } catch {
-        return false;
-      }
-    },
+    esZombi: () => false,
     rutaDeSlug: (slug) => rutaPorSlug(slug, env, plataforma, home),
     ramasPa: (ruta, slug) =>
       (git(ruta, ["for-each-ref", "--format=%(refname:short)", `refs/heads/pa/${slug}/`]) ?? "").split("\n").filter(Boolean),

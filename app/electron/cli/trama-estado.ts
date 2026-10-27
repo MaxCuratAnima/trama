@@ -17,7 +17,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buscarEjecutable, caminos, carpetasPath, dirBinLocal, dirClaudeConfig, dirEstadoApp, esEjecutable, esWindows, rutaModelos, type Env, type Plataforma } from "../plataforma.ts";
+import { buscarEjecutable, caminos, carpetasPath, dirBinLocal, dirClaudeConfig, dirEstadoApp, esEjecutable, rutaModelos, type Env, type Plataforma } from "../plataforma.ts";
 import { comandoEjecutable } from "../procesos.ts";
 
 export type Entorno = { plataforma: Plataforma; env: Env; home: string };
@@ -43,7 +43,7 @@ function salida(cmd: string[], plataforma: Plataforma, env: Env, espera = 10000)
   }
 }
 
-/** Como `shutil.which`, más `~/.local/bin` (un PATH pelado —systemd, wsl.exe— no lo trae). */
+/** Busca el ejecutable en el PATH, más la carpeta bin local (un PATH pelado no la trae). */
 export function enPath(nombre: string, { plataforma, env, home }: Entorno, extra: string[] = []): string | null {
   if (/[\\/]/.test(nombre)) return esEjecutable(nombre, plataforma) ? nombre : null;
   const dirs = [...carpetasPath(plataforma, env), dirBinLocal(plataforma, home), ...extra];
@@ -70,7 +70,7 @@ export function claude(e: Entorno = aqui()): Estado["claude"] {
 /** `agy models`: una línea por modelo, "id<TAB>nombre". Sin sesión no hay ninguna. */
 const MODELO_AGY = /^[a-z0-9][a-z0-9.-]*\t/;
 
-/** Dónde cae agy si no está en el PATH: `/usr/local/bin` (en Windows no hay) y la carpeta bin de `~/.antigravity*` del instalador. */
+/** Dónde cae agy si no está en el PATH: la carpeta bin de `~/.antigravity*` del instalador. */
 export function dirsAgy({ plataforma, home }: Entorno): string[] {
   const c = caminos(plataforma);
   let propios: string[] = [];
@@ -79,7 +79,7 @@ export function dirsAgy({ plataforma, home }: Entorno): string[] {
   } catch {
     // sin home legible
   }
-  return [...(esWindows(plataforma) ? [] : ["/usr/local/bin"]), ...propios];
+  return propios;
 }
 
 export function agy(e: Entorno = aqui()): Estado["agy"] {

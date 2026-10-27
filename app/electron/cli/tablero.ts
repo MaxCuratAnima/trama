@@ -47,7 +47,7 @@ function configurar(env: Env): Cfg {
   const DIR = dirTablero(process.platform, env, HOME);
   // Con TABLERO_DIR seteado (tests) y sin TABLERO_VISTA, la vista cae adentro de ese directorio. La app la busca ahí.
   const VISTA = env.TABLERO_VISTA || path.join(DIR, "vista.json");
-  const PA_STATE = env.PA_STATE || (process.platform === "win32" ? path.join(env.LOCALAPPDATA || path.join(HOME, "AppData", "Local"), "Trama", "state", "pa") : path.join(HOME, ".local/state/pa"));
+  const PA_STATE = env.PA_STATE || path.join(env.LOCALAPPDATA || path.join(HOME, "AppData", "Local"), "Trama", "state", "pa");
   return {
     env, HOME, DIR, ITEMS: path.join(DIR, "items.jsonl"), SEQ: path.join(DIR, "seq"), ARCHIVO: path.join(DIR, "hecho"), VISTA, PA_STATE,
     REGISTRY: rutaRegistry(process.platform, env, HOME),

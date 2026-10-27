@@ -1,15 +1,14 @@
 // Hook PreToolUse de Bash/PowerShell (puerto de motor/hooks/destructive-guard.sh): frena los comandos catastróficos aunque la
 // sesión corra sin permisos. Mismo protocolo que Claude Code: JSON por stdin, `exit 2` + motivo por stderr = bloquear.
-// Los patrones de rm/dd/mkfs/push --force, los destinos de backup, el congelado y los directorios de build en RAM son los del
-// .sh, con las mismas expresiones; encima van los equivalentes de Windows (Remove-Item -Recurse, rd /s, del /s, Format-Volume…)
-// y `git reset --hard`. Sólo mira el TEXTO del comando: un script que borra adentro pasa igual (tercera capa, no la primera).
+// Bloquea push --force, borrados hacia destinos de backup, Remove-Item -Recurse / rd /s / del /s fuera de la sesión,
+// Format-Volume, diskpart… y `git reset --hard`. Sólo mira el TEXTO del comando: un script que borra adentro pasa igual (tercera capa, no la primera).
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import { pathToFileURL } from "node:url";
-import { caminos, dirConfigTrama, esWindows, type Env, type Plataforma } from "../plataforma.ts";
+import { caminos, dirConfigTrama, type Env, type Plataforma } from "../plataforma.ts";
 
-export type ConfigGuardia = { etiquetas_usb: string[]; montajes: string[]; congelado: { etiqueta?: string; marcador?: string; patrones: string[] } | null };
+export type ConfigGuardia = { montajes: string[] };
 export type ContextoGuardia = {
   plataforma: Plataforma;
   env: Env;
@@ -24,10 +23,9 @@ const PASA: Veredicto = { bloquear: false, mensaje: "" };
 const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\/-]/g, "\\$&");
 const lista = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x !== "") : []);
 
-/** `guard.json` (`TRAMA_GUARD_CONFIG`; si no, `<config de Trama>/guard.json`, con `XDG_CONFIG_HOME` en Linux como antes). */
+/** `guard.json` (`TRAMA_GUARD_CONFIG`; si no, `<config de Trama>/guard.json`). */
 export function rutaConfigGuardia(p: Plataforma, env: Env, home: string): string {
   if (env.TRAMA_GUARD_CONFIG) return env.TRAMA_GUARD_CONFIG;
-  if (!esWindows(p) && env.XDG_CONFIG_HOME) return caminos(p).join(env.XDG_CONFIG_HOME, "trama", "guard.json");
   return caminos(p).join(dirConfigTrama(p, env, home), "guard.json");
 }
 
@@ -40,84 +38,24 @@ export function leerConfigGuardia(ruta: string): ConfigGuardia {
   } catch {
     /* sin archivo o roto */
   }
-  const cg = c.congelado && typeof c.congelado === "object" && !Array.isArray(c.congelado) ? (c.congelado as Record<string, unknown>) : null;
-  return {
-    etiquetas_usb: lista(c.etiquetas_usb),
-    montajes: lista(c.montajes),
-    congelado: cg
-      ? { etiqueta: typeof cg.etiqueta === "string" ? cg.etiqueta : undefined, marcador: typeof cg.marcador === "string" ? cg.marcador : undefined, patrones: lista(cg.patrones) }
-      : null,
-  };
+  return { montajes: lista(c.montajes) };
 }
 
-const TMPFS_RAM = String.raw`(?:/tmp|/dev/shm|\$TMPDIR)`;
-
-/** Los patrones del .sh (mismas expresiones), más los de la config. Cada uno bloquea si matchea el comando. */
-export function patronesBase(cfg: ConfigGuardia, ctx: Pick<ContextoGuardia, "env" | "home" | "existe">, cmd: string): string[] {
+/** Los patrones fijos más los de la config. Cada uno bloquea si matchea el comando. */
+export function patronesBase(cfg: ConfigGuardia): string[] {
   const patrones = [
-    String.raw`(?<![\w-])rm\s+(-[a-zA-Z]*\s+)*-?[a-zA-Z]*[rf][a-zA-Z]*\b.*\s(/|~|\$HOME|\.config|\.claude)`,
-    String.raw`(?<![\w-])rm\s+-[a-zA-Z]*r[a-zA-Z]*f|(?<![\w-])rm\s+-[a-zA-Z]*f[a-zA-Z]*r`,
-    String.raw`(?<![\w-])rm\s+-[rf]{1,2}\s+/`,
-    String.raw`\bdd\b.*\bof=/dev/`,
-    String.raw`\bof=/dev/(sd|nvme|disk|mmcblk)`,
-    String.raw`>\s*/dev/(sd|nvme|disk|mmcblk)`,
-    String.raw`\bmkfs(\.\w+)?\b`,
-    String.raw`\bwipefs\b`,
-    String.raw`\b(parted|fdisk|sgdisk)\b.*\b/dev/`,
-    String.raw`\bshred\b`,
-    String.raw`\btruncate\s+-s\s*0\b`,
-    String.raw`\bpacman\s+-R`,
-    String.raw`\byay\s+-R`,
-    String.raw`\bparu\s+-R`,
     String.raw`\bgit\s+push\b.*(--force\b|-f\b)`,
-    String.raw`\bchmod\s+-R\s+0*777\s+/`,
-    String.raw`\bchown\s+-R\b.*\s/(\s|$)`,
-    String.raw`:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:`,
     // git reset --hard tira lo que haya sin commitear (también de otra sesión) y no se recupera
     String.raw`\bgit\b[^|;&]*\sreset\s+(?:[^|;&]*\s)?--hard\b`,
   ];
 
-  // BACKUPS: cualquier verbo destructivo cuyo objetivo caiga en un destino de backup. Leer pasa siempre.
-  const usb = cfg.etiquetas_usb;
-  const destinos =
-    String.raw`(?:/run/media/[^\s]*` +
-    cfg.montajes.map((m) => "|" + escapar(m)).join("") +
-    String.raw`|/media/[^\s]*` +
-    String.raw`|~/backups|\$HOME/backups|/home/[^/\s]+/backups` +
-    String.raw`|\.papelera` +
-    (usb.length ? "|by-label/(?:" + usb.map(escapar).join("|") + ")" : "") +
-    ")";
+  // BACKUPS: rm/mv o una redirección cuyo objetivo caiga en un destino de backup (`montajes` de guard.json). Leer pasa siempre.
+  const destinos = String.raw`(?:~/backups|\$HOME/backups|\.papelera` + cfg.montajes.map((m) => "|" + escapar(m)).join("") + ")";
   patrones.push(
     String.raw`(?<![\w-])rm\b[^|;&]*` + destinos,
     String.raw`\bmv\b[^|;&]*` + destinos,
-    String.raw`\bshred\b[^|;&]*` + destinos,
-    String.raw`\btruncate\b[^|;&]*` + destinos,
-    String.raw`\bfind\b[^|;&]*` + destinos + String.raw`[^|;&]*(-delete|-exec\s+rm)`,
-    String.raw`\bfind\b[^|;&]*(-delete|-exec\s+rm)[^|;&]*` + destinos,
-    String.raw`\brsync\b[^|;&]*--delete[^|;&]*` + destinos,
     String.raw`>\s*"?'?` + destinos,
-    String.raw`\bdd\b[^|;&]*\bof=[^\s]*` + destinos,
   );
-  if (usb.length) patrones.push(String.raw`\budisksctl\s+(unmount|power-off)\b[^|;&]*(?:` + usb.map(escapar).join("|") + ")");
-
-  // DIRECTORIOS DE BUILD EN RAM: /tmp y /dev/shm son tmpfs; un target de cargo ahí llenó el zram y earlyoom mató 137 procesos.
-  patrones.push(
-    String.raw`CARGO_TARGET_DIR\s*=\s*["']?` + TMPFS_RAM,
-    String.raw`--target-dir(?:\s+|=)["']?` + TMPFS_RAM,
-    String.raw`CARGO_BUILD_TARGET_DIR\s*=\s*["']?` + TMPFS_RAM,
-  );
-
-  // CONGELADO de un USB: lo manda el archivo marcador (borrarlo descongela). `bash -n <script>` solo queda exento.
-  const cg = cfg.congelado;
-  if (cg) {
-    const marcador = (cg.marcador ?? "").replace(/^~(?=$|[\\/])/, ctx.home);
-    const congelado = (marcador !== "" && ctx.existe(marcador)) || ctx.env.TRAMA_GUARD_FORZAR_CONGELADO === "1";
-    const soloSintaxis = /^\s*bash\s+-n\s+\S+\s*$/.test(cmd);
-    if (congelado && !soloSintaxis) {
-      if (cg.etiqueta) patrones.push(String.raw`\budisksctl\s+mount\b[^|;&]*` + escapar(cg.etiqueta), String.raw`\bmount\b[^|;&]*` + escapar(cg.etiqueta));
-      patrones.push(...cg.patrones);
-    }
-  }
   return patrones;
 }
 
@@ -130,7 +68,7 @@ const PATRONES_WINDOWS = [
   String.raw`(?<![\w.-])cipher(?:\.exe)?\s+/w\b`,
 ];
 
-/** Los verbos de borrado de PowerShell y cmd que pueden ser recursivos (`rm` aparte: en bash `-r` ya lo cubre el .sh). */
+/** Los verbos de borrado de PowerShell y cmd que pueden ser recursivos. */
 const VERBO_BORRAR = /(?<![\w.-])(Remove-Item|ri|rm|del|erase|rd|rmdir)(?![\w.:-])/gi;
 const FLAG_RECURSE = /^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?$/i;
 const NO_ES_COMANDO = /(?:^|[\s;&|(])(?:git(?:\.exe)?(?:\s+-\S+)*|echo|Write-Host|Write-Output|grep|rg|findstr|Select-String|man|help|which|where)\s+["']*$/i;
@@ -175,7 +113,7 @@ function guardiaDocker(cmd: string, entrada: unknown, env: Env): string | null {
   const dir = env.TRAMA_GUARD_DIR;
   const guard = dir ? caminos(process.platform).join(dir, "docker-guard.py") : "";
   if (!guard || !existsSync(guard)) return null;
-  const r = spawnSync(env.TRAMA_PYTHON || (esWindows(process.platform) ? "python" : "python3"), ["-I", guard], { input: JSON.stringify(entrada), encoding: "utf8", timeout: 20000, windowsHide: true });
+  const r = spawnSync(env.TRAMA_PYTHON || "python", ["-I", guard], { input: JSON.stringify(entrada), encoding: "utf8", timeout: 20000, windowsHide: true });
   return r.status === 2 ? r.stderr || "GUARD: docker-guard bloqueó el comando." : null;
 }
 
@@ -191,7 +129,7 @@ export function evaluarGuardia(entrada: unknown, ctx: ContextoGuardia, cfg: Conf
   const docker = guardiaDocker(cmd, entrada, ctx.env);
   if (docker !== null) return { bloquear: true, mensaje: docker };
 
-  for (const p of patronesBase(cfg, ctx, cmd)) {
+  for (const p of patronesBase(cfg)) {
     if (new RegExp(p).test(cmd)) {
       return {
         bloquear: true,
