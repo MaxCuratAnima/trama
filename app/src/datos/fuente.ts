@@ -1198,7 +1198,7 @@ const fija: Fuente = {
     responderFijo(sid, x.texto, x.modelo, x.imagenes);
   },
   async liderArchivo(nombre) {
-    return `/tmp/trama-adjuntos/${nombre}`;
+    return `C:\\Users\\prueba\\AppData\\Local\\Temp\\trama-adjuntos\\${nombre}`;
   },
   async liderParar() {},
   async dictar() {

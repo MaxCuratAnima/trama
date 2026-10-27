@@ -58,7 +58,7 @@ function generar(sid: string, primero: string): void {
   let p: ReturnType<typeof spawnCmd>;
   const t = setTimeout(() => {
     try {
-      p.kill("SIGTERM");
+      p.kill();
     } catch {
       /* ya terminó */
     }

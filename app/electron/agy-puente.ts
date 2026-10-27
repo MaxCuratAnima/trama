@@ -31,7 +31,7 @@ import { ESTADO } from "./estado.ts";
 import { execFileSyncCmd, grupoPropio, inicioDeProcesoSync, matarArbol, spawnCmd } from "./procesos.ts";
 import { SESIONES } from "./sesiones.ts";
 
-/** El `agy` de verdad: bajo la unidad de systemd el PATH no trae `~/.local/bin` y el binario pelado no se encuentra. */
+/** El `agy` de verdad: el binario pelado puede no estar en el PATH de la app. */
 const AGY = resolverAgy(process.env, os.homedir());
 /** Con `~/.local/bin` y la carpeta del `pa` en el PATH: es donde el líder de Gemini lo llama para delegar. */
 const ENTORNO = entornoAgy(process.env, os.homedir());
@@ -364,7 +364,7 @@ function cerrarTurno() {
   else if (stdinCerrado) terminar(0);
 }
 
-/** TERM al grupo de agy y, 3 s después, KILL (caen también los comandos que lanzó). */
+/** Corta el árbol de agy y, 3 s después, a la fuerza (caen también los comandos que lanzó). */
 function cortarGrupo() {
   if (!hijo?.pid) return;
   const pid = hijo.pid;

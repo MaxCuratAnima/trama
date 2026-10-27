@@ -1,5 +1,5 @@
 // Las imágenes que el usuario adjunta en la caja de un líder (B26): pegadas (Ctrl+V,
-// p. ej. una captura de Wayland), soltadas sobre el chat o elegidas con el clip.
+// p. ej. una captura de pantalla), soltadas sobre el chat o elegidas con el clip.
 // Viven fuera de la vista, por caja (como los borradores): cambiar de hilo no
 // las pierde, y lo que la cola no pudo mandar vuelve acá. Antes de guardarlas se
 // achican si hace falta (lado más largo ≤ LADO_MAX, base64 ≤ BASE64_MAX: los
@@ -150,8 +150,8 @@ export function archivosDeDatos(d: DataTransfer | null): File[] {
 }
 
 /**
- * Un pegado sin archivos y sin texto que el navegador pueda poner: en Wayland, una app de origen que ofrece
- * `UTF8_STRING` o `TEXT` (o un offer viejo) deja `clipboardData` sin `text/plain` ni `text/html`. Entonces
+ * Un pegado sin archivos y sin texto que el navegador pueda poner: una app de origen que lo ofrece en un
+ * formato que no entiende deja `clipboardData` sin `text/plain` ni `text/html`. Entonces
  * el Ctrl+V no hace nada y el texto se pide al main (`portapapeles.texto`).
  */
 export function pegadoSinTexto(d: DataTransfer | null): boolean {

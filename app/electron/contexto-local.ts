@@ -207,14 +207,13 @@ export async function skillOrquestar(home: string): Promise<string> {
 /**
  * El prefacio completo de un líder de Gemini en `cwd`: lo de arriba más sus CLAUDE.md. Un archivo ilegible no lo tira.
  * `pa`: dónde está el binario si se encontró con ruta absoluta; se lo dice por si el PATH de la herramienta de comandos de
- * agy no lo trae (la unidad de systemd y el menú de apps arrancan sin `~/.local/bin`), así nunca queda en "pa: command not found".
+ * agy no lo trae (la app arranca sin la carpeta de `pa` en el PATH), así nunca queda en "pa: command not found".
  */
 export async function prefacioGemini(x: { home: string; cwd?: string; pa?: string; deps?: Partial<DepsContexto> }): Promise<string> {
   const c = await armarContexto({ home: x.home, cwd: x.cwd, ctx: 40000, perfil: "gemini", deps: x.deps }).catch(() => null);
   const skill = await skillOrquestar(x.home);
   const base = skill === SKILL_GENERICA ? PROMPT_GEMINI : PROMPT_GEMINI.replaceAll(SKILL_GENERICA, skill);
   const prompt = x.pa && path.isAbsolute(x.pa) ? `${base}\nSi un comando dice "pa: command not found", \`pa\` está en \`${x.pa}\`: llamalo con esa ruta.` : base;
-  const nota = notaDePlataforma(process.platform);
-  const conNota = nota ? `${prompt}\n\n${nota}` : prompt;
+  const conNota = `${prompt}\n\n${notaDePlataforma(process.platform)}`;
   return c?.texto ? `${conNota}\n\n${c.texto}` : conNota;
 }

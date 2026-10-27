@@ -95,7 +95,7 @@ let oficiales = 0;
 const USO_VIVO_MS = 8000;
 /** Lo mismo para el `claude` de un rato, que antes tiene que arrancar. */
 const USO_RATO_MS = 20_000;
-/** Lo que se le da a ese `claude` para salir solo tras cerrarle el stdin, antes del SIGTERM. */
+/** Lo que se le da a ese `claude` para salir solo tras cerrarle el stdin, antes de cortarlo. */
 const USO_SALIR_MS = 2000;
 let pidiendoUso: Promise<boolean> | null = null;
 
@@ -382,14 +382,12 @@ async function conContexto(local: Local, cwd: string | undefined): Promise<Local
 const servirLocal = (modelo: string) => (localDe(modelo) ? locales.asegurar(modelo) : Promise.resolve(undefined));
 
 /**
- * Al salir un líder, TERM (y KILL 3 s después) a todo su grupo de procesos: con `KillMode=process` lo que
- * lanzó desde sus herramientas sin `setsid` (un `qs`, un `watch.sh` con su `pactl subscribe`) quedaba huérfano
- * en el cgroup del motor para siempre (2026-10-22: 41 watchers llenaron el cupo de pipewire-pulse). Los workers
- * de `pa` salen con `setsid`: no están en este grupo. El grupo es del líder (`detached`), nunca el del motor.
+ * Al salir un líder, se corta todo su árbol de procesos (y a la fuerza 3 s después): lo que lanzó desde sus
+ * herramientas quedaba huérfano para siempre. Es el árbol del líder, nunca el del motor.
  */
 export function barrerGrupo(pid: number | undefined, kill: (pid: number, senal: NodeJS.Signals) => void = process.kill, esperaMs = 3000) {
   if (!pid || pid <= 1) return;
-  // Grupo vacío (ESRCH): nada que barrer; `matarArbol` no lanza.
+  // Árbol ya terminado: nada que barrer; `matarArbol` no lanza.
   matarArbol(pid, false, { kill });
   setTimeout(() => matarArbol(pid, true, { kill }), esperaMs).unref();
 }
@@ -426,7 +424,7 @@ function lanzar(g: Guardado, resume: boolean, local?: Local, extra: Extra = {}):
   }
   const clase = claseDeModelo(g.modelo);
   const base = opcionesLider(process.env, HOME, g.cwd, local && { modelo: g.modelo, effort: g.effort, local }, extra.ollama) as { cwd: string; env: NodeJS.ProcessEnv };
-  // Su propio grupo (setsid): lo que el líder deja corriendo desde sus herramientas (un `qs`, un watcher) se barre al salir.
+  // Lo que el líder deja corriendo desde sus herramientas se barre al salir (`barrerGrupo`).
   const opciones = { ...base, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"], ...grupoPropio() };
   const bin = clase === "gemini" ? "agy" : path.basename(CLAUDE);
   const p =
@@ -616,7 +614,7 @@ function usoDeUnRato(): Promise<void> {
       clearTimeout(t);
       p.stdin!.end();
       setTimeout(() => {
-        if (p.exitCode === null && p.signalCode === null) p.kill("SIGTERM");
+        if (p.exitCode === null && p.signalCode === null) p.kill();
       }, USO_SALIR_MS).unref();
       listo();
     };
@@ -984,7 +982,7 @@ async function anotar(
  */
 export type Traido = { ok: true } | { ok: false; motivo: "trabajando" | "abierto" | "sinSesion" | "sinCarpeta" };
 
-/** Cuánto se espera a que el `claude` de la terminal salga con SIGTERM antes del SIGKILL, y después. */
+/** Cuánto se espera a que el `claude` de la terminal salga solo antes de cortarlo a la fuerza, y después. */
 const TERM_MS = Number(process.env.HILOS_TERM_MS) || 6000;
 const KILL_MS = 2000;
 
@@ -1004,8 +1002,8 @@ async function hastaMorir(s: Sesion, ms: number): Promise<boolean> {
  * misma sesión: recién contesta `ok` cuando el de la terminal ya no existe.
  *
  * Sólo se le manda la señal al pid exacto de la sesión (`sessions/<pid>.json`), y sólo si
- * su `procStart` es el del proceso de ahora: nunca por nombre, nunca a un padre (kitty es
- * un solo proceso para todas las ventanas). Si la sesión no es de una terminal (un `-p`:
+ * su `procStart` es el del proceso de ahora: nunca por nombre, nunca a un padre (una terminal
+ * es un solo proceso para todas las ventanas). Si la sesión no es de una terminal (un `-p`:
  * otra trama, un worker) o no se puede confirmar el proceso, no se toca: `abierto`.
  * Si está haciendo algo (cualquier estado que no sea `idle`), sin `cortar` no se hace nada
  * y contesta `trabajando`: la vista avisa que se corta lo que está en vuelo y vuelve a pedir.
@@ -1030,12 +1028,10 @@ export async function traer(x: { sid: string; modelo: string; effort: string; no
     const r = await anotar(sid, { modelo, effort, nombre: x.nombre ?? otras[0]?.nombre, modo });
     if (!r.ok) return r;
     for (const s of otras) {
-      for (const [senal, ms] of [["SIGTERM", TERM_MS], ["SIGKILL", KILL_MS]] as const) {
-        // Otra vez, justo antes de la señal: el pid pudo haber cambiado de dueño.
+      for (const [forzar, ms] of [[false, TERM_MS], [true, KILL_MS]] as const) {
+        // Otra vez, justo antes del corte: el pid pudo haber cambiado de dueño.
         if (!(await esElProceso(s.pid, s.procStart))) break;
-        try {
-          process.kill(s.pid, senal);
-        } catch {}
+        matarArbol(s.pid, forzar);
         if (await hastaMorir(s, ms)) break;
       }
       if (await esElProceso(s.pid, s.procStart)) {
@@ -1135,7 +1131,7 @@ function rastro(sid: string, motivo: Motivo | "sin-motivo", detalle: string) {
 }
 
 /**
- * Cerrar un líder de la app: corta la respuesta si la hay (SIGTERM), cierra
+ * Cerrar un líder de la app: corta la respuesta si la hay, cierra
  * su proceso y lo saca de lideres.json. La sesión de Claude queda en disco.
  * `motivo` (de `MOTIVOS`; otra cosa cuenta como "sin-motivo") sólo va al log.
  */
@@ -1145,7 +1141,7 @@ export async function cerrar(sid: string, motivo?: unknown): Promise<void> {
   rastro(sid, m, `${p ? (p.ocupado ? "respondiendo, se corta" : "con proceso") : "sin proceso"}; sale de lideres.json`);
   if (p) {
     p.adrede = true;
-    if (p.ocupado) p.p.kill("SIGTERM");
+    if (p.ocupado) p.p.kill();
     await terminar(p);
   }
   guardados = (await lideresApp()).filter((g) => g.sid !== sid);
@@ -1153,20 +1149,20 @@ export async function cerrar(sid: string, motivo?: unknown): Promise<void> {
   alCambio();
 }
 
-/** Cuánto se espera, como mucho, a que los líderes cierren al salir de trama: la sesión que se cierra no espera más (systemd mata a los 90 s). */
+/** Cuánto se espera, como mucho, a que los líderes cierren al salir de trama: la sesión que se cierra no espera más. */
 export const TOPE_SALIDA_MS = 10_000;
 
 /**
  * Al salir de trama: los ociosos se cierran (stdin), y con `forzar` también
- * los ocupados (SIGTERM). Sin `forzar`, espera a que los ocupados terminen, pero
- * nunca más de `topeMs`: lo que siga vivo entonces se corta (SIGTERM; su
+ * los ocupados. Sin `forzar`, espera a que los ocupados terminen, pero
+ * nunca más de `topeMs`: lo que siga vivo entonces se corta (su
  * conversación queda en disco y se retoma con `--resume`) y queda en el log.
  * Devuelve los nombres de los que no cerraron a tiempo.
  */
 export async function cerrarTodos(forzar: boolean, topeMs: number = TOPE_SALIDA_MS): Promise<string[]> {
   const vivos = [...procs.entries()];
   // Antes de cerrar nada: quién tenía proceso, para levantarlo al arrancar (`reanudarDormidos`). Si algo corta la salida a
-  // medias (SIGKILL de systemd), la marca ya está en disco.
+  // medias, la marca ya está en disco.
   const ls = await lideresApp();
   const ahora = Math.floor(Date.now() / 1000);
   let marcados = 0;
@@ -1183,7 +1179,7 @@ export async function cerrarTodos(forzar: boolean, topeMs: number = TOPE_SALIDA_
   const todos = Promise.all(
     vivos.map(async ([sid, p]) => {
       p.adrede = true;
-      if (forzar && p.ocupado) p.p.kill("SIGTERM");
+      if (forzar && p.ocupado) p.p.kill();
       if (!p.ocupado || forzar) await terminar(p);
       else await new Promise<void>((ok) => p.libre.push(() => void terminar(p).then(ok)));
       hechos.add(sid);
@@ -1195,7 +1191,7 @@ export async function cerrarTodos(forzar: boolean, topeMs: number = TOPE_SALIDA_
   clearTimeout(reloj);
   if (!pasoElTope) return [];
   const sin = vivos.filter(([sid]) => !hechos.has(sid));
-  for (const [, p] of sin) if (p.p.exitCode === null && p.p.signalCode === null) p.p.kill("SIGTERM");
+  for (const [, p] of sin) if (p.p.exitCode === null && p.p.signalCode === null) p.p.kill();
   const nombres = sin.map(([sid]) => nombreDe(sid) ?? sid.slice(0, 8));
   log.escribir("aviso", "salida", `${nombres.length} líder(es) no cerraron en ${topeMs / 1000} s y se cortaron: ${nombres.join(", ")}`);
   return nombres;
