@@ -173,7 +173,7 @@ export function colaDe(salida: string): string {
   return l.length > COLA_BYTES ? l.slice(-COLA_BYTES) : l;
 }
 
-/** `bash -c <tests>` (`cmd /c` en Windows) en `ruta`, con tope; nunca rechaza. `null`: lo cortaron. */
+/** `cmd /c <tests>` en `ruta`, con tope; nunca rechaza. `null`: lo cortaron. */
 function correrTests(ruta: string, cmd: string, c: Corriendo): Promise<{ rc: number; salida: string } | null> {
   return new Promise((ok) => {
     let salida = "";
