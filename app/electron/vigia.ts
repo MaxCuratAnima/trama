@@ -1,5 +1,5 @@
 // El vigía: se entera solo de lo que murió sin avisar. A un proceso que matan
-// (systemd-oomd, kill -9, la terminal que se cae) no le da tiempo a nada: `pa` no
+// (el administrador de tareas, taskkill /F, la consola que se cierra) no le da tiempo a nada: `pa` no
 // escribe el `fin` en `eventos.jsonl` y Claude Code no borra su sesión, así que
 // inotify no dice nada y la barra seguía mostrando "Trabajando" (2026-10-11: 13
 // workers, casi 3 h). De la muerte de un proceso ajeno no hay aviso del kernel que
