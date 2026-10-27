@@ -36,7 +36,7 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
 ## Pendiente (agregado el 26/10 a la noche)
 - `motor.sock` en Windows: `local.ts` hace `listen` sobre una ruta de archivo → EACCES (la ventana siempre corre "todo en uno", así que no afecta a la app; sí a `trama-motor.cmd`). Para usar el motor hay que pasarlo a una named pipe `\.pipe	rama-motor-<usuario>`.
 - Lecturas de `/proc` que en Windows caen en el catch y devuelven vacío: `cli/pa-esperar.ts` (sesión padre), `terminal.ts` (ppid), `bench.ts` (solo medición). `locales.ts`: cambio de modelos locales sigue sin soporte en Windows (rediseño: pedir OK a Gonza).
-- Esta rama no está integrada en `windows-0.1.2` ni instalada si el build falló: ver abajo. En `C:	rama-wtintegra` quedó un `pa-lanzar.ts` sin commitear de las 17:56 (trabajo de `--seguir`/`--cuenta` de otra sesión): no se tocó. El `D:	rama` (windows-0.1.2) sigue con su diff de agy sin commitear: ya está dentro de `arreglo/sesion`.
+- (Ya hecho) `arreglo/sesion` está integrada en `windows-0.1.2` (D:	rama, merge bd1b386) y el build instalado sale de ella. En `C:	rama-wtintegra` quedó un `pa-lanzar.ts` sin commitear de las 17:56 (trabajo de `--seguir`/`--cuenta` de otra sesión): no se tocó. El `D:	rama` (windows-0.1.2) sigue con su diff de agy sin commitear: ya está dentro de `arreglo/sesion`.
 
 ## Cómo verificar
 - Compilar desde WSL: en `app/`, `npx tsc --noEmit -p tsconfig.json` y `-p tsconfig.electron.json`.
@@ -46,3 +46,9 @@ Parche de Gonza hasta que salga la versión oficial para Windows. Base: Trama 0.
   - Probar las CLI con `node scripts\probar-windows.mjs` y `node scripts\probar-windows.mjs --sin-node`.
 - Instalar con `Trama-Setup-0.1.2.exe /S /D=%LOCALAPPDATA%\Programs\trama-nativo`.
 - Para probarla al lado de otra Trama: `TRAMA_PUERTO=8792` y `--remote-debugging-port=9333`. La captura sale de `C:\trama-win\cdp-captura.mjs` (PrintWindow sale negro).
+
+## Instalación y limpieza del 26/10 a la noche
+- Instalado `C:	rama-wtsesionappdist-installerTrama-Setup-0.1.2.exe` (mismo código que `windows-0.1.2`) sobre `%LOCALAPPDATA%Programs	rama-nativo` con un script suelto (`C:	rama-wininstalar-final.ps1`, log `instalar-final.log`): cierra Trama, instala en silencio y la reabre. Cortó la charla que corría adentro: es normal.
+- Borrado: `Trama Nativo.cmd` (escritorio y OneDrive), `Trama - como seguir.txt`, `D:DescargasTrama-Setup-0.1.0.exe`, `%LOCALAPPDATA%	rama-windows-updater` y 69 carpetas `trama-*` de Temp. Quedan: `Trama.lnk` del escritorio y del menú Inicio (apuntan a trama-nativo).
+- En `D:	rama` hay un stash `agy-y-handoff-sin-commitear-26oct` con el diff viejo (ya incluido en la rama; se puede `git stash drop`).
+- Sin borrar todavía (esperan a que Gonza confirme que la instalada anda): `C:	rama-winackup-*`, `C:	rama-winersion-vieja-wsl`, los worktrees de `C:	rama-wt*` y `C:UsersMaxCu	rama-w0` (pruebas de supuestos de Windows). Las ramas `arreglo/*`, `integra/arreglos` ya integradas se pueden borrar.
